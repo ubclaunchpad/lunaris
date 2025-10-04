@@ -1,22 +1,29 @@
 import { Stack, StackProps } from "aws-cdk-lib";
-import { Code, Function, Runtime } from "aws-cdk-lib/aws-lambda";
 import { Construct } from "constructs";
-import { LambdaRestApi } from "aws-cdk-lib/aws-apigateway";
+import { LambdaFunctions } from "./constructs/lambda-functions";
+import { StepFunctions } from "./constructs/step-functions";
+import { ApiGateway } from "./constructs/api-gateway";
+import { DynamoDbTables } from "./constructs/dynamodb-tables";
 
 export class CdkStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    // defining a AWS Lambda resource
-    const hello = new Function(this, "HelloHandler", {
-      runtime: Runtime.NODEJS_22_X,
-      code: Code.fromAsset("lambda"),
-      handler: "hello.handler",
+    // Create Lambda functions
+    const lambdaFunctions = new LambdaFunctions(this, "LambdaFunctions");
+
+    // Create DynamoDB tables
+    const dynamoDbTables = new DynamoDbTables(this, "DynamoDbTables");
+
+    // Create Step Functions
+    const stepFunctions = new StepFunctions(this, "StepFunctions", {
+      greetingHandler: lambdaFunctions.greetingHandler,
+      responseHandler: lambdaFunctions.responseHandler,
     });
 
-    // defining a API Gateway REST API resource backed by our "hello" function
-    const gateway = new LambdaRestApi(this, "Endpoint", {
-      handler: hello,
+    // Create API Gateway
+    const apiGateway = new ApiGateway(this, "ApiGateway", {
+      helloFunction: lambdaFunctions.helloFunction,
     });
   }
 }

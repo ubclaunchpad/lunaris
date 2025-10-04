@@ -1,0 +1,50 @@
+{
+  "Comment": "An example Step Function",
+  "StartAt": "GreetingHandler",
+  "States": {
+    "GreetingHandler": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${GreetingHandlerArn}",
+        "Payload.$": "$"
+      },
+      "ResultPath": "$.greetingResult",
+      "Next": "CheckResponse"
+    },
+    "CheckResponse": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.greetingResult.Payload.nextStep",
+          "StringEquals": "respond",
+          "Next": "ResponseHandler"
+        }
+      ],
+      "Default": "RudeResponse"
+    },
+    "ResponseHandler": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${ResponseHandlerArn}",
+        "Payload": {
+          "message.$": "$.greetingResult.Payload.message"
+        }
+      },
+      "ResultPath": "$.responseResult",
+      "Next": "Success"
+    },
+    "RudeResponse": {
+      "Type": "Pass",
+      "Result": {
+        "message": "Workflow ended - input was not 'hello'"
+      },
+      "ResultPath": "$.finalResult",
+      "Next": "Success"
+    },
+    "Success": {
+      "Type": "Succeed"
+    }
+  }
+}
