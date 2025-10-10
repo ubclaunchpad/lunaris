@@ -7,5 +7,6 @@ Summary of what you were trying to do here
 - Implemented {function z}
 
 ## How to test
+### Examples:
 - `npm install`
 - `npm run dev`
