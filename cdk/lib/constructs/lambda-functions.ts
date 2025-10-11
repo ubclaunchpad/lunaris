@@ -3,6 +3,7 @@ import { Code, Function, Runtime } from "aws-cdk-lib/aws-lambda";
 
 export class LambdaFunctions extends Construct {
   public readonly helloFunction: Function;
+  public readonly deployInstanceFunction: Function;
   public readonly greetingHandler: Function;
   public readonly responseHandler: Function;
 
@@ -15,6 +16,12 @@ export class LambdaFunctions extends Construct {
       code: Code.fromAsset("lambda"),
       handler: "hello.handler",
     });
+
+    this.deployInstanceFunction = new Function(this, "DeployInstanceHandler", {
+      runtime: Runtime.NODEJS_22_X,
+      code: Code.fromAsset("lambda"),
+      handler: "deployInstance.handler"
+    })
 
     // Step Function Lambda handlers
     this.greetingHandler = new Function(this, "GreetingHandler", {
