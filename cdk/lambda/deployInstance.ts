@@ -1,6 +1,7 @@
-// /cdk/lambda/deployInstance.ts
-export const handler = async (event: any) => {
-    const body = JSON.parse(event.body || {})
+import { APIGatewayProxyEvent } from 'aws-lambda';
+
+export const handler = async (event: APIGatewayProxyEvent) => {
+    const body = JSON.parse(event.body || '{}')
     const userId = body.userId
     return {
         statusCode: 200,
