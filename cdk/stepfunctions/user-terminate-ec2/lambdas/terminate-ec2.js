@@ -3,10 +3,10 @@
  * Input: { userId: string }
  * Output: { success: boolean, message?: string }
  * 
- * NOTE: This is a stub implementation. The actual TerminateEC2 functionality
- * hasn't been implemented yet, so this just returns a success response.
+ * TODO: Actual functionality to be implemented in a later ticket
+ *
  */
-exports.handler = async (event) => {
+export const handler = async (event, context) => {
     console.log('TerminateEC2 event:', JSON.stringify(event, null, 2));
     
     try {
@@ -16,7 +16,7 @@ exports.handler = async (event) => {
             return {
                 success: false,
                 error: 'userId is required'
-            };
+            }
         }
 
         // TODO: Implement actual EC2 termination logic here
@@ -26,7 +26,6 @@ exports.handler = async (event) => {
             success: true,
             message: 'EC2 termination completed (stub implementation)'
         };
-        
     } catch (error) {
         console.error('Error in TerminateEC2:', error);
         return {
@@ -34,4 +33,4 @@ exports.handler = async (event) => {
             error: error.message
         };
     }
-};
+}

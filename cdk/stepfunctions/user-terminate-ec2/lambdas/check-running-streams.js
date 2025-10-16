@@ -8,7 +8,7 @@ const dynamoClient = new DynamoDBClient({});
  * Input: { userId: string }
  * Output: { valid: boolean, sessionId?: string, instanceArn?: string }
  */
-exports.handler = async (event) => {
+export const handler = async (event, context) => {
     console.log('CheckRunningStreams event:', JSON.stringify(event, null, 2));
     
     try {
@@ -21,9 +21,8 @@ exports.handler = async (event) => {
             };
         }
 
-        // Query the RunningStreams table for the user
         const queryParams = {
-            TableName: process.env.RUNNING_STREAMS_TABLE_NAME,
+            TableName: 'RunningStreams', // TODO: update to the actual table name
             KeyConditionExpression: 'userId = :userId',
             FilterExpression: 'running = :running',
             ExpressionAttributeValues: marshall({
