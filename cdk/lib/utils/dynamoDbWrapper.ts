@@ -2,8 +2,11 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { 
     DynamoDBDocumentClient, 
     GetCommand,
+    PutCommand,
     type TranslateConfig,
     type GetCommandInput,
+    type PutCommandInput,
+    type GetCommandOutput,
 } from "@aws-sdk/lib-dynamodb";
 
 
@@ -17,15 +20,25 @@ class DynamoDBWrapper {
         this.tableName = tableName;
     }
 
-    async getItem(instanceArn: string, options?: Partial<GetCommandInput>) {
+    async getItem(key: GetCommandInput["Key"], options?: Partial<GetCommandInput>): Promise<GetCommandOutput["Item"] | null> {
         const inputConfig: GetCommandInput = {
             TableName: this.tableName,
-            Key: { instanceArn }, // assuming partition key is named instanceArn
+            Key: key,
             ...(options ?? {})
         }
 
         const response = await this.client.send(new GetCommand(inputConfig));
         return response?.Item ?? null;
+    }
+
+    async putItem(Item: PutCommandInput["Item"], options?: Partial<PutCommandInput>) {
+        const inputConfig: PutCommandInput = {
+            TableName: this.tableName,
+            Item,
+            ...(options ?? {})
+        }
+        
+        await this.client.send(new PutCommand(inputConfig));
     }
 }
 
