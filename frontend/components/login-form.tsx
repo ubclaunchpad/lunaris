@@ -1,4 +1,8 @@
+"use client"
+
 import { GalleryVerticalEnd } from "lucide-react"
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -15,14 +19,34 @@ export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const router = useRouter()
+
+  // Hardcoded login credentials
+  const validCredentials = {
+    email: "admin@lunaris.com",
+    password: "admin123"
+  }
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    console.log("Submitted Login Info")
+    e.preventDefault()
+    setError("")
+
+    // Check if credentials match
+    if (email === validCredentials.email && password === validCredentials.password) {
+      console.log("Login successful!")
+      // Redirect to browse page on successful login
+      router.push("/browse")
+    } else {
+      setError("Invalid email or password")
+    }
   }
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <form>
+      <form onSubmit={handleSubmit}>
         <FieldGroup>
           <div className="flex flex-col items-center gap-2 text-center">
             <a
@@ -39,15 +63,37 @@ export function LoginForm({
               Don&apos;t have an account? <a href="#">Sign up</a>
             </FieldDescription>
           </div>
+          
+          {error && (
+            <div className="text-sm text-red-600 bg-red-50 p-3 rounded-md">
+              {error}
+            </div>
+          )}
+          
           <Field>
             <FieldLabel htmlFor="email">Email</FieldLabel>
             <Input
               id="email"
               type="email"
-              placeholder="m@example.com"
+              placeholder="admin@lunaris.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               required
             />
           </Field>
+          
+          <Field>
+            <FieldLabel htmlFor="password">Password</FieldLabel>
+            <Input
+              id="password"
+              type="password"
+              placeholder="admin123"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </Field>
+          
           <Field>
             <Button type="submit">Login</Button>
           </Field>
