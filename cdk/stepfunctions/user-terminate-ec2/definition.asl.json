@@ -1,0 +1,67 @@
+{
+  "Comment": "UserTerminateEC2 Step Function",
+  "StartAt": "CheckRunningStreams",
+  "States": {
+    "CheckRunningStreams": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${CheckRunningStreamsArn}",
+        "Payload.$": "$"
+      },
+      "ResultPath": "$.checkRunningStreamsResult",
+      "Next": "CheckIfValidStream"
+    },
+    "CheckIfValidStream": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.checkRunningStreamsResult.Payload.valid",
+          "BooleanEquals": true,
+          "Next": "TerminateEC2"
+        }
+      ],
+      "Default": "InvalidStreamError"
+    },
+    "TerminateEC2": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${TerminateEC2Arn}",
+        "Payload": {
+          "userId.$": "$.userId"
+        }
+      },
+      "ResultPath": "$.terminateResult",
+      "Next": "UpdateRunningStreams"  
+    },
+    "UpdateRunningStreams": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${UpdateRunningStreamsArn}",
+        "Payload": {
+          "userId.$": "$.userId",
+          "sessionId.$": "$.checkRunningStreamsResult.Payload.sessionId",
+          "instanceArn.$": "$.checkRunningStreamsResult.Payload.instanceArn",
+          "running": false
+        }
+      },
+      "ResultPath": "$.updateResult",
+      "Next": "Success"
+    },
+    "InvalidStreamError": {
+      "Type": "Fail",
+      "Cause": "No valid running stream found for user",
+      "Error": "InvalidStreamError"
+    },
+    "TerminationFailedError": {
+      "Type": "Fail",
+      "Cause": "Failed to terminate EC2 instance",
+      "Error": "TerminationFailedError"
+    },
+    "Success": {
+      "Type": "Succeed"
+    }
+  }
+}

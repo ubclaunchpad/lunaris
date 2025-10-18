@@ -19,6 +19,9 @@ export class CdkStack extends Stack {
     const stepFunctions = new StepFunctions(this, "StepFunctions", {
       greetingHandler: lambdaFunctions.greetingHandler,
       responseHandler: lambdaFunctions.responseHandler,
+      checkRunningStreams: lambdaFunctions.checkRunningStreams,
+      terminateEC2: lambdaFunctions.terminateEC2,
+      updateRunningStreams: lambdaFunctions.updateRunningStreams,
     });
 
     // Create API Gateway
