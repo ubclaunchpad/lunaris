@@ -1,0 +1,27 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'Lunaris API for local testing'
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: nodejs22.x
+
+Resources:
+  # Deploy Instance Function
+  DeployInstanceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: cdk/lambda/
+      Handler: deployInstance.handler
+      Events:
+        DeployInstanceApi:
+          Type: Api
+          Properties:
+            Path: /deployInstance
+            Method: post
+
+Outputs:
+  DeployInstanceApi:
+    Description: "API Gateway endpoint URL for Deploy Instance function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/deployInstance"
