@@ -7,6 +7,7 @@ export class LambdaFunctions extends Construct {
   public readonly deployInstanceFunction: Function;
   public readonly greetingHandler: Function;
   public readonly responseHandler: Function;
+  public readonly streamingLinkFunction: Function;
 
   constructor(scope: Construct, id: string) {
     super(scope, id);
@@ -19,7 +20,7 @@ export class LambdaFunctions extends Construct {
     });
 
     this.deployInstanceFunction = new NodejsFunction(this, "DeployInstanceHandler", {
-      entry: "lamdbda/deployInstance.ts",
+      entry: "lambda/deployInstance.ts",
       runtime: Runtime.NODEJS_22_X
     })
 
@@ -34,6 +35,13 @@ export class LambdaFunctions extends Construct {
       runtime: Runtime.NODEJS_22_X,
       code: Code.fromAsset("stepfunctions/example-workflow/lambdas"),
       handler: "response-handler.handler",
+    });
+
+    // Streaming Link Lambda
+    this.streamingLinkFunction = new Function(this, "StreamingLinkFunction", {
+      runtime: Runtime.NODEJS_22_X,
+      code: Code.fromAsset("lambda"),
+      handler: "streamingLink.handler", 
     });
   }
 }
