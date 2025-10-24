@@ -25,6 +25,7 @@ export class CdkStack extends Stack {
     const apiGateway = new ApiGateway(this, "ApiGateway", {
       helloFunction: lambdaFunctions.helloFunction,
       deployInstanceFunction: lambdaFunctions.deployInstanceFunction,
+      terminateInstanceFunction: lambdaFunctions.terminateInstanceFunction,
       streamingLinkFunction: lambdaFunctions.streamingLinkFunction
     });
   }
