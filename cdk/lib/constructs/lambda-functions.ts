@@ -11,7 +11,7 @@ export class LambdaFunctions extends Construct {
 
   // lambda functions for UserDeployEC2 step function
   public readonly checkRunningStreams: Function;
-  public readonly deployEc2: Function;
+  public readonly deployEC2: Function;
   public readonly updateRunningStreams: Function;
 
   constructor(scope: Construct, id: string) {
@@ -24,10 +24,14 @@ export class LambdaFunctions extends Construct {
       handler: "hello.handler",
     });
 
-    this.deployInstanceFunction = new NodejsFunction(this, "DeployInstanceHandler", {
-      entry: "lambda/deployInstance.ts",
-      runtime: Runtime.NODEJS_22_X
-    })
+    this.deployInstanceFunction = new NodejsFunction(
+      this,
+      "DeployInstanceHandler",
+      {
+        entry: "lambda/deployInstance.ts",
+        runtime: Runtime.NODEJS_22_X,
+      }
+    );
 
     // Step Function Lambda handlers
     this.greetingHandler = new Function(this, "GreetingHandler", {
@@ -46,7 +50,7 @@ export class LambdaFunctions extends Construct {
     this.streamingLinkFunction = new Function(this, "StreamingLinkFunction", {
       runtime: Runtime.NODEJS_22_X,
       code: Code.fromAsset("lambda"),
-      handler: "streamingLink.handler", 
+      handler: "streamingLink.handler",
     });
 
     // UserDeployEC2 step function lambdas
@@ -58,7 +62,7 @@ export class LambdaFunctions extends Construct {
       },
     });
 
-    this.deployEc2 = new NodejsFunction(this, "DeployEc2", {
+    this.deployEC2 = new NodejsFunction(this, "DeployEC2", {
       runtime: Runtime.NODEJS_22_X,
       entry: "stepfunctions/user-deploy-ec2/lambdas/deploy-ec2.ts",
     });
@@ -77,4 +81,3 @@ export class LambdaFunctions extends Construct {
     );
   }
 }
-
