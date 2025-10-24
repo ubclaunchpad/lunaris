@@ -1,0 +1,44 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: 'Lunaris API for local testing'
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: nodejs22.x
+
+Resources:
+  # Deploy Instance Function
+  DeployInstanceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/
+      Handler: deployInstance.handler
+      Events:
+        DeployInstanceApi:
+          Type: Api
+          Properties:
+            Path: /deployInstance
+            Method: post
+
+  # New Streaming Link Function
+  StreamingLinkFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda/
+      Handler: streamingLink.handler
+      Events:
+        StreamingLinkApi:
+          Type: Api
+          Properties:
+            Path: /streamingLink
+            Method: get
+
+Outputs:
+  DeployInstanceApiEndpoint:
+    Description: "API Gateway endpoint URL for Deploy Instance function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/deployInstance"
+  
+  StreamingLinkApiEndpoint:
+    Description: "API Gateway endpoint URL for Streaming Link function"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/streamingLink"
