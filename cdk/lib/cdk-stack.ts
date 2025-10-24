@@ -19,13 +19,16 @@ export class CdkStack extends Stack {
     const stepFunctions = new StepFunctions(this, "StepFunctions", {
       greetingHandler: lambdaFunctions.greetingHandler,
       responseHandler: lambdaFunctions.responseHandler,
+      checkRunningStreams: lambdaFunctions.checkRunningStreams,
+      deployEC2: lambdaFunctions.deployEC2,
+      updateRunningStreams: lambdaFunctions.updateRunningStreams,
     });
 
     // Create API Gateway
     const apiGateway = new ApiGateway(this, "ApiGateway", {
       helloFunction: lambdaFunctions.helloFunction,
       deployInstanceFunction: lambdaFunctions.deployInstanceFunction,
-      streamingLinkFunction: lambdaFunctions.streamingLinkFunction
+      streamingLinkFunction: lambdaFunctions.streamingLinkFunction,
     });
   }
 }
