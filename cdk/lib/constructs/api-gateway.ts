@@ -4,8 +4,9 @@ import { Function } from "aws-cdk-lib/aws-lambda";
 
 export interface ApiGatewayProps {
   helloFunction: Function;
-  deployInstanceFunction: Function
-  streamingLinkFunction:Function;
+  deployInstanceFunction: Function;
+  terminateInstanceFunction: Function;
+  streamingLinkFunction: Function;
 }
 
 export class ApiGateway extends Construct {
@@ -24,6 +25,10 @@ export class ApiGateway extends Construct {
     const deployInstanceResource = this.restApi.root.addResource("deployInstance")
     deployInstanceResource.addMethod("POST", deployInstanceIntegration)
 
+    // Define the /terminateInstance endpoint and associate it with the terminateInstanceFunction
+    const terminateInstanceIntegration = new LambdaIntegration(props.terminateInstanceFunction);
+    const terminateInstanceResource = this.restApi.root.addResource("terminateInstance")
+    terminateInstanceResource.addMethod("POST", terminateInstanceIntegration)
 
     // Define the /streamingLink endpoint and associate it with the streamingLinkFunction
     const streamingLinkIntegration = new LambdaIntegration(props.streamingLinkFunction);
