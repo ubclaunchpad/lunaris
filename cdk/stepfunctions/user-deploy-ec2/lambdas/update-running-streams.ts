@@ -2,10 +2,12 @@ import DynamoDBWrapper from "../../../lib/utils/dynamoDbWrapper";
 
 export const handler = async (
   event: UpdateRunningStreamsEvent
-): Promise<boolean> => {
+): Promise<UpdateRunningStreamsResult> => {
   if (!process.env.RUNNING_STREAMS_TABLE_NAME) {
-    console.error("RUNNING_STREAMS_TABLE_NAME environment variable is not set");
-    return false;
+    return {
+      success: false,
+      error: "RUNNING_STREAMS_TABLE_NAME environment variable is not set",
+    };
   }
 
   const db = new DynamoDBWrapper(process.env.RUNNING_STREAMS_TABLE_NAME);
@@ -20,16 +22,13 @@ export const handler = async (
     // so figure out how the event maps to these fields
     await db.putItem(payload);
   } catch (e) {
-    if (e instanceof Error) {
-      console.error(
-        "Error adding/updating item in RunningStreams Table: ",
-        e.message
-      );
-    }
-    return false;
+    return {
+      success: false,
+      error: "Error adding/updating item in RunningStreams Table",
+    };
   }
 
-  return true;
+  return { success: true };
 };
 
 type UpdateRunningStreamsEvent = {
@@ -37,4 +36,9 @@ type UpdateRunningStreamsEvent = {
   sessionId: string;
   instanceArn: string;
   running: boolean;
+};
+
+type UpdateRunningStreamsResult = {
+  success: boolean;
+  error?: string;
 };

@@ -10,7 +10,7 @@ export class LambdaFunctions extends Construct {
   public readonly streamingLinkFunction: Function;
 
   // lambda functions for UserDeployEC2 step function
-  public readonly checkUserExists: Function;
+  public readonly checkRunningStreams: Function;
   public readonly deployEc2: Function;
   public readonly updateRunningStreams: Function;
 
@@ -50,9 +50,9 @@ export class LambdaFunctions extends Construct {
     });
 
     // UserDeployEC2 step function lambdas
-    this.checkUserExists = new NodejsFunction(this, "CheckUserExists", {
+    this.checkRunningStreams = new NodejsFunction(this, "CheckRunningStreams", {
       runtime: Runtime.NODEJS_22_X,
-      entry: "stepfunctions/user-deploy-ec2/lambdas/check-user-exists.ts",
+      entry: "stepfunctions/user-deploy-ec2/lambdas/check-running-streams.ts",
       environment: {
         RUNNING_STREAMS_TABLE_NAME: "RunningStreams",
       },
