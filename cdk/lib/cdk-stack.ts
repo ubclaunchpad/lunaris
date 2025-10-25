@@ -25,7 +25,9 @@ export class CdkStack extends Stack {
         'ec2:CreateTags',
         'ec2:DescribeInstances'
       ],
-      resources: ['*']
+      resources: [
+        `arn:aws:ec2:${this.region}:${this.account}:subnet/subnet-12345678`
+      ]
     }));
 
     // Grant DynamoDB write permissions to deployInstance Lambda
