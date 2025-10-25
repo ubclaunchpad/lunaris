@@ -11,9 +11,9 @@ export class LambdaFunctions extends Construct {
   public readonly streamingLinkFunction: Function;
 
   // lambda functions for UserDeployEC2 step function
-  public readonly checkRunningStreams: Function;
-  public readonly deployEC2: Function;
-  public readonly updateRunningStreams: Function;
+  public readonly checkRunningStreamsFunction: Function;
+  public readonly deployEC2Function: Function;
+  public readonly updateRunningStreamsFunction: Function;
 
   constructor(scope: Construct, id: string) {
     super(scope, id);
@@ -48,11 +48,15 @@ export class LambdaFunctions extends Construct {
     });
 
     // Terminate Instance Lambda
-    this.terminateInstanceFunction = new Function(this, "TerminateInstanceHandler", {
-      runtime: Runtime.NODEJS_22_X,
-      code: Code.fromAsset("lambda"),
-      handler: "terminateInstance.handler",
-    });
+    this.terminateInstanceFunction = new Function(
+      this,
+      "TerminateInstanceHandler",
+      {
+        runtime: Runtime.NODEJS_22_X,
+        code: Code.fromAsset("lambda"),
+        handler: "terminateInstance.handler",
+      }
+    );
 
     // Streaming Link Lambda
     this.streamingLinkFunction = new Function(this, "StreamingLinkFunction", {
@@ -62,26 +66,29 @@ export class LambdaFunctions extends Construct {
     });
 
     // UserDeployEC2 step function lambdas
-    this.checkRunningStreams = new NodejsFunction(this, "CheckRunningStreams", {
-      runtime: Runtime.NODEJS_22_X,
-      entry: "stepfunctions/user-deploy-ec2/lambdas/check-running-streams.ts",
-      environment: {
-        RUNNING_STREAMS_TABLE_NAME: "RunningStreams",
-      },
-    });
-
-    this.deployEC2 = new NodejsFunction(this, "DeployEC2", {
-      runtime: Runtime.NODEJS_22_X,
-      entry: "stepfunctions/user-deploy-ec2/lambdas/deploy-ec2.ts",
-    });
-
-    this.updateRunningStreams = new NodejsFunction(
+    this.checkRunningStreamsFunction = new NodejsFunction(
       this,
-      "UpdateRunningStreams",
+      "CheckRunningStreamsHandler",
       {
         runtime: Runtime.NODEJS_22_X,
-        entry:
-          "stepfunctions/user-deploy-ec2/lambdas/update-running-streams.ts",
+        entry: "lambda/check-running-streams.ts",
+        environment: {
+          RUNNING_STREAMS_TABLE_NAME: "RunningStreams",
+        },
+      }
+    );
+
+    this.deployEC2Function = new NodejsFunction(this, "DeployEC2Handler", {
+      runtime: Runtime.NODEJS_22_X,
+      entry: "lambda/deploy-ec2.ts",
+    });
+
+    this.updateRunningStreamsFunction = new NodejsFunction(
+      this,
+      "UpdateRunningStreamsHandler",
+      {
+        runtime: Runtime.NODEJS_22_X,
+        entry: "lambda/update-running-streams.ts",
         environment: {
           RUNNING_STREAMS_TABLE_NAME: "RunningStreams",
         },

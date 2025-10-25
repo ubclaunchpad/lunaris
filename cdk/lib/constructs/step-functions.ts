@@ -7,9 +7,9 @@ import * as path from "path";
 export interface StepFunctionsProps {
   greetingHandler: Function;
   responseHandler: Function;
-  checkRunningStreams: Function;
-  deployEC2: Function;
-  updateRunningStreams: Function;
+  checkRunningStreamsFunction: Function;
+  deployEC2Function: Function;
+  updateRunningStreamsFunction: Function;
 }
 
 export class StepFunctions extends Construct {
@@ -48,16 +48,16 @@ export class StepFunctions extends Construct {
     const userDeployDefinitionTemplate = fs.readFileSync(userDeployDefinitionPath, "utf8");
 
     const userDeployDefinition = userDeployDefinitionTemplate
-      .replace("${CheckRunningStreamsArn}", props.checkRunningStreams.functionArn)
-      .replace("${DeployEC2Arn}", props.deployEC2.functionArn)
-      .replace("${UpdateRunningStreamsArn}", props.updateRunningStreams.functionArn);
+      .replace("${CheckRunningStreamsArn}", props.checkRunningStreamsFunction.functionArn)
+      .replace("${DeployEC2Arn}", props.deployEC2Function.functionArn)
+      .replace("${UpdateRunningStreamsArn}", props.updateRunningStreamsFunction.functionArn);
 
     this.userDeployEC2Workflow = new StateMachine(this, "UserDeployEC2Workflow", {
       definitionBody: DefinitionBody.fromString(userDeployDefinition),
     });
 
-    props.checkRunningStreams.grantInvoke(this.userDeployEC2Workflow);
-    props.deployEC2.grantInvoke(this.userDeployEC2Workflow);
-    props.updateRunningStreams.grantInvoke(this.userDeployEC2Workflow);
+    props.checkRunningStreamsFunction.grantInvoke(this.userDeployEC2Workflow);
+    props.deployEC2Function.grantInvoke(this.userDeployEC2Workflow);
+    props.updateRunningStreamsFunction.grantInvoke(this.userDeployEC2Workflow);
   }
 }

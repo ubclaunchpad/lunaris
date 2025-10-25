@@ -19,9 +19,9 @@ export class CdkStack extends Stack {
     const stepFunctions = new StepFunctions(this, "StepFunctions", {
       greetingHandler: lambdaFunctions.greetingHandler,
       responseHandler: lambdaFunctions.responseHandler,
-      checkRunningStreams: lambdaFunctions.checkRunningStreams,
-      deployEC2: lambdaFunctions.deployEC2,
-      updateRunningStreams: lambdaFunctions.updateRunningStreams,
+      checkRunningStreamsFunction: lambdaFunctions.checkRunningStreamsFunction,
+      deployEC2Function: lambdaFunctions.deployEC2Function,
+      updateRunningStreamsFunction: lambdaFunctions.updateRunningStreamsFunction,
     });
 
     // Create API Gateway
@@ -29,7 +29,7 @@ export class CdkStack extends Stack {
       helloFunction: lambdaFunctions.helloFunction,
       deployInstanceFunction: lambdaFunctions.deployInstanceFunction,
       terminateInstanceFunction: lambdaFunctions.terminateInstanceFunction,
-      streamingLinkFunction: lambdaFunctions.streamingLinkFunction
+      streamingLinkFunction: lambdaFunctions.streamingLinkFunction,
     });
   }
 }
