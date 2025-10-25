@@ -1,12 +1,16 @@
 {
-  "name": "frontend",
+  "name": "@lunaris/frontend",
   "version": "0.1.0",
   "private": true,
+  "description": "Next.js frontend application for the Lunaris cloud gaming platform",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "lint:fix": "eslint --fix",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf .next out"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.7",
