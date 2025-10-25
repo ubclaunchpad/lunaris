@@ -41,7 +41,9 @@ export class DynamoDbTables extends Construct {
     setupRunningInstances(): void {
         this.runningInstancesTable = new Table(this, "RunningInstances", {
             partitionKey: {name: "instanceId", type: AttributeType.STRING},
-            pointInTimeRecovery: true,
+            pointInTimeRecoverySpecification: {
+                pointInTimeRecoveryEnabled: true
+            },
             billingMode: BillingMode.PAY_PER_REQUEST,
             // TODO: add environment based removal policy config
             removalPolicy: RemovalPolicy.DESTROY, // Use RETAIN for production

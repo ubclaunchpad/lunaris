@@ -44,7 +44,6 @@ export class CdkStack extends Stack {
 
     // Create API Gateway
     const apiGateway = new ApiGateway(this, "ApiGateway", {
-      helloFunction: lambdaFunctions.helloFunction,
       deployInstanceFunction: lambdaFunctions.deployInstanceFunction,
       terminateInstanceFunction: lambdaFunctions.terminateInstanceFunction,
       streamingLinkFunction: lambdaFunctions.streamingLinkFunction,

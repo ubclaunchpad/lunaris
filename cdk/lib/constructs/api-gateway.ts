@@ -3,7 +3,6 @@ import { LambdaRestApi, LambdaIntegration  } from "aws-cdk-lib/aws-apigateway";
 import { Function } from "aws-cdk-lib/aws-lambda";
 
 export interface ApiGatewayProps {
-  helloFunction: Function;
   deployInstanceFunction: Function;
   terminateInstanceFunction: Function;
   streamingLinkFunction: Function;
@@ -15,9 +14,9 @@ export class ApiGateway extends Construct {
   constructor(scope: Construct, id: string, props: ApiGatewayProps) {
     super(scope, id);
 
-    // API Gateway REST API resource backed by the hello function
+    // API Gateway REST API resource
     this.restApi = new LambdaRestApi(this, "Endpoint", {
-      handler: props.helloFunction,
+      handler: props.deployInstanceFunction,
       proxy: false
     });
 

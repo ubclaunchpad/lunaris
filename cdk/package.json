@@ -6,13 +6,15 @@
     "cdk": "bin/cdk.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "npm run build:lambda && tsc",
+    "build:lambda": "cd ../lambda && npm run build",
+    "build:cdk": "tsc",
     "watch": "tsc -w",
     "test": "jest",
     "cdk": "cdk",
-    "synth": "cdk synth",
-    "deploy": "cdk deploy",
-    "diff": "cdk diff",
+    "synth": "npm run build && cdk synth",
+    "deploy": "npm run build && cdk deploy",
+    "diff": "npm run build && cdk diff",
     "destroy": "cdk destroy"
   },
   "devDependencies": {
