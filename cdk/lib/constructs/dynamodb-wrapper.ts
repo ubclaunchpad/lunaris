@@ -1,12 +1,7 @@
 import { Construct } from "constructs";
 import { Table } from "aws-cdk-lib/aws-dynamodb";
 import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
-import {
-  indexKey,
-  indexSortKey,
-  indexName,
-  indexType,
-} from "aws-cdk-lib/aws-dynamodb";
+import { DynamoDbWrapperProps } from "./dynamodb-table-props";
 
 export abstract class DynamoDbWrapper extends Construct {
   protected table: Table;
@@ -31,7 +26,7 @@ export abstract class DynamoDbWrapper extends Construct {
   abstract deleteItem(key: string): Promise<any>;
 }
 
-export class RunningStreamsTable extends DynamoDbWrapper {
+export class RunningStreamWrapper extends DynamoDbWrapper {
   constructor(scope: Construct, id: string) {
     super(scope, id, {
       tableName: "RunningStreams",
@@ -39,7 +34,7 @@ export class RunningStreamsTable extends DynamoDbWrapper {
     });
   }
   createItem(item: any): Promise<void> {
-    return await this.table.putItem({
+    return this.table.putItem({
       Item: item,
     });
   }
@@ -47,7 +42,7 @@ export class RunningStreamsTable extends DynamoDbWrapper {
     return this.table.getItem(key);
   }
   updateItem(key: string, item: any): Promise<void> {
-    return await this.table.updateItem({
+    return this.table.updateItem({
       Key: {
         [this.partitionKey]: key,
       },
@@ -66,7 +61,7 @@ export class RunningStreamsTable extends DynamoDbWrapper {
   }
 }
 
-export class RunningInstanceTable extends DynamoDbWrapper {
+export class RunningInstanceWrapper extends DynamoDbWrapper {
   constructor(scope: Construct, id: string) {
     super(scope, id, {
       tableName: "RunningInstances",
@@ -74,7 +69,7 @@ export class RunningInstanceTable extends DynamoDbWrapper {
     });
   }
   createItem(item: any): Promise<void> {
-    return await this.table.putItem({
+    return this.table.putItem({
       Item: item,
     });
   }
@@ -82,7 +77,7 @@ export class RunningInstanceTable extends DynamoDbWrapper {
     return this.table.getItem(key);
   }
   updateItem(key: string, item: any): Promise<void> {
-    return await this.table.updateItem({
+    return this.table.updateItem({
       Key: {
         [this.partitionKey]: key,
       },
@@ -93,7 +88,7 @@ export class RunningInstanceTable extends DynamoDbWrapper {
     });
   }
   deleteItem(key: string): Promise<any> {
-    return await this.table.deleteItem({
+    return this.table.deleteItem({
       Key: {
         [this.partitionKey]: key,
       },
@@ -101,22 +96,16 @@ export class RunningInstanceTable extends DynamoDbWrapper {
   }
 }
 
-export class DynamoDbWrapperFactory extends Construct {
-  constructor(scope: Construct, id: string) {
-    super(scope, id);
-  }
-  // Single factory function (not a class)
-  createDynamoDbWrapper(
-    tableType: "streams" | "instances",
-    table: Table
-  ): DynamoDbWrapper {
-    switch (tableType) {
-      case "streams":
-        return new RunningStreamsTable(this, table);
-      case "instances":
-        return new RunningInstanceTable(this, table);
-      default:
-        throw new Error(`Unknown table type: ${tableType}`);
-    }
+export function createDynamoDbWrapper(
+  tableType: "streams" | "instances",
+  table: Table
+): DynamoDbWrapper {
+  switch (tableType) {
+    case "streams":
+      return new RunningStreamWrapper(this, table);
+    case "instances":
+      return new RunningInstanceWrapper(this, table);
+    default:
+      throw new Error(`Unknown table type: ${tableType}`);
   }
 }
