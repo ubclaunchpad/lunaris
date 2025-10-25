@@ -1,12 +1,13 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "CommonJS",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "lib": [
       "es2022"
     ],
+    "outDir": "./dist",
+    "rootDir": "./src",
     "declaration": true,
     "strict": true,
     "noImplicitAny": true,
@@ -17,8 +18,7 @@
     "noUnusedParameters": false,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": false,
-    "inlineSourceMap": true,
-    "inlineSources": true,
+    "sourceMap": true,
     "experimentalDecorators": true,
     "strictPropertyInitialization": false,
     "skipLibCheck": true,
@@ -29,10 +29,12 @@
       "./node_modules/@types"
     ]
   },
+  "include": [
+    "src/**/*"
+  ],
   "exclude": [
     "node_modules",
-    "cdk.out",
-    "lambda",
+    "dist",
     "test"
   ]
 }

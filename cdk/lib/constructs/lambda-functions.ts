@@ -1,5 +1,6 @@
 import { Construct } from "constructs";
 import { Code, Function, Runtime } from "aws-cdk-lib/aws-lambda";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { Duration } from "aws-cdk-lib";
 import { Table } from "aws-cdk-lib/aws-dynamodb";
 
