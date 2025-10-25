@@ -1,110 +1,233 @@
-import { Construct } from "constructs";
 import { Table } from "aws-cdk-lib/aws-dynamodb";
-import { AttributeType } from "aws-cdk-lib/aws-dynamodb";
-import { DynamoDbWrapperProps } from "./dynamodb-table-props";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {
+  PutItemCommand,
+  GetItemCommand,
+  UpdateItemCommand,
+  DeleteItemCommand,
+  QueryCommand,
+} from "@aws-sdk/client-dynamodb";
+import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 
-export abstract class DynamoDbWrapper extends Construct {
-  protected table: Table;
+// Data model interfaces
+export interface RunningStream {
+  instanceArn: string;
+  userId: string;
+  streamingId: string;
+  streamingLink: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RunningInstance {
+  instanceId: string;
+  instanceArn: string;
+  ebsVolumes: string[];
+  creationTime: string;
+  status: string;
+  region: string;
+  instanceType: string;
+  lastModifiedTime: string;
+}
+
+// Abstract base wrapper class
+export abstract class DynamoDbWrapper {
+  protected client: DynamoDBClient;
+  protected tableName: string;
   protected partitionKey: string;
-  protected sortKey?: string;
-  protected indexKey?: string;
-  protected indexSortKey?: string;
-  protected indexName?: string;
-  protected indexType?: string;
-  constructor(scope: Construct, id: string, props: DynamoDbWrapperProps) {
-    super(scope, id);
-    this.table = new Table(this, props.tableName, {
-      partitionKey: { name: props.partitionKey, type: AttributeType.STRING },
-      sortKey: { name: props.sortKey, type: AttributeType.STRING },
-    });
+
+  constructor(table: Table) {
+    this.client = new DynamoDBClient({});
+    this.tableName = table.tableName;
+    this.partitionKey = table.partitionKey.attributeName;
   }
 
-  //crud operations
+  // Common CRUD operations
   abstract createItem(item: any): Promise<any>;
   abstract getItem(key: string): Promise<any>;
-  abstract updateItem(key: string, item: any): Promise<void>;
+  abstract updateItem(key: string, updates: any): Promise<any>;
   abstract deleteItem(key: string): Promise<any>;
+  abstract queryItems(params: any): Promise<any>;
 }
 
+// Running Streams Wrapper
 export class RunningStreamWrapper extends DynamoDbWrapper {
-  constructor(scope: Construct, id: string) {
-    super(scope, id, {
-      tableName: "RunningStreams",
-      partitionKey: "instanceArn",
-    });
+  constructor(table: Table) {
+    super(table);
   }
-  createItem(item: any): Promise<void> {
-    return this.table.putItem({
-      Item: item,
+
+  async createItem(stream: RunningStream): Promise<RunningStream> {
+    const command = new PutItemCommand({
+      TableName: this.tableName,
+      Item: marshall(stream),
     });
+
+    await this.client.send(command);
+    return stream;
   }
-  getItem(key: string): Promise<any> {
-    return this.table.getItem(key);
-  }
-  updateItem(key: string, item: any): Promise<void> {
-    return this.table.updateItem({
-      Key: {
-        [this.partitionKey]: key,
-      },
-      UpdateExpression: "set #item = :item",
-      ExpressionAttributeNames: {
-        "#item": item,
-      },
+
+  async getItem(instanceArn: string): Promise<RunningStream | null> {
+    const command = new GetItemCommand({
+      TableName: this.tableName,
+      Key: marshall({ [this.partitionKey]: instanceArn }),
     });
+
+    const result = await this.client.send(command);
+    return result.Item ? (unmarshall(result.Item) as RunningStream) : null;
   }
-  deleteItem(key: string): Promise<any> {
-    return await this.table.deleteItem({
-      Key: {
-        [this.partitionKey]: key,
-      },
+
+  async updateItem(
+    instanceArn: string,
+    updates: Partial<RunningStream>
+  ): Promise<RunningStream> {
+    const updateExpression = Object.keys(updates)
+      .map((key, index) => `#${key} = :val${index}`)
+      .join(", ");
+
+    const expressionAttributeNames = Object.keys(updates).reduce(
+      (acc, key) => ({ ...acc, [`#${key}`]: key }),
+      {}
+    );
+
+    const expressionAttributeValues = Object.values(updates).reduce(
+      (acc, value, index) => ({ ...acc, [`:val${index}`]: value }),
+      {}
+    );
+
+    const command = new UpdateItemCommand({
+      TableName: this.tableName,
+      Key: marshall({ [this.partitionKey]: instanceArn }),
+      UpdateExpression: `SET ${updateExpression}`,
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: marshall(expressionAttributeValues),
+      ReturnValues: "ALL_NEW",
     });
+
+    const result = await this.client.send(command);
+    return unmarshall(result.Attributes!) as RunningStream;
+  }
+
+  async deleteItem(instanceArn: string): Promise<boolean> {
+    const command = new DeleteItemCommand({
+      TableName: this.tableName,
+      Key: marshall({ [this.partitionKey]: instanceArn }),
+    });
+
+    await this.client.send(command);
+    return true;
+  }
+
+  async queryItems(params: any): Promise<RunningStream[]> {
+    const command = new QueryCommand({
+      TableName: this.tableName,
+      ...params,
+    });
+
+    const result = await this.client.send(command);
+    return result.Items?.map((item) => unmarshall(item) as RunningStream) || [];
   }
 }
 
+// Running Instances Wrapper
 export class RunningInstanceWrapper extends DynamoDbWrapper {
-  constructor(scope: Construct, id: string) {
-    super(scope, id, {
-      tableName: "RunningInstances",
-      partitionKey: "instanceId",
+  constructor(table: Table) {
+    super(table);
+  }
+
+  async createItem(instance: RunningInstance): Promise<RunningInstance> {
+    const command = new PutItemCommand({
+      TableName: this.tableName,
+      Item: marshall(instance),
     });
+
+    await this.client.send(command);
+    return instance;
   }
-  createItem(item: any): Promise<void> {
-    return this.table.putItem({
-      Item: item,
+
+  async getItem(instanceId: string): Promise<RunningInstance | null> {
+    const command = new GetItemCommand({
+      TableName: this.tableName,
+      Key: marshall({ [this.partitionKey]: instanceId }),
     });
+
+    const result = await this.client.send(command);
+    return result.Item ? (unmarshall(result.Item) as RunningInstance) : null;
   }
-  getItem(key: string): Promise<any> {
-    return this.table.getItem(key);
-  }
-  updateItem(key: string, item: any): Promise<void> {
-    return this.table.updateItem({
-      Key: {
-        [this.partitionKey]: key,
-      },
-      UpdateExpression: "set #item = :item",
-      ExpressionAttributeNames: {
-        "#item": item,
-      },
+
+  async updateItem(
+    instanceId: string,
+    updates: Partial<RunningInstance>
+  ): Promise<RunningInstance> {
+    const updateExpression = Object.keys(updates)
+      .map((key, index) => `#${key} = :val${index}`)
+      .join(", ");
+
+    const expressionAttributeNames = Object.keys(updates).reduce(
+      (acc, key) => ({ ...acc, [`#${key}`]: key }),
+      {}
+    );
+
+    const expressionAttributeValues = Object.values(updates).reduce(
+      (acc, value, index) => ({ ...acc, [`:val${index}`]: value }),
+      {}
+    );
+
+    const command = new UpdateItemCommand({
+      TableName: this.tableName,
+      Key: marshall({ [this.partitionKey]: instanceId }),
+      UpdateExpression: `SET ${updateExpression}`,
+      ExpressionAttributeNames: expressionAttributeNames,
+      ExpressionAttributeValues: marshall(expressionAttributeValues),
+      ReturnValues: "ALL_NEW",
     });
+
+    const result = await this.client.send(command);
+    return unmarshall(result.Attributes!) as RunningInstance;
   }
-  deleteItem(key: string): Promise<any> {
-    return this.table.deleteItem({
-      Key: {
-        [this.partitionKey]: key,
-      },
+
+  async deleteItem(instanceId: string): Promise<boolean> {
+    const command = new DeleteItemCommand({
+      TableName: this.tableName,
+      Key: marshall({ [this.partitionKey]: instanceId }),
+    });
+
+    await this.client.send(command);
+    return true;
+  }
+
+  async queryItems(params: any): Promise<RunningInstance[]> {
+    const command = new QueryCommand({
+      TableName: this.tableName,
+      ...params,
+    });
+
+    const result = await this.client.send(command);
+    return (
+      result.Items?.map((item) => unmarshall(item) as RunningInstance) || []
+    );
+  }
+
+  // Table-specific method for status queries
+  async queryByStatus(status: string): Promise<RunningInstance[]> {
+    return this.queryItems({
+      IndexName: "StatusCreationTimeIndex",
+      KeyConditionExpression: "#status = :status",
+      ExpressionAttributeNames: { "#status": "status" },
+      ExpressionAttributeValues: marshall({ ":status": status }),
     });
   }
 }
 
+// Factory function
 export function createDynamoDbWrapper(
   tableType: "streams" | "instances",
   table: Table
 ): DynamoDbWrapper {
   switch (tableType) {
     case "streams":
-      return new RunningStreamWrapper(this, table);
+      return new RunningStreamWrapper(table);
     case "instances":
-      return new RunningInstanceWrapper(this, table);
+      return new RunningInstanceWrapper(table);
     default:
       throw new Error(`Unknown table type: ${tableType}`);
   }
