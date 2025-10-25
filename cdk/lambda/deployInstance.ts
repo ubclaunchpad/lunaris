@@ -15,7 +15,7 @@ interface DeployInstanceRequest {
     amiId?: string;
 }
 
-export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+export const handler = async (event: APIGatewayProxyEvent, context: any): Promise<APIGatewayProxyResult> => {
     try {
         const body: DeployInstanceRequest = JSON.parse(event.body || '{}');
         const { userId, instanceType = 't3.micro', amiId } = body;
@@ -65,7 +65,9 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             TableName: RUNNING_INSTANCES_TABLE,
             Item: {
                 instanceId: instance.InstanceId,
-                instanceArn: instance.InstanceId ? `arn:aws:ec2:${instance.Placement?.AvailabilityZone?.replace(/[a-z]$/, '') || 'us-east-1'}::instance/${instance.InstanceId}` : '',
+                instanceArn: instance.InstanceId && context.invokedFunctionArn
+                    ? `arn:aws:ec2:${context.invokedFunctionArn.split(':')[3]}:${context.invokedFunctionArn.split(':')[4]}:instance/${instance.InstanceId}`
+                    : '',
                 ebsVolumes: instance.BlockDeviceMappings?.map(bdm => bdm.Ebs?.VolumeId).filter((id): id is string => Boolean(id)) || [],
                 creationTime: now,
                 status: instance.State?.Name || 'pending',
