@@ -1,4 +1,5 @@
 import { Gamepad2, Search, Filter, User, LogOut } from "lucide-react"
+import { Dashboard } from "@/components/dashboard"
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -8,6 +9,7 @@ export default function BrowsePage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
+      <Dashboard />
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 items-center justify-between">
           <div className="flex items-center gap-4">
