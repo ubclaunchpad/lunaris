@@ -8,22 +8,35 @@ export const handler = async (
   }
 
   const db = new DynamoDBWrapper(process.env.RUNNING_STREAMS_TABLE_NAME);
-  const payload = { ...event };
+  const payload = {
+    ...event,
+    updatedAt: new Date().toISOString(),
+    streamingLink: "streaming-link-placeholder", // TODO: should generate a real streaming link
+  };
 
-  // TODO: the RunningStreams table stores items in the format of:
-  // - userId (string)
-  // - instanceArn (string)
-  // - streamingId (string)
-  // - streamingLink (string)
-  // so figure out how the event maps to these fields
-  await db.putItem(payload);
+  const updateConfig = {
+    UpdateExpression: `
+      SET
+        instanceArn = :instanceArn, 
+        streamingLink = :streamingLink,
+        updatedAt = :updatedAt,
+        createdAt = if_not_exists(createdAt, :createdAt)
+    `,
+    ExpressionAttributeValues: {
+      ":instanceArn": payload.instanceArn,
+      ":streamingLink": payload.streamingLink,
+      ":updatedAt": payload.updatedAt,
+      ":createdAt": new Date().toISOString(),
+    },
+  };
+
+  await db.updateItem({ userId: event.userId }, updateConfig);
 
   return { success: true };
 };
 
 type UpdateRunningStreamsEvent = {
   userId: string;
-  sessionId: string;
   instanceArn: string;
   running: boolean;
 };

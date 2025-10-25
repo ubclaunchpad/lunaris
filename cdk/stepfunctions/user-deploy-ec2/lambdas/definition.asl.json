@@ -55,7 +55,12 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
-        "FunctionName": "${UpdateRunningStreamsArn}"
+        "FunctionName": "${UpdateRunningStreamsArn}",
+        "Payload": {
+          "userId.$": "$.userId",
+          "instanceArn.$": "$.deployResult.Payload.instanceArn",
+          "running": true
+        }
       },
       "ResultPath": "$.updateResult",
       "Next": "Success",

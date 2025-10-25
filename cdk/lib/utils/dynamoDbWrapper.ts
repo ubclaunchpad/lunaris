@@ -3,10 +3,12 @@ import {
   DynamoDBDocumentClient,
   GetCommand,
   PutCommand,
+  UpdateCommand,
   type TranslateConfig,
   type GetCommandInput,
   type PutCommandInput,
   type GetCommandOutput,
+  type UpdateCommandInput,
 } from "@aws-sdk/lib-dynamodb";
 
 class DynamoDBWrapper {
@@ -27,9 +29,9 @@ class DynamoDBWrapper {
     options?: Partial<GetCommandInput>
   ): Promise<GetCommandOutput["Item"] | null> {
     const inputConfig: GetCommandInput = {
+      ...(options ?? {}),
       TableName: this.tableName,
       Key: key,
-      ...(options ?? {}),
     };
 
     const response = await this.client.send(new GetCommand(inputConfig));
@@ -41,12 +43,25 @@ class DynamoDBWrapper {
     options?: Partial<PutCommandInput>
   ) {
     const inputConfig: PutCommandInput = {
+      ...(options ?? {}),
       TableName: this.tableName,
       Item,
-      ...(options ?? {}),
     };
 
     await this.client.send(new PutCommand(inputConfig));
+  }
+
+  async updateItem(
+    key: UpdateCommandInput["Key"],
+    options?: Partial<UpdateCommandInput>
+  ) {
+    const inputConfig: UpdateCommandInput = {
+      ...(options ?? {}),
+      TableName: this.tableName,
+      Key: key,
+    };
+
+    await this.client.send(new UpdateCommand(inputConfig));
   }
 }
 
