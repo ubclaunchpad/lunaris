@@ -7,6 +7,7 @@ export class LambdaFunctions extends Construct {
   public readonly deployInstanceFunction: Function;
   public readonly greetingHandler: Function;
   public readonly responseHandler: Function;
+  public readonly terminateInstanceFunction: Function;
   public readonly streamingLinkFunction: Function;
 
   // lambda functions for UserDeployEC2 step function
@@ -44,6 +45,13 @@ export class LambdaFunctions extends Construct {
       runtime: Runtime.NODEJS_22_X,
       code: Code.fromAsset("stepfunctions/example-workflow/lambdas"),
       handler: "response-handler.handler",
+    });
+
+    // Terminate Instance Lambda
+    this.terminateInstanceFunction = new Function(this, "TerminateInstanceHandler", {
+      runtime: Runtime.NODEJS_22_X,
+      code: Code.fromAsset("lambda"),
+      handler: "terminateInstance.handler",
     });
 
     // Streaming Link Lambda
