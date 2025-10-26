@@ -3,19 +3,24 @@
   "version": "0.1.0",
   "description": "CDK infrastructure code for cloud gaming platform",
   "bin": {
-    "cdk": "bin/cdk.js"
+    "cdk": "dist/bin/cdk.js"
   },
   "scripts": {
-    "build": "npm run build:lambda && tsc",
+    "build": "npm run build:lambda && npm run build:cdk && npm run copy-assets",
     "build:lambda": "cd ../lambda && npm run build",
     "build:cdk": "tsc",
+    "copy-assets": "cp -r stepfunctions dist/ 2>/dev/null || true && find dist/stepfunctions -name '*.ts' -delete 2>/dev/null || true",
     "watch": "tsc -w",
     "test": "jest",
+    "clean": "rm -rf dist",
+    "prebuild": "npm run clean",
     "cdk": "cdk",
     "synth": "npm run build && cdk synth",
     "deploy": "npm run build && cdk deploy",
     "diff": "npm run build && cdk diff",
-    "destroy": "cdk destroy"
+    "destroy": "cdk destroy",
+    "validate-workflows": "node -e \"require('./dist/lib/workflows/index.js').WorkflowRegistry.discoverWorkflows(); console.log('Workflow validation completed successfully');\"",
+    "validate-cloudformation": "node scripts/validate-cloudformation.js"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",

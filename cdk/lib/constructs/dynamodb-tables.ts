@@ -8,13 +8,13 @@ import {
 import { RemovalPolicy } from "aws-cdk-lib";
 
 export class DynamoDbTables extends Construct {
-    public RunningStreamsTable: Table;
-    public runningInstancesTable: Table;
+    public readonly runningStreamsTable: Table;
+    public readonly runningInstancesTable: Table;
 
     constructor(scope: Construct, id: string) {
         super(scope, id);
-        this.setUpRunningStreamsTable();
-        this.setupRunningInstances()
+        this.runningStreamsTable = this.setUpRunningStreamsTable();
+        this.runningInstancesTable = this.setupRunningInstances();
     }
 
     /*
@@ -26,8 +26,8 @@ export class DynamoDbTables extends Construct {
       * - createdAt (ISO 8601 formatted date string)
       * - updatedAt (ISO 8601 formatted date string)
     */
-    setUpRunningStreamsTable(): void {
-        this.RunningStreamsTable = new Table(this, "RunningStreams", {
+    setUpRunningStreamsTable(): Table {
+        return new Table(this, "RunningStreams", {
             partitionKey: {name: "instanceArn", type: AttributeType.STRING},
             billingMode: BillingMode.PAY_PER_REQUEST,
             removalPolicy: RemovalPolicy.DESTROY, // Use RETAIN for production
@@ -38,8 +38,8 @@ export class DynamoDbTables extends Construct {
      * Schema: instanceId (PK), instanceArn, ebsVolumes (list), creationTime,
      *         status, region, instanceType, lastModifiedTime
      */
-    setupRunningInstances(): void {
-        this.runningInstancesTable = new Table(this, "RunningInstances", {
+    setupRunningInstances(): Table {
+        const table = new Table(this, "RunningInstances", {
             partitionKey: {name: "instanceId", type: AttributeType.STRING},
             pointInTimeRecoverySpecification: {
                 pointInTimeRecoveryEnabled: true
@@ -52,10 +52,13 @@ export class DynamoDbTables extends Construct {
     // TODO future: add autoscaling group
     // TODO: or add grantX to specific lambda functions
 
-        this.runningInstancesTable.addGlobalSecondaryIndex({
+        table.addGlobalSecondaryIndex({
             indexName: "StatusCreationTimeIndex",
             partitionKey: {name: "status", type: AttributeType.STRING},
-            sortKey: {name: "creationTime", type: AttributeType.STRING}, projectionType: ProjectionType.ALL,
+            sortKey: {name: "creationTime", type: AttributeType.STRING}, 
+            projectionType: ProjectionType.ALL,
         });
+
+        return table;
     }
 }

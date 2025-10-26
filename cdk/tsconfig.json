@@ -8,6 +8,8 @@
       "es2022"
     ],
     "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "./",
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -17,8 +19,7 @@
     "noUnusedParameters": false,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": false,
-    "inlineSourceMap": true,
-    "inlineSources": true,
+    "sourceMap": true,
     "experimentalDecorators": true,
     "strictPropertyInitialization": false,
     "skipLibCheck": true,
@@ -29,9 +30,15 @@
       "./node_modules/@types"
     ]
   },
+  "include": [
+    "bin/**/*",
+    "lib/**/*",
+    "stepfunctions/**/*.ts"
+  ],
   "exclude": [
     "node_modules",
     "cdk.out",
-    "test"
+    "test",
+    "dist"
   ]
 }

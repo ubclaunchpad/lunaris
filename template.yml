@@ -103,17 +103,6 @@ Resources:
             Method: get
 
   # Step Function Lambda handlers
-  GreetingHandlerFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: handlers/deployInstance.handler
-      Description: Greeting handler for example workflow
-
-  ResponseHandlerFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: handlers/deployInstance.handler
-      Description: Response handler for example workflow
 
   CheckRunningStreamsFunction:
     Type: AWS::Serverless::Function
@@ -140,18 +129,6 @@ Resources:
             TableName: !Ref RunningStreamsTable
 
   # Step Functions
-  ExampleWorkflow:
-    Type: AWS::Serverless::StateMachine
-    Properties:
-      DefinitionUri: cdk/stepfunctions/example-workflow/definition.asl.json
-      DefinitionSubstitutions:
-        GreetingHandlerArn: !GetAtt GreetingHandlerFunction.Arn
-        ResponseHandlerArn: !GetAtt ResponseHandlerFunction.Arn
-      Policies:
-        - LambdaInvokePolicy:
-            FunctionName: !Ref GreetingHandlerFunction
-        - LambdaInvokePolicy:
-            FunctionName: !Ref ResponseHandlerFunction
 
   UserDeployEC2Workflow:
     Type: AWS::Serverless::StateMachine
@@ -200,9 +177,7 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}-RunningStreamsTable"
 
-  ExampleWorkflowArn:
-    Description: "Example Step Function ARN"
-    Value: !Ref ExampleWorkflow
+
 
   UserDeployEC2WorkflowArn:
     Description: "User Deploy EC2 Step Function ARN"
