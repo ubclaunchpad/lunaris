@@ -1,4 +1,4 @@
-import DynamoDBWrapper from "../../lib/utils/dynamoDbWrapper";
+import DynamoDBWrapper from "../../utils/dynamoDbWrapper";
 
 export const handler = async (
   event: UpdateRunningStreamsEvent

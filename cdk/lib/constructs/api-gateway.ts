@@ -1,9 +1,12 @@
 import { Construct } from "constructs";
-import { LambdaRestApi, LambdaIntegration  } from "aws-cdk-lib/aws-apigateway";
+import {
+  LambdaRestApi,
+  LambdaIntegration,
+  Resource,
+} from "aws-cdk-lib/aws-apigateway";
 import { Function } from "aws-cdk-lib/aws-lambda";
 
 export interface ApiGatewayProps {
-  helloFunction: Function;
   deployInstanceFunction: Function;
   terminateInstanceFunction: Function;
   streamingLinkFunction: Function;
@@ -15,28 +18,90 @@ export class ApiGateway extends Construct {
   constructor(scope: Construct, id: string, props: ApiGatewayProps) {
     super(scope, id);
 
-    // API Gateway REST API resource backed by the hello function
-    this.restApi = new LambdaRestApi(this, "Endpoint", {
-      handler: props.helloFunction,
-      proxy: false
+    this.restApi = new LambdaRestApi(this, "LunarisApi", {
+      handler: props.deployInstanceFunction,
+      proxy: false,
+      description: "LunarisAPI",
     });
 
-    const deployInstanceIntegration = new LambdaIntegration(props.deployInstanceFunction)
-    const deployInstanceResource = this.restApi.root.addResource("deployInstance")
-    deployInstanceResource.addMethod("POST", deployInstanceIntegration)
+    // Add API endpoints to LunarisApi here
+    this.createDeployInstanceEndpoint(props.deployInstanceFunction);
+    this.createTerminateInstanceEndpoint(props.terminateInstanceFunction);
+    this.createStreamingLinkEndpoint(props.streamingLinkFunction);
+  }
 
-    // Define the /terminateInstance endpoint and associate it with the terminateInstanceFunction
-    const terminateInstanceIntegration = new LambdaIntegration(props.terminateInstanceFunction);
-    const terminateInstanceResource = this.restApi.root.addResource("terminateInstance")
-    terminateInstanceResource.addMethod("POST", terminateInstanceIntegration)
+  private createDeployInstanceEndpoint(lambdaFunction: Function): void {
+    const integration = new LambdaIntegration(lambdaFunction);
+    const resource = this.restApi.root.addResource("deployInstance");
 
-    // Define the /streamingLink endpoint and associate it with the streamingLinkFunction
-    const streamingLinkIntegration = new LambdaIntegration(props.streamingLinkFunction);
-    const streamingLinkResource = this.restApi.root.addResource("streamingLink");
-    streamingLinkResource.addMethod("GET", streamingLinkIntegration, {
+    resource.addMethod("POST", integration, {
+      methodResponses: [
+        {
+          statusCode: "200",
+          responseModels: {
+            "application/json": { modelId: "Empty" },
+          },
+        },
+        {
+          statusCode: "400",
+          responseModels: {
+            "application/json": { modelId: "Error" },
+          },
+        },
+      ],
+    });
+  }
+
+  private createTerminateInstanceEndpoint(lambdaFunction: Function): void {
+    const integration = new LambdaIntegration(lambdaFunction);
+    const resource = this.restApi.root.addResource("terminateInstance");
+
+    resource.addMethod("POST", integration, {
+      methodResponses: [
+        {
+          statusCode: "200",
+          responseModels: {
+            "application/json": { modelId: "Empty" },
+          },
+        },
+        {
+          statusCode: "400",
+          responseModels: {
+            "application/json": { modelId: "Error" },
+          },
+        },
+      ],
+    });
+  }
+
+  private createStreamingLinkEndpoint(lambdaFunction: Function): void {
+    const integration = new LambdaIntegration(lambdaFunction);
+    const resource = this.restApi.root.addResource("streamingLink");
+
+    resource.addMethod("GET", integration, {
       requestParameters: {
         "method.request.querystring.userId": true,
       },
+      methodResponses: [
+        {
+          statusCode: "200",
+          responseModels: {
+            "application/json": { modelId: "Empty" },
+          },
+        },
+        {
+          statusCode: "400",
+          responseModels: {
+            "application/json": { modelId: "Error" },
+          },
+        },
+        {
+          statusCode: "404",
+          responseModels: {
+            "application/json": { modelId: "Error" },
+          },
+        },
+      ],
     });
   }
 }

@@ -2,14 +2,13 @@
   "compilerOptions": {
     "target": "ES2022",
     "module": "CommonJS",
-    "moduleResolution": "node",
-    "resolveJsonModule": true,
+    "moduleResolution": "Node",
     "lib": [
       "es2022"
     ],
-    "declaration": true,
     "outDir": "./dist",
-    "rootDir": "./",
+    "rootDir": "./src",
+    "declaration": true,
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -31,14 +30,11 @@
     ]
   },
   "include": [
-    "bin/**/*",
-    "lib/**/*",
-    "stepfunctions/**/*.ts"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
-    "cdk.out",
-    "test",
-    "dist"
+    "dist",
+    "test"
   ]
 }

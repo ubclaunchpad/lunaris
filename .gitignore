@@ -1,3 +1,15 @@
 **/.DS_Store
 **/.vscode
 **/.DS_Store/**
+.kiro
+node_modules
+
+# Environment files (if using .env approach instead of samconfig.toml)
+.env.local
+.env.sam.json
+
+# SAM build artifacts
+.aws-sam/
+
+# Event test files (auto-generated)
+events/

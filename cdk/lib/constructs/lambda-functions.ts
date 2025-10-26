@@ -1,105 +1,130 @@
 import { Construct } from "constructs";
-import { Code, Function, Runtime } from "aws-cdk-lib/aws-lambda";
+import { Code, Function, Runtime, FunctionProps } from "aws-cdk-lib/aws-lambda";
 import { Duration } from "aws-cdk-lib";
 import { Table } from "aws-cdk-lib/aws-dynamodb";
 
 export interface LambdaFunctionsProps {
   runningInstancesTable: Table;
+  runningStreamsTable: Table;
 }
 
 export class LambdaFunctions extends Construct {
-  public readonly helloFunction: Function;
+
+  // API Lambda Functions
   public readonly deployInstanceFunction: Function;
-  public readonly greetingHandler: Function;
-  public readonly responseHandler: Function;
   public readonly terminateInstanceFunction: Function;
   public readonly streamingLinkFunction: Function;
 
-  // lambda functions for UserDeployEC2 step function
+  // User Deploy EC2 Workflow Lambda Functions
   public readonly checkRunningStreamsFunction: Function;
   public readonly deployEC2Function: Function;
   public readonly updateRunningStreamsFunction: Function;
 
-//   constructor(scope: Construct, id: string) {
   constructor(scope: Construct, id: string, props: LambdaFunctionsProps) {
     super(scope, id);
 
-    // API Gateway Lambda
-    this.helloFunction = new Function(this, "HelloHandler", {
-      runtime: Runtime.NODEJS_22_X,
-      code: Code.fromAsset("lambda"),
-      handler: "hello.handler",
-    });
+    // Create API Lambda functions
+    this.deployInstanceFunction = this.createDeployInstanceFunction(props);
+    this.terminateInstanceFunction =
+      this.createTerminateInstanceFunction(props);
+    this.streamingLinkFunction = this.createStreamingLinkFunction(props);
 
-    this.deployInstanceFunction = new Function(this, "DeployInstanceHandler", {
-      runtime: Runtime.NODEJS_22_X,
-      code: Code.fromAsset("lambda"),
-      handler: "deployInstance.handler",
+    // Create User Deploy EC2 Workflow Lambda functions
+    this.checkRunningStreamsFunction = this.createCheckRunningStreamsFunction(props);
+    this.deployEC2Function = this.createDeployEC2Function(props);
+    this.updateRunningStreamsFunction = this.createUpdateRunningStreamsFunction(props);
+  }
+
+  // Creates the Lambda function for deploying EC2 instances
+  private createDeployInstanceFunction(props: LambdaFunctionsProps): Function {
+    return new Function(this, "DeployInstanceHandler", {
+      ...this.getBaseLambdaConfig(),
+      handler: "handlers/deployInstance.handler",
+      description: "Deploys EC2 instances for cloud gaming sessions",
       timeout: Duration.seconds(60),
       environment: {
-        RUNNING_INSTANCES_TABLE: props.runningInstancesTable.tableName
-      }
+        RUNNING_INSTANCES_TABLE: props.runningInstancesTable.tableName,
+      },
     });
+  }
 
-    // Step Function Lambda handlers
-    this.greetingHandler = new Function(this, "GreetingHandler", {
+  // Creates the Lambda function for terminating EC2 instances
+  private createTerminateInstanceFunction(
+    props: LambdaFunctionsProps
+  ): Function {
+    return new Function(this, "TerminateInstanceHandler", {
+      ...this.getBaseLambdaConfig(),
+      handler: "handlers/terminateInstance.handler",
+      description: "Terminates EC2 instances and cleans up resources",
+      environment: {
+        RUNNING_INSTANCES_TABLE: props.runningInstancesTable.tableName,
+      },
+    });
+  }
+
+  // Creates the Lambda function for generating streaming links
+  private createStreamingLinkFunction(props: LambdaFunctionsProps): Function {
+    return new Function(this, "StreamingLinkHandler", {
+      ...this.getBaseLambdaConfig(),
+      handler: "handlers/streamingLink.handler",
+      description: "Generates streaming links for active gaming sessions",
+      environment: {
+        RUNNING_INSTANCES_TABLE: props.runningInstancesTable.tableName,
+        RUNNING_STREAMS_TABLE: props.runningStreamsTable.tableName,
+      },
+    });
+  }
+
+  // Creates the Lambda function for checking running streams
+  private createCheckRunningStreamsFunction(
+    props: LambdaFunctionsProps
+  ): Function {
+    return new Function(this, "CheckRunningStreamsHandler", {
+      ...this.getBaseLambdaConfig(),
+      handler: "handlers/user-deploy-ec2/check-running-streams.handler",
+      description: "Checks if user has active streaming sessions",
+      environment: {
+        RUNNING_STREAMS_TABLE: props.runningStreamsTable.tableName,
+      },
+    });
+  }
+
+  // Creates the Lambda function for deploying EC2 instances
+  private createDeployEC2Function(props: LambdaFunctionsProps): Function {
+    return new Function(this, "DeployEC2Handler", {
+      ...this.getBaseLambdaConfig(),
+      handler: "handlers/user-deploy-ec2/deploy-ec2.handler",
+      description: "Deploys EC2 instance as part of user deployment workflow",
+      environment: {
+        RUNNING_INSTANCES_TABLE: props.runningInstancesTable.tableName,
+      },
+    });
+  }
+
+  // Creates the Lambda function for updating running streams
+  private createUpdateRunningStreamsFunction(
+    props: LambdaFunctionsProps
+  ): Function {
+    return new Function(this, "UpdateRunningStreamsHandler", {
+      ...this.getBaseLambdaConfig(),
+      handler: "handlers/user-deploy-ec2/update-running-streams.handler",
+      description: "Updates running streams table with new session information",
+      environment: {
+        RUNNING_STREAMS_TABLE: props.runningStreamsTable.tableName,
+      },
+    });
+  }
+
+  // Returns the base configuration shared by all Lambda functions
+  private getBaseLambdaConfig(): Pick<
+    FunctionProps,
+    "runtime" | "code" | "timeout" | "memorySize"
+  > {
+    return {
       runtime: Runtime.NODEJS_22_X,
-      code: Code.fromAsset("stepfunctions/example-workflow/lambdas"),
-      handler: "greeting-handler.handler",
-    });
-
-    this.responseHandler = new Function(this, "ResponseHandler", {
-      runtime: Runtime.NODEJS_22_X,
-      code: Code.fromAsset("stepfunctions/example-workflow/lambdas"),
-      handler: "response-handler.handler",
-    });
-
-    // Terminate Instance Lambda
-    this.terminateInstanceFunction = new Function(
-      this,
-      "TerminateInstanceHandler",
-      {
-        runtime: Runtime.NODEJS_22_X,
-        code: Code.fromAsset("lambda"),
-        handler: "terminateInstance.handler",
-      }
-    );
-
-    // Streaming Link Lambda
-    this.streamingLinkFunction = new Function(this, "StreamingLinkFunction", {
-      runtime: Runtime.NODEJS_22_X,
-      code: Code.fromAsset("lambda"),
-      handler: "streamingLink.handler",
-    });
-
-    // UserDeployEC2 step function lambdas
-    this.checkRunningStreamsFunction = new NodejsFunction(
-      this,
-      "CheckRunningStreamsHandler",
-      {
-        runtime: Runtime.NODEJS_22_X,
-        entry: "lambda/check-running-streams.ts",
-        environment: {
-          RUNNING_STREAMS_TABLE_NAME: "RunningStreams",
-        },
-      }
-    );
-
-    this.deployEC2Function = new NodejsFunction(this, "DeployEC2Handler", {
-      runtime: Runtime.NODEJS_22_X,
-      entry: "lambda/deploy-ec2.ts",
-    });
-
-    this.updateRunningStreamsFunction = new NodejsFunction(
-      this,
-      "UpdateRunningStreamsHandler",
-      {
-        runtime: Runtime.NODEJS_22_X,
-        entry: "lambda/update-running-streams.ts",
-        environment: {
-          RUNNING_STREAMS_TABLE_NAME: "RunningStreams",
-        },
-      }
-    );
+      code: Code.fromAsset("../lambda/dist"),
+      timeout: Duration.seconds(30),
+      memorySize: 256,
+    };
   }
 }
