@@ -1,0 +1,43 @@
+version = 0.1
+
+[default]
+[default.local_start_api]
+[default.local_start_api.parameters]
+host = "0.0.0.0"
+port = 3000
+warm_containers = "EAGER"
+debug = false
+
+[default.local_invoke]
+[default.local_invoke.parameters]
+debug = false
+
+[default.local_start_lambda]
+[default.local_start_lambda.parameters]
+host = "0.0.0.0"
+port = 3001
+warm_containers = "EAGER"
+debug = false
+
+[default.global]
+[default.global.parameters]
+stack_name = "lunaris-local"
+region = "us-east-1"
+
+# Environment variables for all functions
+[default.global.environment_variables]
+NODE_ENV = "local"
+AWS_ACCESS_KEY_ID = "dummy"
+AWS_SECRET_ACCESS_KEY = "dummy"
+AWS_DEFAULT_REGION = "us-east-1"
+AWS_REGION = "us-east-1"
+RUNNING_INSTANCES_TABLE = "RunningInstances"
+RUNNING_STREAMS_TABLE_NAME = "RunningStreams"
+DYNAMODB_ENDPOINT = "http://localhost:8000"
+STEPFUNCTIONS_ENDPOINT = "http://localhost:8083"
+LAMBDA_TIMEOUT = "60"
+API_GATEWAY_PORT = "3000"
+SAM_CLI_DEBUG = "true"
+DEFAULT_INSTANCE_TYPE = "t3.micro"
+DEFAULT_AMI_ID = "ami-0abcdef1234567890"
+LOG_LEVEL = "debug"
