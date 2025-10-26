@@ -56,5 +56,11 @@ export class DynamoDbTables extends Construct {
       sortKey: { name: "creationTime", type: AttributeType.STRING },
       projectionType: ProjectionType.ALL,
     });
+
+    this.runningInstancesTable.addGlobalSecondaryIndex({
+      indexName: "RegionIndex",
+      partitionKey: { name: "region", type: AttributeType.STRING },
+      projectionType: ProjectionType.ALL,
+    });
   }
 }

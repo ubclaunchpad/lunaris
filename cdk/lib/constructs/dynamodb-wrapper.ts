@@ -9,20 +9,19 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 
-// Data model interfaces
+// Data model interfaces - These data models should match the data schema design
 export interface RunningStream {
+  streamingId: string;
   instanceArn: string;
   userId: string;
-  streamingId: string;
   streamingLink: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface RunningInstance {
   instanceId: string;
   instanceArn: string;
-  ebsVolumes: string[];
+  userId: string;
+  ebsVolumes: EbsVolume[];
   creationTime: string;
   status: string;
   region: string;
@@ -30,7 +29,11 @@ export interface RunningInstance {
   lastModifiedTime: string;
 }
 
-// Abstract base wrapper class
+export interface EbsVolume {
+  volumeId: string;
+  volumeArn: string;
+}
+
 export abstract class DynamoDbWrapper {
   protected client: DynamoDBClient;
   protected tableName: string;
@@ -39,7 +42,7 @@ export abstract class DynamoDbWrapper {
   constructor(table: Table) {
     this.client = new DynamoDBClient({});
     this.tableName = table.tableName;
-    this.partitionKey = table.partitionKey.attributeName;
+    this.partitionKey = table.schema().partitionKey.name;
   }
 
   // Common CRUD operations
@@ -62,18 +65,37 @@ export class RunningStreamWrapper extends DynamoDbWrapper {
       Item: marshall(stream),
     });
 
-    await this.client.send(command);
-    return stream;
+    try {
+      await this.client.send(command);
+      return stream;
+    } catch (error) {
+      console.error("Error creating stream:", error);
+      throw new Error(
+        `Failed to create stream: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
   }
 
-  async getItem(instanceArn: string): Promise<RunningStream | null> {
+  //finds the item by its partition key: instanceArn
+  async getItem(streamingId: string): Promise<RunningStream | null> {
     const command = new GetItemCommand({
       TableName: this.tableName,
-      Key: marshall({ [this.partitionKey]: instanceArn }),
+      Key: marshall({ [this.partitionKey]: streamingId }),
     });
 
-    const result = await this.client.send(command);
-    return result.Item ? (unmarshall(result.Item) as RunningStream) : null;
+    try {
+      const result = await this.client.send(command);
+      return result.Item ? (unmarshall(result.Item) as RunningStream) : null;
+    } catch (error) {
+      console.error("Error getting stream:", error);
+      throw new Error(
+        `Failed to get stream: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
   }
 
   async updateItem(
@@ -103,8 +125,17 @@ export class RunningStreamWrapper extends DynamoDbWrapper {
       ReturnValues: "ALL_NEW",
     });
 
-    const result = await this.client.send(command);
-    return unmarshall(result.Attributes!) as RunningStream;
+    try {
+      const result = await this.client.send(command);
+      return unmarshall(result.Attributes!) as RunningStream;
+    } catch (error) {
+      console.error("Error updating stream:", error);
+      throw new Error(
+        `Failed to update stream: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
   }
 
   async deleteItem(instanceArn: string): Promise<boolean> {
@@ -113,18 +144,48 @@ export class RunningStreamWrapper extends DynamoDbWrapper {
       Key: marshall({ [this.partitionKey]: instanceArn }),
     });
 
-    await this.client.send(command);
-    return true;
+    try {
+      await this.client.send(command);
+      return true;
+    } catch (error) {
+      console.error("Error deleting stream:", error);
+      throw new Error(
+        `Failed to delete stream: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
   }
 
+  //find all the items matching params criteria
   async queryItems(params: any): Promise<RunningStream[]> {
     const command = new QueryCommand({
       TableName: this.tableName,
       ...params,
     });
 
-    const result = await this.client.send(command);
-    return result.Items?.map((item) => unmarshall(item) as RunningStream) || [];
+    try {
+      const result = await this.client.send(command);
+      return (
+        result.Items?.map((item: any) => unmarshall(item) as RunningStream) ||
+        []
+      );
+    } catch (error) {
+      console.error("Error querying streams:", error);
+      throw new Error(
+        `Failed to query streams: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
+  }
+
+  async queryItemsByUserId(userId: string): Promise<RunningStream[]> {
+    return this.queryItems({
+      FilterExpression: "#userId = :userId",
+      ExpressionAttributeNames: { "#userId": "userId" },
+      ExpressionAttributeValues: marshall({ ":userId": userId }),
+    });
   }
 }
 
@@ -140,8 +201,17 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
       Item: marshall(instance),
     });
 
-    await this.client.send(command);
-    return instance;
+    try {
+      await this.client.send(command);
+      return instance;
+    } catch (error) {
+      console.error("Error creating instance:", error);
+      throw new Error(
+        `Failed to create instance: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
   }
 
   async getItem(instanceId: string): Promise<RunningInstance | null> {
@@ -150,8 +220,17 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
       Key: marshall({ [this.partitionKey]: instanceId }),
     });
 
-    const result = await this.client.send(command);
-    return result.Item ? (unmarshall(result.Item) as RunningInstance) : null;
+    try {
+      const result = await this.client.send(command);
+      return result.Item ? (unmarshall(result.Item) as RunningInstance) : null;
+    } catch (error) {
+      console.error("Error getting instance:", error);
+      throw new Error(
+        `Failed to get instance: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
   }
 
   async updateItem(
@@ -181,8 +260,17 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
       ReturnValues: "ALL_NEW",
     });
 
-    const result = await this.client.send(command);
-    return unmarshall(result.Attributes!) as RunningInstance;
+    try {
+      const result = await this.client.send(command);
+      return unmarshall(result.Attributes!) as RunningInstance;
+    } catch (error) {
+      console.error("Error updating instance:", error);
+      throw new Error(
+        `Failed to update instance: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
   }
 
   async deleteItem(instanceId: string): Promise<boolean> {
@@ -191,8 +279,17 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
       Key: marshall({ [this.partitionKey]: instanceId }),
     });
 
-    await this.client.send(command);
-    return true;
+    try {
+      await this.client.send(command);
+      return true;
+    } catch (error) {
+      console.error("Error deleting instance:", error);
+      throw new Error(
+        `Failed to delete instance: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
   }
 
   async queryItems(params: any): Promise<RunningInstance[]> {
@@ -201,14 +298,23 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
       ...params,
     });
 
-    const result = await this.client.send(command);
-    return (
-      result.Items?.map((item) => unmarshall(item) as RunningInstance) || []
-    );
+    try {
+      const result = await this.client.send(command);
+      return (
+        result.Items?.map((item) => unmarshall(item) as RunningInstance) || []
+      );
+    } catch (error) {
+      console.error("Error querying instances:", error);
+      throw new Error(
+        `Failed to query instances: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
+    }
   }
 
   // Table-specific method for status queries
-  async queryByStatus(status: string): Promise<RunningInstance[]> {
+  async queryItemsByStatus(status: string): Promise<RunningInstance[]> {
     return this.queryItems({
       IndexName: "StatusCreationTimeIndex",
       KeyConditionExpression: "#status = :status",
@@ -216,9 +322,26 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
       ExpressionAttributeValues: marshall({ ":status": status }),
     });
   }
+
+  async queryItemsByRegion(region: string): Promise<RunningInstance[]> {
+    return this.queryItems({
+      IndexName: "RegionIndex",
+      KeyConditionExpression: "#region = :region",
+      ExpressionAttributeNames: { "#region": "region" },
+      ExpressionAttributeValues: marshall({ ":region": region }),
+    });
+  }
+
+  async queryItemsByUserId(userId: string): Promise<RunningInstance[]> {
+    return this.queryItems({
+      FilterExpression: "#userId = :userId",
+      ExpressionAttributeNames: { "#userId": "userId" },
+      ExpressionAttributeValues: marshall({ ":userId": userId }),
+    });
+  }
 }
 
-// Factory function
+// Factory function - should be used to create appropriate dynamodbwrapper
 export function createDynamoDbWrapper(
   tableType: "streams" | "instances",
   table: Table
