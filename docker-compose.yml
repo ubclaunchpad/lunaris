@@ -2,11 +2,9 @@ services:
   dynamodb:
     image: amazon/dynamodb-local:latest
     container_name: lunaris-dynamodb
-    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath ./data"
+    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
     ports:
       - "8000:8000"
-    volumes:
-      - dynamodb-data:/home/dynamodblocal/data
     networks:
       - lunaris-network
 
@@ -40,10 +38,6 @@ services:
       - "3000:3000"
     networks:
       - lunaris-network
-
-volumes:
-  dynamodb-data:
-    driver: local
 
 networks:
   lunaris-network:
