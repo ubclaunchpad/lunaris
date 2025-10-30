@@ -10,7 +10,17 @@
         "Payload.$": "$"
       },
       "ResultPath": "$.checkRunningStreamsResult",
-      "Next": "CheckIfValidStream"
+      "Next": "CheckIfValidStream",
+      "Catch": [
+        {
+          "ErrorEquals": ["MissingTableNameEnv"],
+          "Next": "HandleMissingTableName"
+        },
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "Next": "HandleDatabaseError"
+        }
+      ]
     },
     "CheckIfValidStream": {
       "Type": "Choice",
@@ -33,7 +43,13 @@
         }
       },
       "ResultPath": "$.terminateResult",
-      "Next": "UpdateRunningStreams"  
+      "Next": "UpdateRunningStreams",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "Next": "HandleFailedTermination"
+        }
+      ]
     },
     "UpdateRunningStreams": {
       "Type": "Task",
@@ -48,14 +64,34 @@
         }
       },
       "ResultPath": "$.updateResult",
-      "Next": "Success"
+      "Next": "Success",
+      "Catch": [
+        {
+          "ErrorEquals": ["MissingTableNameEnv"],
+          "Next": "HandleMissingTableName"
+        },
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "Next": "HandleDatabaseError"
+        }
+      ]
     },
     "InvalidStreamError": {
       "Type": "Fail",
       "Cause": "No valid running stream found for user",
       "Error": "InvalidStreamError"
     },
-    "TerminationFailedError": {
+    "HandleMissingTableName": {
+      "Type": "Fail",
+      "Cause": "RUNNING_STREAMS_TABLE_NAME environment variable was not set",
+      "Error": "MissingTableNameEnv"
+    },
+    "HandleDatabaseError": {
+      "Type": "Fail",
+      "Cause": "Error occurred while accessing the running streams database",
+      "Error": "DatabaseError"
+    },
+    "HandleFailedTermination": {
       "Type": "Fail",
       "Cause": "Failed to terminate EC2 instance",
       "Error": "TerminationFailedError"
