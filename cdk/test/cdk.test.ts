@@ -1,17 +1,58 @@
-// import * as cdk from 'aws-cdk-lib';
-// import { Template } from 'aws-cdk-lib/assertions';
-// import * as Cdk from '../lib/cdk-stack';
+import * as cdk from 'aws-cdk-lib';
+import { Template } from 'aws-cdk-lib/assertions';
+import { DynamoDbTables } from '../lib/constructs/dynamodb-tables';
 
-// example test. To run these tests, uncomment this file along with the
-// example resource in lib/cdk-stack.ts
-test('SQS Queue Created', () => {
-//   const app = new cdk.App();
-//     // WHEN
-//   const stack = new Cdk.CdkStack(app, 'MyTestStack');
-//     // THEN
-//   const template = Template.fromStack(stack);
+describe('CDK Constructs', () => {
+  let app: cdk.App;
+  let stack: cdk.Stack;
 
-//   template.hasResourceProperties('AWS::SQS::Queue', {
-//     VisibilityTimeout: 300
-//   });
+  beforeEach(() => {
+    app = new cdk.App();
+    stack = new cdk.Stack(app, 'TestStack');
+  });
+
+  test('creates DynamoDB tables with correct configuration', () => {
+    const dynamoDbTables = new DynamoDbTables(stack, 'TestDynamoDbTables');
+    const template = Template.fromStack(stack);
+
+    // Test RunningStreams table
+    template.hasResourceProperties('AWS::DynamoDB::Table', {
+      BillingMode: 'PAY_PER_REQUEST',
+      AttributeDefinitions: [
+        {
+          AttributeName: 'instanceArn',
+          AttributeType: 'S'
+        }
+      ],
+      KeySchema: [
+        {
+          AttributeName: 'instanceArn',
+          KeyType: 'HASH'
+        }
+      ]
+    });
+
+    // Test RunningInstances table
+    template.hasResourceProperties('AWS::DynamoDB::Table', {
+      BillingMode: 'PAY_PER_REQUEST',
+      KeySchema: [
+        {
+          AttributeName: 'instanceId',
+          KeyType: 'HASH'
+        }
+      ]
+    });
+
+    expect(dynamoDbTables.runningInstancesTable).toBeDefined();
+    expect(dynamoDbTables.RunningStreamsTable).toBeDefined();
+  });
+
+  test('DynamoDB tables have correct removal policy', () => {
+    new DynamoDbTables(stack, 'TestDynamoDbTables');
+    const template = Template.fromStack(stack);
+
+    template.hasResource('AWS::DynamoDB::Table', {
+      DeletionPolicy: 'Delete'
+    });
+  });
 });
