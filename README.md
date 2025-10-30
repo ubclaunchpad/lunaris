@@ -86,7 +86,57 @@ curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" \
   -d '{"userId":"test-user","instanceType":"g4dn.xlarge","region":"us-west-2"}'
 ```
 
-### 3. Local Development with SAM
+### 3. Full Stack Development with Docker Compose (Recommended)
+
+**The easiest way to run the entire stack locally!**
+
+Docker Compose orchestrates all services (DynamoDB, Lambda, Frontend) with a single command:
+
+```bash
+# From project root
+
+# Build all Docker images
+npm run docker:build
+
+# Start all services (DynamoDB + Lambda + Frontend)
+npm run docker:start
+
+# View logs from all services
+npm run docker:logs
+
+# Stop all services
+npm run docker:stop
+
+# Remove volumes and containers)
+npm run docker:clean
+```
+
+#### What's Running?
+
+Once started, you'll have:
+
+| Service | Port | URL | Purpose |
+|---------|------|-----|---------|
+| **DynamoDB Local** | 8000 | http://localhost:8000 | Local DynamoDB for testing |
+| **Lambda Container** | 9000 | http://localhost:9000 | Lambda Runtime Interface Emulator |
+| **Frontend** | 3000 | http://localhost:3000 | Next.js production build |
+
+#### Testing the Stack
+
+```bash
+# Test Lambda function
+curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" \
+  -d '{"userId":"test-user","instanceType":"g4dn.xlarge","region":"us-west-2"}'
+
+# Test Frontend
+open http://localhost:3000
+
+# Test DynamoDB connection
+aws dynamodb list-tables --endpoint-url http://localhost:8000
+```
+
+
+### 4. Local Development with SAM
 
 SAM Local provides a local API Gateway + Lambda environment:
 
