@@ -38,59 +38,18 @@ brew install aws-sam-cli
 sam --version
 ```
 
-## Setup
+# Setup
 
 ### 1. Install Dependencies
 
 ```bash
-# Install Lambda dependencies
-cd lambda && npm install && cd ..
+# From project root
 
-# Install CDK dependencies
-cd cdk && npm install && cd ..
-
-# Install Frontend dependencies
-cd frontend && npm install && cd ..
+# Install all project dependencies 
+npm run install:all
 ```
 
-### 2. Local Development with Docker
-
-#### Build Lambda Docker Image
-
-```bash
-cd lambda
-npm run docker:build
-```
-
-- Compiles TypeScript Lambda code (`npm run build`)
-- Builds a Docker image using AWS Lambda base image (`public.ecr.aws/lambda/nodejs:22`)
-- Tags the image as `lunaris-lambda`
-
-#### Run Lambda Handler Locally
-
-```bash
-# Run with default handler (deployInstance)
-npm run docker:run
-
-# Or specify a different handler w/ format
-docker run --rm -p 9000:8080 lunaris-lambda handlers/streamingLink.handler
-docker run --rm -p 9000:8080 lunaris-lambda handlers/terminateInstance.handler
-docker run --rm -p 9000:8080 lunaris-lambda handlers/user-deploy-ec2/check-running-streams.handler
-```
-
-#### Test Lambda Function
-
-```bash
-# In another terminal or Postman, invoke the Lambda
-curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" \
-  -d '{"userId":"test-user","instanceType":"g4dn.xlarge","region":"us-west-2"}'
-```
-
-### 3. Full Stack Development with Docker Compose (Recommended)
-
-**The easiest way to run the entire stack locally!**
-
-Docker Compose orchestrates all services (DynamoDB, Lambda, Frontend) with a single command:
+### 2. Build All Project Code
 
 ```bash
 # From project root
@@ -111,6 +70,7 @@ npm run docker:stop
 npm run docker:clean
 ```
 
+
 #### What's Running?
 
 Once started, you'll have:
@@ -120,6 +80,27 @@ Once started, you'll have:
 | **DynamoDB Local** | 8000 | http://localhost:8000 | Local DynamoDB for testing |
 | **Lambda Container** | 9000 | http://localhost:9000 | Lambda Runtime Interface Emulator |
 | **Frontend** | 3000 | http://localhost:3000 | Next.js production build |
+
+#### Running Specific Lambda Handlers
+
+```bash
+# Run all containers, default handler for lambda (deployInstance)
+npm run docker:run
+
+# Or specify a different handler w/ format
+docker run --rm -p 9000:8080 lunaris-lambda handlers/streamingLink.handler
+docker run --rm -p 9000:8080 lunaris-lambda handlers/terminateInstance.handler
+docker run --rm -p 9000:8080 lunaris-lambda handlers/user-deploy-ec2/check-running-streams.handler
+```
+
+#### Test Lambda Function
+
+```bash
+# In another terminal or Postman, invoke the Lambda
+curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" \
+  -d '{"userId":"test-user","instanceType":"g4dn.xlarge","region":"us-west-2"}'
+```
+
 
 #### Testing the Stack
 
@@ -136,13 +117,12 @@ aws dynamodb list-tables --endpoint-url http://localhost:8000
 ```
 
 
-### 4. Local Development with SAM
+# Local Development with SAM
 
 SAM Local provides a local API Gateway + Lambda environment:
 
 ```bash
-# From project root
-cd lambda && npm run build && cd ..
+# From project root after building...
 
 # Start local API Gateway
 sam local start-api
