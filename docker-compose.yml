@@ -1,0 +1,9 @@
+services:
+  frontend:
+    container_name: lunaris-frontend
+    build:
+      context: ./frontend
+    environment:
+      NODE_ENV: production
+    ports:
+      - 3000:3000
