@@ -6,26 +6,6 @@ import {
     type RunInstancesCommandInput,
     type _InstanceType,
 } from "@aws-sdk/client-ec2";
-import { run } from "node:test";
-
-/**
- * ============================================================================
- * LEARNING RESOURCES - READ THESE FIRST!
- * ============================================================================
- *
- * AWS SDK v3 EC2 Documentation:
- * - RunInstancesCommand: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/ec2/command/RunInstancesCommand/
- * - DescribeInstancesCommand: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/client/ec2/command/DescribeInstancesCommand/
- * - waitUntilInstanceRunning: https://docs.aws.amazon.com/AWSJavaScriptSDK/v3/latest/Package/-aws-sdk-client-ec2/Variable/waitUntilInstanceRunning/
- * NICE DCV (Remote Desktop Streaming):
- * - Uses port 8443 for HTTPS streaming
- * - Documentation: https://docs.aws.amazon.com/dcv/
- *
- * AMI (Amazon Machine Image):
- * - Ubuntu Server 22.04 LTS: Good base for gaming
- * - Find AMI IDs: https://cloud-images.ubuntu.com/locator/ec2/
- * - AMI IDs are region-specific!
- */
 
 export interface EC2InstanceConfig {
     userId: string;
@@ -157,6 +137,73 @@ class EC2Wrapper {
                 default:
                     throw new Error(`Failed to create EC2 instance: ${error.message}`);
             }
+        }
+    }
+
+    async waitForInstanceRunning(
+        instanceId: string,
+        maxWaitTimeSeconds: number = 300
+    ): Promise<EC2InstanceResult> {
+
+        try {
+            // poll until instance is running
+            await waitUntilInstanceRunning(
+                {
+                    client: this.client,
+                    maxWaitTime: maxWaitTimeSeconds,
+                },
+                {
+                    InstanceIds: [instanceId]
+                }
+            )
+
+            const command = new DescribeInstancesCommand({
+                InstanceIds: [instanceId]
+            });
+            const response = await this.client.send(command);
+
+            const instance = response.Reservations?.[0]?.Instances?.[0];
+
+            HINT: if (!instance) throw new Error(`Instance ${instanceId} not found`);
+
+            const id = instance.InstanceId || instanceId;
+            const accountId = process.env.CDK_DEFAULT_ACCOUNT || "unknown";
+            const instanceArn = `arn:aws:ec2:${this.region}:${accountId}:instance/${instanceId}`;
+
+            const createdAt = instance.LaunchTime?.toDateString() || new Date().toISOString();
+
+            return {
+                instanceId: id,
+                publicIp: instance.PublicIpAddress,
+                privateIp: instance.PrivateIpAddress,
+                state: instance.State?.Name || "running",
+                createdAt,
+                instanceArn,
+            }
+
+        } catch (error: any) {
+            switch (error.name) {
+                case "WaiterTimedOut":
+                    throw new Error(`Timeout waiting for instance ${instanceId} to reach running state`);
+                default:
+                    throw new Error(`Error waiting for instance ${instanceId}`);
+            }
+        }
+    }
+
+    async createAndWaitForInstance(
+        config: EC2InstanceConfig,
+        waitForRunning: boolean = true
+    ): Promise<EC2InstanceResult> {
+        try {
+            const instanceResult = await this.createInstance(config);
+            if (waitForRunning) {
+                return await this.waitForInstanceRunning(instanceResult.instanceId);
+            }
+            return instanceResult;
+
+        } catch (error: any) {
+            throw new Error(`Failed to create and wait for instance: ${error}`);
         }
     }
 }
