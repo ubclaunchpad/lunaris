@@ -6,6 +6,7 @@ import {
     type RunInstancesCommandInput,
     type _InstanceType,
 } from "@aws-sdk/client-ec2";
+import { generateArn } from "./generateArn";
 
 export interface EC2InstanceConfig {
     userId: string;
@@ -109,18 +110,14 @@ class EC2Wrapper {
 
             if (!instanceId) throw new Error("Instance ID not found in response");
 
-            const accountId = process.env.CDK_DEFAULT_ACCOUNT || "unknown";
-            const instanceArn = `arn:aws:ec2:${this.region}:${accountId}:instance/${instanceId}`;
-
             return {
-                instanceId,
+                instanceId: instanceId,
                 publicIp: instance.PublicIpAddress,
                 privateIp: instance.PrivateIpAddress,
                 state: instance.State?.Name || "unknown",
-                createdAt,
-                instanceArn,
+                createdAt: createdAt,
+                instanceArn: generateArn(this.region, instanceId),
             }
-
 
         } catch (error: any) {
             switch (error.name) {
@@ -164,11 +161,9 @@ class EC2Wrapper {
 
             const instance = response.Reservations?.[0]?.Instances?.[0];
 
-            HINT: if (!instance) throw new Error(`Instance ${instanceId} not found`);
+            if (!instance) throw new Error(`Instance ${instanceId} not found`);
 
             const id = instance.InstanceId || instanceId;
-            const accountId = process.env.CDK_DEFAULT_ACCOUNT || "unknown";
-            const instanceArn = `arn:aws:ec2:${this.region}:${accountId}:instance/${instanceId}`;
 
             const createdAt = instance.LaunchTime?.toDateString() || new Date().toISOString();
 
@@ -177,8 +172,8 @@ class EC2Wrapper {
                 publicIp: instance.PublicIpAddress,
                 privateIp: instance.PrivateIpAddress,
                 state: instance.State?.Name || "running",
-                createdAt,
-                instanceArn,
+                createdAt: createdAt,
+                instanceArn: generateArn(this.region, instanceId)
             }
 
         } catch (error: any) {
