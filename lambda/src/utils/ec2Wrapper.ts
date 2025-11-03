@@ -14,10 +14,10 @@ export interface EC2InstanceConfig {
     instanceType?: _InstanceType; // e.g., "t3.medium", "g4dn.xlarge"
 
     keyName?: string;
-    securityGroupIds?: string[]; // Security groups (MUST allow port 8443 for DCV!)
+    securityGroupIds?: string[];
     subnetId?: string;
 
-    tags?: Record<string, string>; // Additional custom tags
+    tags?: Record<string, string>;
 }
 
 export interface EC2InstanceResult {
@@ -93,6 +93,10 @@ class EC2Wrapper {
     }
 
     async createInstance(config: EC2InstanceConfig): Promise<EC2InstanceResult> {
+        if (!config.userId || config.userId.trim() === '') {
+            throw new Error('userId is required and cannot be empty');
+        }
+
         const input = this.prepareInstanceInput(config);
         const command = new RunInstancesCommand(input);
 
@@ -192,7 +196,8 @@ class EC2Wrapper {
             return instanceResult;
 
         } catch (error: any) {
-            throw new Error(`Failed to create and wait for instance: ${error}`);
+            const errorMessage = error.message || String(error);
+            throw new Error(`Failed to create and wait for instance: ${errorMessage}`, { cause: error });
         }
     }
 }
