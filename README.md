@@ -19,13 +19,19 @@ This project consists of:
 - **AWS CLI** (for deployment)
 
 ### Installing Docker Desktop
-
+#### MacOS
 ```bash
-# Homebrew
+# Mac OS (Homebrew)
 brew install --cask docker
 
 # Then start Docker Desktop
 open -a Docker
+
+--------------------------------
+
+# Windows
+- Download Docker Desktop from the official site: https://www.docker.com/products/docker-desktop/
+- Open Docker desktop to start the environment
 ```
 
 ### Installing AWS SAM CLI
@@ -34,8 +40,12 @@ open -a Docker
 # macOS (Homebrew)
 brew install aws-sam-cli
 
+# Windows (Pip)
+pip install --upgrade aws-sam-cli
+
 # Verify installation
 sam --version
+
 ```
 
 # Setup
