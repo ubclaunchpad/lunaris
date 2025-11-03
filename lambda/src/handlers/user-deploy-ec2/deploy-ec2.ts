@@ -31,12 +31,10 @@ export const handler = async (
 
         const instanceConfig: EC2InstanceConfig = {
             userId: userId,
-            amiId: process.env.AMI_ID || "ami-0b0ea68c435eb488d",
             instanceType: instanceType,
             securityGroupIds: process.env.SECURITY_GROUP_ID ? [process.env.SECURITY_GROUP_ID] : undefined,
             subnetId: process.env.SUBNET_ID,
             keyName: process.env.KEY_PAIR_NAME,
-            // tags: { Environment: "production" }, 
         };
 
         console.log(`Creating EC2 instance for user ${userId}...`);

@@ -12,7 +12,6 @@ export interface EC2InstanceConfig {
     userId: string;
 
     instanceType?: _InstanceType; // e.g., "t3.medium", "g4dn.xlarge"
-    amiId?: string;
 
     keyName?: string;
     securityGroupIds?: string[]; // Security groups (MUST allow port 8443 for DCV!)
@@ -41,22 +40,15 @@ class EC2Wrapper {
         this.client = new EC2Client({ region: this.region })
     }
 
-    async createInstance(config: EC2InstanceConfig): Promise<EC2InstanceResult> {
+    private prepareInstanceInput(config: EC2InstanceConfig): RunInstancesCommandInput {
         const {
             userId,
             instanceType = DEFAULT_INSTANCE_TYPE,
-            amiId,
             keyName,
             securityGroupIds,
             subnetId,
             tags = {},
         } = config;
-
-        const createdAt = new Date().toISOString();
-
-        if (!amiId) {
-            throw new Error("AMI ID is required");
-        }
 
         const tagSpecifications: RunInstancesCommandInput["TagSpecifications"] = [
             {
@@ -72,40 +64,44 @@ class EC2Wrapper {
                     },
                     {
                         Key: "createdAt",
-                        Value: createdAt
+                        Value: new Date().toISOString()
                     },
                     {
                         Key: "purpose",
                         Value: "cloud-gaming"
                     },
+                    ...Object.entries(tags).map(([key, value]) => ({ Key: key, Value: value }))
                 ],
             },
         ];
-        const customTagsArray = Object.entries(tags).map(([key, value]) => ({ Key: key, Value: value }));
-        tagSpecifications[0].Tags = [...(tagSpecifications[0].Tags || []), ...customTagsArray];
-
         const input: RunInstancesCommandInput = {
-            ImageId: amiId,
-            InstanceType: instanceType,
+            // use launch template w/ preinstalled DCV
+            LaunchTemplate: {
+                LaunchTemplateName: "BasicDCV",
+            },
+            InstanceType: instanceType, // optional override
             MinCount: 1,
             MaxCount: 1,
             TagSpecifications: tagSpecifications,
-
         };
 
         if (keyName) input.KeyName = keyName;
         if (securityGroupIds && securityGroupIds.length > 0) input.SecurityGroupIds = securityGroupIds;
         if (subnetId) input.SubnetId = subnetId;
 
-        const command = new RunInstancesCommand(input)
+        return input;
+    }
+
+    async createInstance(config: EC2InstanceConfig): Promise<EC2InstanceResult> {
+        const input = this.prepareInstanceInput(config);
+        const command = new RunInstancesCommand(input);
+
         try {
             const response = await this.client.send(command);
 
-            if (!response.Instances || response.Instances.length === 0) {
-                throw new Error("No instances created");
-            }
+            const instance = response.Instances?.[0];
+            if (!instance || !instance.InstanceId) throw new Error("No instances created");
 
-            const instance = response.Instances[0];
             const instanceId = instance.InstanceId;
 
             if (!instanceId) throw new Error("Instance ID not found in response");
@@ -115,7 +111,7 @@ class EC2Wrapper {
                 publicIp: instance.PublicIpAddress,
                 privateIp: instance.PrivateIpAddress,
                 state: instance.State?.Name || "unknown",
-                createdAt: createdAt,
+                createdAt: new Date().toISOString(),
                 instanceArn: generateArn(this.region, instanceId),
             }
 
@@ -123,8 +119,6 @@ class EC2Wrapper {
             switch (error.name) {
                 case "InstanceLimitExceeded":
                     throw new Error("Cannot create instance: Account instance limit exceeded");
-                case "InvalidAMIID.NotFound":
-                    throw new Error(`AMI ID ${input.ImageId} not found in region ${this.region}`);
                 case "InvalidSubnetID.NotFound":
                     throw new Error(`Subnet ID ${input.SubnetId} not found`);
                 case "InvalidGroup.NotFound":
