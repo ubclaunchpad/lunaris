@@ -6,7 +6,6 @@
     "lib": [
       "es2022"
     ],
-    "types": ["node"],
     "outDir": "./dist",
     "rootDir": "./src",
     "declaration": true,
@@ -27,7 +26,8 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "typeRoots": [
-      "./node_modules/@types"
+      "./node_modules/@types",
+      "../node_modules/@types"
     ]
   },
   "include": [
