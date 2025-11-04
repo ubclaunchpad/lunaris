@@ -9,6 +9,8 @@
         "frontend"
     ],
     "scripts": {
+        "format:check": "prettier --check .",
+        "format:fix": "prettier --write .",
         "docker:build": "docker-compose build",
         "docker:start": "docker-compose up -d",
         "docker:stop": "docker-compose down",
@@ -28,5 +30,8 @@
     "repository": {
         "type": "git",
         "url": "https://github.com/ubclaunchpad/lunaris"
+    },
+    "devDependencies": {
+        "prettier": "^3.6.2"
     }
 }
