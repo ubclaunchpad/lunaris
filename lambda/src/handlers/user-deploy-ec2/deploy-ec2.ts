@@ -1,16 +1,53 @@
-export const handler = async (
-  event: DeployEc2Event
-): Promise<DeployEc2Result> => {
-  const userId = event.userId; // TODO: use userId for deploying EC2 instance
-
-  console.log("Stub - Deploying EC2 instance for user");
-  return { success: true };
-};
+import { _InstanceType } from "@aws-sdk/client-ec2";
+import EC2Wrapper, { type EC2InstanceConfig } from "../../utils/ec2Wrapper";
 
 type DeployEc2Event = {
-  userId: string;
+    userId: string;
+    instanceType?: _InstanceType;
 };
 
 type DeployEc2Result = {
-  success: boolean;
+    success: boolean;
+
+    instanceId?: string;
+    publicIp?: string;
+    privateIp?: string;
+    instanceArn?: string;
+
+    state?: string;
+    createdAt?: string;
+    streamingUrl?: string;
+
+    error?: string;
+};
+
+export const handler = async (
+    event: DeployEc2Event
+): Promise<DeployEc2Result> => {
+    try {
+        const { userId, instanceType } = event;
+
+        const ec2Wrapper = new EC2Wrapper();
+
+        const instanceConfig: EC2InstanceConfig = {
+            userId: userId,
+            instanceType: instanceType,
+            securityGroupIds: process.env.SECURITY_GROUP_ID ? [process.env.SECURITY_GROUP_ID] : undefined,
+            subnetId: process.env.SUBNET_ID,
+            keyName: process.env.KEY_PAIR_NAME,
+        };
+
+        console.log(`Creating EC2 instance for user ${userId}...`);
+
+        const instanceResult = await ec2Wrapper.createAndWaitForInstance(instanceConfig);
+
+        console.log(`Instance ${instanceResult.instanceId} is ready!`);
+        return { success: true, ...instanceResult }
+
+    } catch (error: any) {
+        return {
+            success: false,
+            error: error.message || "Unknown error during instance creation",
+        }
+    }
 };
