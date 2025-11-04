@@ -1,5 +1,6 @@
 import { _InstanceType } from "@aws-sdk/client-ec2";
 import EC2Wrapper, { type EC2InstanceConfig } from "../../utils/ec2Wrapper";
+import EBSWrapper, {type CreateVolumeCommandConfig} from '../../utils/ebsWrapper';
 
 type DeployEc2Event = {
     userId: string;
@@ -20,6 +21,13 @@ type DeployEc2Result = {
 
     error?: string;
 };
+
+type AttachEbsResult = {
+    success: boolean;
+    volumeId: string;
+    // FIX
+    attachmentStatus: boolean;
+}
 
 export const handler = async (
     event: DeployEc2Event
@@ -42,6 +50,17 @@ export const handler = async (
         const instanceResult = await ec2Wrapper.createAndWaitForInstance(instanceConfig);
 
         console.log(`Instance ${instanceResult.instanceId} is ready!`);
+
+        // TODO worry about return result later
+        const ebsWrapper = new EBSWrapper();
+
+        const ebsConfig: CreateVolumeCommandConfig =  {
+            userId: userId
+            // the rest of the fields are optional for later customizations to ebs volumes
+        }
+
+        const ebsResult = await ebsWrapper.createAndAttachEbsVolume(ebsConfig, instanceResult.instanceId)
+
         return { success: true, ...instanceResult }
 
     } catch (error: any) {
