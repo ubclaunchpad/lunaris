@@ -1,4 +1,4 @@
-import { Duration } from "aws-cdk-lib";
+import { Duration } from 'aws-cdk-lib';
 
 /**
  * Configuration for a Lambda function reference within a workflow

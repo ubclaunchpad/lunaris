@@ -1,10 +1,6 @@
-import { Construct } from "constructs";
-import {
-  LambdaRestApi,
-  LambdaIntegration,
-  Resource,
-} from "aws-cdk-lib/aws-apigateway";
-import { Function } from "aws-cdk-lib/aws-lambda";
+import { Construct } from 'constructs';
+import { LambdaRestApi, LambdaIntegration, Resource } from 'aws-cdk-lib/aws-apigateway';
+import { Function } from 'aws-cdk-lib/aws-lambda';
 
 export interface ApiGatewayProps {
   deployInstanceFunction: Function;
@@ -18,10 +14,10 @@ export class ApiGateway extends Construct {
   constructor(scope: Construct, id: string, props: ApiGatewayProps) {
     super(scope, id);
 
-    this.restApi = new LambdaRestApi(this, "LunarisApi", {
+    this.restApi = new LambdaRestApi(this, 'LunarisApi', {
       handler: props.deployInstanceFunction,
       proxy: false,
-      description: "LunarisAPI",
+      description: 'LunarisAPI',
     });
 
     // Add API endpoints to LunarisApi here
@@ -32,20 +28,20 @@ export class ApiGateway extends Construct {
 
   private createDeployInstanceEndpoint(lambdaFunction: Function): void {
     const integration = new LambdaIntegration(lambdaFunction);
-    const resource = this.restApi.root.addResource("deployInstance");
+    const resource = this.restApi.root.addResource('deployInstance');
 
-    resource.addMethod("POST", integration, {
+    resource.addMethod('POST', integration, {
       methodResponses: [
         {
-          statusCode: "200",
+          statusCode: '200',
           responseModels: {
-            "application/json": { modelId: "Empty" },
+            'application/json': { modelId: 'Empty' },
           },
         },
         {
-          statusCode: "400",
+          statusCode: '400',
           responseModels: {
-            "application/json": { modelId: "Error" },
+            'application/json': { modelId: 'Error' },
           },
         },
       ],
@@ -54,20 +50,20 @@ export class ApiGateway extends Construct {
 
   private createTerminateInstanceEndpoint(lambdaFunction: Function): void {
     const integration = new LambdaIntegration(lambdaFunction);
-    const resource = this.restApi.root.addResource("terminateInstance");
+    const resource = this.restApi.root.addResource('terminateInstance');
 
-    resource.addMethod("POST", integration, {
+    resource.addMethod('POST', integration, {
       methodResponses: [
         {
-          statusCode: "200",
+          statusCode: '200',
           responseModels: {
-            "application/json": { modelId: "Empty" },
+            'application/json': { modelId: 'Empty' },
           },
         },
         {
-          statusCode: "400",
+          statusCode: '400',
           responseModels: {
-            "application/json": { modelId: "Error" },
+            'application/json': { modelId: 'Error' },
           },
         },
       ],
@@ -76,29 +72,29 @@ export class ApiGateway extends Construct {
 
   private createStreamingLinkEndpoint(lambdaFunction: Function): void {
     const integration = new LambdaIntegration(lambdaFunction);
-    const resource = this.restApi.root.addResource("streamingLink");
+    const resource = this.restApi.root.addResource('streamingLink');
 
-    resource.addMethod("GET", integration, {
+    resource.addMethod('GET', integration, {
       requestParameters: {
-        "method.request.querystring.userId": true,
+        'method.request.querystring.userId': true,
       },
       methodResponses: [
         {
-          statusCode: "200",
+          statusCode: '200',
           responseModels: {
-            "application/json": { modelId: "Empty" },
+            'application/json': { modelId: 'Empty' },
           },
         },
         {
-          statusCode: "400",
+          statusCode: '400',
           responseModels: {
-            "application/json": { modelId: "Error" },
+            'application/json': { modelId: 'Error' },
           },
         },
         {
-          statusCode: "404",
+          statusCode: '404',
           responseModels: {
-            "application/json": { modelId: "Error" },
+            'application/json': { modelId: 'Error' },
           },
         },
       ],

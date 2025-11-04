@@ -1,8 +1,8 @@
-import { Construct } from "constructs";
-import { StateMachine } from "aws-cdk-lib/aws-stepfunctions";
-import { Function } from "aws-cdk-lib/aws-lambda";
-import { WorkflowFactory } from "./workflow-factory";
-import { WorkflowRegistry } from "../workflows";
+import { Construct } from 'constructs';
+import { StateMachine } from 'aws-cdk-lib/aws-stepfunctions';
+import { Function } from 'aws-cdk-lib/aws-lambda';
+import { WorkflowFactory } from './workflow-factory';
+import { WorkflowRegistry } from '../workflows';
 
 export interface StepFunctionsProps extends Record<string, Function> {
   checkRunningStreamsFunction: Function;
@@ -21,10 +21,10 @@ export class StepFunctions extends Construct {
     super(scope, id);
 
     this.workflowFactory = new WorkflowFactory(this, 'WorkflowFactory');
-    
+
     // Discover and register all workflows
     WorkflowRegistry.discoverWorkflows();
-    
+
     // Create all registered workflows with Lambda function mappings
     this.createWorkflows(props);
   }
@@ -34,8 +34,8 @@ export class StepFunctions extends Construct {
    */
   private createWorkflows(props: StepFunctionsProps): void {
     const allWorkflows = WorkflowRegistry.getAllWorkflows();
-    
-    allWorkflows.forEach(config => {
+
+    allWorkflows.forEach((config) => {
       try {
         const workflow = this.workflowFactory.createWorkflow(config, props);
         this.workflows.set(config.name, workflow);
@@ -69,6 +69,4 @@ export class StepFunctions extends Construct {
   public getWorkflowNames(): string[] {
     return Array.from(this.workflows.keys());
   }
-
-
 }

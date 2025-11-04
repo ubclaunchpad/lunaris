@@ -1,5 +1,5 @@
-import { Duration } from "aws-cdk-lib";
-import { WorkflowConfig, LambdaFunctionRef, RetryConfig, ErrorHandlingConfig } from "./types";
+import { Duration } from 'aws-cdk-lib';
+import { WorkflowConfig, LambdaFunctionRef, RetryConfig, ErrorHandlingConfig } from './types';
 
 /**
  * Utility functions for creating and validating Step Functions workflow configurations
@@ -22,16 +22,16 @@ export function createSequentialWorkflow(
     retryConfig?: RetryConfig;
     errorHandling?: ErrorHandlingConfig;
     definitionPath?: string;
-  } = {}
+  } = {},
 ): WorkflowConfig {
   const lambdaFunctionRefs: Record<string, LambdaFunctionRef> = {};
-  
+
   lambdaFunctions.forEach((functionName, index) => {
     const key = `step${index + 1}`;
     lambdaFunctionRefs[key] = createLambdaFunctionRef(
       functionName,
       `\${${toPascalCase(functionName)}Arn}`,
-      true
+      true,
     );
   });
 
@@ -63,17 +63,17 @@ export function createParallelWorkflow(
     retryConfig?: RetryConfig;
     errorHandling?: ErrorHandlingConfig;
     definitionPath?: string;
-  } = {}
+  } = {},
 ): WorkflowConfig {
   const lambdaFunctionRefs: Record<string, LambdaFunctionRef> = {};
-  
+
   Object.entries(parallelBranches).forEach(([branchName, functionNames]) => {
     functionNames.forEach((functionName, index) => {
       const key = `${branchName}Step${index + 1}`;
       lambdaFunctionRefs[key] = createLambdaFunctionRef(
         functionName,
         `\${${toPascalCase(functionName)}Arn}`,
-        true
+        true,
       );
     });
   });
@@ -109,17 +109,17 @@ export function createChoiceWorkflow(
     errorHandling?: ErrorHandlingConfig;
     definitionPath?: string;
     defaultBranch?: string;
-  } = {}
+  } = {},
 ): WorkflowConfig {
   const lambdaFunctionRefs: Record<string, LambdaFunctionRef> = {};
-  
+
   // Add decision function
   lambdaFunctionRefs.decision = createLambdaFunctionRef(
     decisionFunction,
     `\${${toPascalCase(decisionFunction)}Arn}`,
-    true
+    true,
   );
-  
+
   // Add branch functions
   Object.entries(branches).forEach(([branchName, functionNames]) => {
     functionNames.forEach((functionName, index) => {
@@ -127,7 +127,7 @@ export function createChoiceWorkflow(
       lambdaFunctionRefs[key] = createLambdaFunctionRef(
         functionName,
         `\${${toPascalCase(functionName)}Arn}`,
-        true
+        true,
       );
     });
   });
@@ -153,7 +153,7 @@ export function createChoiceWorkflow(
 export function createLambdaFunctionRef(
   functionName: string,
   placeholder: string,
-  required: boolean = true
+  required: boolean = true,
 ): LambdaFunctionRef {
   return {
     functionName,
@@ -172,10 +172,10 @@ export function createLambdaFunctionRef(
 export function createRetryConfig(
   maxAttempts: number = 3,
   backoffRate: number = 2.0,
-  intervalSeconds: number = 2
+  intervalSeconds: number = 2,
 ): RetryConfig {
   validateRetryParameters(maxAttempts, backoffRate, intervalSeconds);
-  
+
   return {
     maxAttempts,
     backoffRate,
@@ -191,7 +191,7 @@ export function createRetryConfig(
  */
 export function createErrorHandlingConfig(
   catchAll: boolean = true,
-  customErrorStates?: Record<string, string>
+  customErrorStates?: Record<string, string>,
 ): ErrorHandlingConfig {
   return {
     catchAll,
@@ -204,19 +204,21 @@ export function createErrorHandlingConfig(
  * @param includeServiceErrors Whether to include common AWS service error mappings
  * @returns ErrorHandlingConfig with common error mappings
  */
-export function createStandardErrorHandling(includeServiceErrors: boolean = true): ErrorHandlingConfig {
+export function createStandardErrorHandling(
+  includeServiceErrors: boolean = true,
+): ErrorHandlingConfig {
   const customErrorStates: Record<string, string> = {};
-  
+
   if (includeServiceErrors) {
     // Common AWS service errors
-    customErrorStates["States.TaskFailed"] = "HandleTaskFailure";
-    customErrorStates["States.Timeout"] = "HandleTimeout";
-    customErrorStates["Lambda.ServiceException"] = "HandleLambdaServiceError";
-    customErrorStates["Lambda.AWSLambdaException"] = "HandleLambdaError";
-    customErrorStates["DynamoDB.ServiceException"] = "HandleDynamoDBError";
-    customErrorStates["S3.ServiceException"] = "HandleS3Error";
+    customErrorStates['States.TaskFailed'] = 'HandleTaskFailure';
+    customErrorStates['States.Timeout'] = 'HandleTimeout';
+    customErrorStates['Lambda.ServiceException'] = 'HandleLambdaServiceError';
+    customErrorStates['Lambda.AWSLambdaException'] = 'HandleLambdaError';
+    customErrorStates['DynamoDB.ServiceException'] = 'HandleDynamoDBError';
+    customErrorStates['S3.ServiceException'] = 'HandleS3Error';
   }
-  
+
   return createErrorHandlingConfig(true, customErrorStates);
 }
 
@@ -228,14 +230,22 @@ export function createStandardErrorHandling(includeServiceErrors: boolean = true
 export function validateWorkflowConfig(config: WorkflowConfig): void {
   // Validate required fields
   if (!config.name || typeof config.name !== 'string' || config.name.trim() === '') {
-    throw new Error("Workflow configuration must have a non-empty name");
+    throw new Error('Workflow configuration must have a non-empty name');
   }
-  
-  if (!config.description || typeof config.description !== 'string' || config.description.trim() === '') {
+
+  if (
+    !config.description ||
+    typeof config.description !== 'string' ||
+    config.description.trim() === ''
+  ) {
     throw new Error(`Workflow '${config.name}' must have a non-empty description`);
   }
-  
-  if (!config.definitionPath || typeof config.definitionPath !== 'string' || config.definitionPath.trim() === '') {
+
+  if (
+    !config.definitionPath ||
+    typeof config.definitionPath !== 'string' ||
+    config.definitionPath.trim() === ''
+  ) {
     throw new Error(`Workflow '${config.name}' must have a non-empty definitionPath`);
   }
 
@@ -270,21 +280,33 @@ export function validateWorkflowConfig(config: WorkflowConfig): void {
  * @param ref The Lambda function reference to validate
  * @throws Error if validation fails
  */
-export function validateLambdaFunctionRef(workflowName: string, key: string, ref: LambdaFunctionRef): void {
+export function validateLambdaFunctionRef(
+  workflowName: string,
+  key: string,
+  ref: LambdaFunctionRef,
+): void {
   if (!ref || typeof ref !== 'object') {
-    throw new Error(`Workflow '${workflowName}' Lambda function reference '${key}' must be an object`);
+    throw new Error(
+      `Workflow '${workflowName}' Lambda function reference '${key}' must be an object`,
+    );
   }
 
   if (!ref.functionName || typeof ref.functionName !== 'string' || ref.functionName.trim() === '') {
-    throw new Error(`Workflow '${workflowName}' Lambda function reference '${key}' must have a non-empty functionName`);
+    throw new Error(
+      `Workflow '${workflowName}' Lambda function reference '${key}' must have a non-empty functionName`,
+    );
   }
 
   if (!ref.placeholder || typeof ref.placeholder !== 'string' || ref.placeholder.trim() === '') {
-    throw new Error(`Workflow '${workflowName}' Lambda function reference '${key}' must have a non-empty placeholder`);
+    throw new Error(
+      `Workflow '${workflowName}' Lambda function reference '${key}' must have a non-empty placeholder`,
+    );
   }
 
   if (typeof ref.required !== 'boolean') {
-    throw new Error(`Workflow '${workflowName}' Lambda function reference '${key}' required field must be a boolean`);
+    throw new Error(
+      `Workflow '${workflowName}' Lambda function reference '${key}' required field must be a boolean`,
+    );
   }
 }
 
@@ -299,7 +321,12 @@ export function validateRetryConfigObject(workflowName: string, retryConfig: Ret
     throw new Error(`Workflow '${workflowName}' retryConfig must be an object`);
   }
 
-  validateRetryParameters(retryConfig.maxAttempts, retryConfig.backoffRate, retryConfig.intervalSeconds, workflowName);
+  validateRetryParameters(
+    retryConfig.maxAttempts,
+    retryConfig.backoffRate,
+    retryConfig.intervalSeconds,
+    workflowName,
+  );
 }
 
 /**
@@ -308,7 +335,10 @@ export function validateRetryConfigObject(workflowName: string, retryConfig: Ret
  * @param errorHandling Error handling configuration to validate
  * @throws Error if validation fails
  */
-export function validateErrorHandlingConfig(workflowName: string, errorHandling: ErrorHandlingConfig): void {
+export function validateErrorHandlingConfig(
+  workflowName: string,
+  errorHandling: ErrorHandlingConfig,
+): void {
   if (!errorHandling || typeof errorHandling !== 'object') {
     throw new Error(`Workflow '${workflowName}' errorHandling must be an object`);
   }
@@ -319,15 +349,21 @@ export function validateErrorHandlingConfig(workflowName: string, errorHandling:
 
   if (errorHandling.customErrorStates) {
     if (typeof errorHandling.customErrorStates !== 'object') {
-      throw new Error(`Workflow '${workflowName}' errorHandling.customErrorStates must be an object`);
+      throw new Error(
+        `Workflow '${workflowName}' errorHandling.customErrorStates must be an object`,
+      );
     }
 
     Object.entries(errorHandling.customErrorStates).forEach(([errorType, stateName]) => {
       if (typeof errorType !== 'string' || errorType.trim() === '') {
-        throw new Error(`Workflow '${workflowName}' errorHandling.customErrorStates keys must be non-empty strings`);
+        throw new Error(
+          `Workflow '${workflowName}' errorHandling.customErrorStates keys must be non-empty strings`,
+        );
       }
       if (typeof stateName !== 'string' || stateName.trim() === '') {
-        throw new Error(`Workflow '${workflowName}' errorHandling.customErrorStates values must be non-empty strings`);
+        throw new Error(
+          `Workflow '${workflowName}' errorHandling.customErrorStates values must be non-empty strings`,
+        );
       }
     });
   }
@@ -345,18 +381,18 @@ function validateRetryParameters(
   maxAttempts: number,
   backoffRate: number,
   intervalSeconds: number,
-  workflowName?: string
+  workflowName?: string,
 ): void {
   const prefix = workflowName ? `Workflow '${workflowName}' ` : '';
 
   if (!Number.isInteger(maxAttempts) || maxAttempts <= 0) {
     throw new Error(`${prefix}retry config maxAttempts must be a positive integer`);
   }
-  
+
   if (typeof backoffRate !== 'number' || backoffRate <= 0) {
     throw new Error(`${prefix}retry config backoffRate must be a positive number`);
   }
-  
+
   if (!Number.isInteger(intervalSeconds) || intervalSeconds <= 0) {
     throw new Error(`${prefix}retry config intervalSeconds must be a positive integer`);
   }
@@ -369,7 +405,7 @@ function validateRetryParameters(
  */
 function toPascalCase(str: string): string {
   return str
-    .replace(/[-_\s]+(.)?/g, (_, char) => char ? char.toUpperCase() : '')
+    .replace(/[-_\s]+(.)?/g, (_, char) => (char ? char.toUpperCase() : ''))
     .replace(/^(.)/, (_, char) => char.toUpperCase());
 }
 
@@ -395,7 +431,7 @@ export function validateWorkflowConfigs(configs: WorkflowConfig[]): Array<{
   isValid: boolean;
   error?: string;
 }> {
-  return configs.map(config => {
+  return configs.map((config) => {
     try {
       validateWorkflowConfig(config);
       return { config, isValid: true };
@@ -403,7 +439,7 @@ export function validateWorkflowConfigs(configs: WorkflowConfig[]): Array<{
       return {
         config,
         isValid: false,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       };
     }
   });
@@ -426,7 +462,7 @@ export function createWorkflowWithDefaults(
     retryConfig?: RetryConfig;
     errorHandling?: ErrorHandlingConfig;
     definitionPath?: string;
-  } = {}
+  } = {},
 ): WorkflowConfig {
   return {
     name,

@@ -1,17 +1,17 @@
-import DynamoDBWrapper from "../../utils/dynamoDbWrapper";
+import DynamoDBWrapper from '../../utils/dynamoDbWrapper';
 
 export const handler = async (
-  event: UpdateRunningStreamsEvent
+  event: UpdateRunningStreamsEvent,
 ): Promise<UpdateRunningStreamsResult> => {
   if (!process.env.RUNNING_STREAMS_TABLE_NAME) {
-    throw new Error("MissingTableNameEnv");
+    throw new Error('MissingTableNameEnv');
   }
 
   const db = new DynamoDBWrapper(process.env.RUNNING_STREAMS_TABLE_NAME);
   const payload = {
     ...event,
     updatedAt: new Date().toISOString(),
-    streamingLink: "streaming-link-placeholder", // TODO: should generate a real streaming link
+    streamingLink: 'streaming-link-placeholder', // TODO: should generate a real streaming link
   };
 
   const updateConfig = {
@@ -23,10 +23,10 @@ export const handler = async (
         createdAt = if_not_exists(createdAt, :createdAt)
     `,
     ExpressionAttributeValues: {
-      ":instanceArn": payload.instanceArn,
-      ":streamingLink": payload.streamingLink,
-      ":updatedAt": payload.updatedAt,
-      ":createdAt": new Date().toISOString(),
+      ':instanceArn': payload.instanceArn,
+      ':streamingLink': payload.streamingLink,
+      ':updatedAt': payload.updatedAt,
+      ':createdAt': new Date().toISOString(),
     },
   };
 

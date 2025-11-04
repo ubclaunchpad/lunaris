@@ -4,9 +4,7 @@
     "module": "CommonJS",
     "moduleResolution": "node",
     "resolveJsonModule": true,
-    "lib": [
-      "es2022"
-    ],
+    "lib": ["es2022"],
     "declaration": true,
     "outDir": "./dist",
     "rootDir": "./",
@@ -26,19 +24,8 @@
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-    "typeRoots": [
-      "./node_modules/@types"
-    ]
+    "typeRoots": ["./node_modules/@types"]
   },
-  "include": [
-    "bin/**/*",
-    "lib/**/*",
-    "stepfunctions/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "cdk.out",
-    "test",
-    "dist"
-  ]
+  "include": ["bin/**/*", "lib/**/*", "stepfunctions/**/*.ts"],
+  "exclude": ["node_modules", "cdk.out", "test", "dist"]
 }

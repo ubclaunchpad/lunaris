@@ -70,31 +70,35 @@ export class WorkflowRegistry {
    */
   public static discoverWorkflows(stepfunctionsPath?: string): void {
     const workflowsDir = stepfunctionsPath || path.join(__dirname, '../../stepfunctions');
-    
+
     if (!fs.existsSync(workflowsDir)) {
       console.warn(`Stepfunctions directory not found at: ${workflowsDir}`);
       return;
     }
 
     try {
-      const workflowDirs = fs.readdirSync(workflowsDir, { withFileTypes: true })
-        .filter(dirent => dirent.isDirectory())
-        .map(dirent => dirent.name);
+      const workflowDirs = fs
+        .readdirSync(workflowsDir, { withFileTypes: true })
+        .filter((dirent) => dirent.isDirectory())
+        .map((dirent) => dirent.name);
 
-      workflowDirs.forEach(workflowDir => {
+      workflowDirs.forEach((workflowDir) => {
         // Try both .ts (development) and .js (compiled) extensions
         const tsConfigPath = path.join(workflowsDir, workflowDir, 'workflow.config.ts');
         const jsConfigPath = path.join(workflowsDir, workflowDir, 'workflow.config.js');
-        
-        const configPath = fs.existsSync(tsConfigPath) ? tsConfigPath : 
-                          fs.existsSync(jsConfigPath) ? jsConfigPath : null;
-        
+
+        const configPath = fs.existsSync(tsConfigPath)
+          ? tsConfigPath
+          : fs.existsSync(jsConfigPath)
+            ? jsConfigPath
+            : null;
+
         if (configPath) {
           try {
             // Use require to load the configuration
             const configModule = require(configPath);
             const config = configModule.default || configModule;
-            
+
             if (this.isValidWorkflowConfig(config)) {
               // Skip registration if workflow already exists (e.g., from tests)
               if (!this.hasWorkflow(config.name)) {

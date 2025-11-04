@@ -22,41 +22,46 @@ export const resetAllMocks = () => {
 export const mockResponses = {
   dynamodb: {
     putItem: { $metadata: { httpStatusCode: 200 } },
-    getItem: { 
-      Item: { 
+    getItem: {
+      Item: {
         id: { S: 'test-id' },
-        status: { S: 'active' }
-      }
+        status: { S: 'active' },
+      },
     },
     updateItem: { $metadata: { httpStatusCode: 200 } },
-    deleteItem: { $metadata: { httpStatusCode: 200 } }
+    deleteItem: { $metadata: { httpStatusCode: 200 } },
   },
   ec2: {
     runInstances: {
-      Instances: [{
-        InstanceId: 'i-1234567890abcdef0',
-        State: { Name: 'pending' }
-      }]
+      Instances: [
+        {
+          InstanceId: 'i-1234567890abcdef0',
+          State: { Name: 'pending' },
+        },
+      ],
     },
     terminateInstances: {
-      TerminatingInstances: [{
-        InstanceId: 'i-1234567890abcdef0',
-        CurrentState: { Name: 'shutting-down' }
-      }]
-    }
+      TerminatingInstances: [
+        {
+          InstanceId: 'i-1234567890abcdef0',
+          CurrentState: { Name: 'shutting-down' },
+        },
+      ],
+    },
   },
   ssm: {
     getParameter: {
       Parameter: {
         Name: '/test/parameter',
-        Value: 'test-value'
-      }
-    }
+        Value: 'test-value',
+      },
+    },
   },
   sfn: {
     startExecution: {
-      executionArn: 'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:test-execution',
-      startDate: new Date()
-    }
-  }
+      executionArn:
+        'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:test-execution',
+      startDate: new Date(),
+    },
+  },
 };

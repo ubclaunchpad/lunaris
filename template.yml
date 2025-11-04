@@ -1,6 +1,6 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: "Lunaris Cloud Gaming Platform - Local Development Environment"
+Description: 'Lunaris Cloud Gaming Platform - Local Development Environment'
 
 Globals:
   Function:
@@ -69,14 +69,14 @@ Resources:
       Policies:
         - DynamoDBWritePolicy:
             TableName: !Ref RunningInstancesTable
-        - Version: "2012-10-17"
+        - Version: '2012-10-17'
           Statement:
             - Effect: Allow
               Action:
                 - ec2:RunInstances
                 - ec2:CreateTags
                 - ec2:DescribeInstances
-              Resource: "*"
+              Resource: '*'
 
   TerminateInstanceFunction:
     Type: AWS::Serverless::Function
@@ -148,37 +148,35 @@ Resources:
 
 Outputs:
   ApiGatewayUrl:
-    Description: "API Gateway endpoint URL for local testing"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+    Description: 'API Gateway endpoint URL for local testing'
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/'
     Export:
-      Name: !Sub "${AWS::StackName}-ApiGatewayUrl"
+      Name: !Sub '${AWS::StackName}-ApiGatewayUrl'
 
   DeployInstanceEndpoint:
-    Description: "Deploy Instance API endpoint"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/deployInstance"
+    Description: 'Deploy Instance API endpoint'
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/deployInstance'
 
   TerminateInstanceEndpoint:
-    Description: "Terminate Instance API endpoint"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/terminateInstance"
+    Description: 'Terminate Instance API endpoint'
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/terminateInstance'
 
   StreamingLinkEndpoint:
-    Description: "Streaming Link API endpoint"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/streamingLink"
+    Description: 'Streaming Link API endpoint'
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/streamingLink'
 
   RunningInstancesTableName:
-    Description: "Running Instances DynamoDB Table Name"
+    Description: 'Running Instances DynamoDB Table Name'
     Value: !Ref RunningInstancesTable
     Export:
-      Name: !Sub "${AWS::StackName}-RunningInstancesTable"
+      Name: !Sub '${AWS::StackName}-RunningInstancesTable'
 
   RunningStreamsTableName:
-    Description: "Running Streams DynamoDB Table Name"
+    Description: 'Running Streams DynamoDB Table Name'
     Value: !Ref RunningStreamsTable
     Export:
-      Name: !Sub "${AWS::StackName}-RunningStreamsTable"
-
-
+      Name: !Sub '${AWS::StackName}-RunningStreamsTable'
 
   UserDeployEC2WorkflowArn:
-    Description: "User Deploy EC2 Step Function ARN"
+    Description: 'User Deploy EC2 Step Function ARN'
     Value: !Ref UserDeployEC2Workflow

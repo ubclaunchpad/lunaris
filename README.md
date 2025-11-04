@@ -19,7 +19,9 @@ This project consists of:
 - **AWS CLI** (for deployment)
 
 ### Installing Docker Desktop
+
 #### MacOS
+
 ```bash
 # Mac OS (Homebrew)
 brew install --cask docker
@@ -55,7 +57,7 @@ sam --version
 ```bash
 # From project root
 
-# Install all project dependencies 
+# Install all project dependencies
 npm run install:all
 ```
 
@@ -80,16 +82,15 @@ npm run docker:stop
 npm run docker:clean
 ```
 
-
 #### What's Running?
 
 Once started, you'll have:
 
-| Service | Port | URL | Purpose |
-|---------|------|-----|---------|
-| **DynamoDB Local** | 8000 | http://localhost:8000 | Local DynamoDB for testing |
+| Service              | Port | URL                   | Purpose                           |
+| -------------------- | ---- | --------------------- | --------------------------------- |
+| **DynamoDB Local**   | 8000 | http://localhost:8000 | Local DynamoDB for testing        |
 | **Lambda Container** | 9000 | http://localhost:9000 | Lambda Runtime Interface Emulator |
-| **Frontend** | 3000 | http://localhost:3000 | Next.js production build |
+| **Frontend**         | 3000 | http://localhost:3000 | Next.js production build          |
 
 #### Running Specific Lambda Handlers
 
@@ -111,7 +112,6 @@ curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" \
   -d '{"userId":"test-user","instanceType":"g4dn.xlarge","region":"us-west-2"}'
 ```
 
-
 #### Testing the Stack
 
 ```bash
@@ -126,7 +126,6 @@ open http://localhost:3000
 aws dynamodb list-tables --endpoint-url http://localhost:8000
 ```
 
-
 # Local Development with SAM
 
 SAM Local provides a local API Gateway + Lambda environment:
@@ -139,6 +138,7 @@ sam local start-api
 ```
 
 Then test endpoints:
+
 ```bash
 # Deploy Instance
 curl -X POST http://localhost:3000/deployInstance \

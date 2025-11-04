@@ -21,15 +21,15 @@ describe('CDK Constructs', () => {
       AttributeDefinitions: [
         {
           AttributeName: 'instanceArn',
-          AttributeType: 'S'
-        }
+          AttributeType: 'S',
+        },
       ],
       KeySchema: [
         {
           AttributeName: 'instanceArn',
-          KeyType: 'HASH'
-        }
-      ]
+          KeyType: 'HASH',
+        },
+      ],
     });
 
     // Test RunningInstances table
@@ -38,9 +38,9 @@ describe('CDK Constructs', () => {
       KeySchema: [
         {
           AttributeName: 'instanceId',
-          KeyType: 'HASH'
-        }
-      ]
+          KeyType: 'HASH',
+        },
+      ],
     });
 
     expect(dynamoDbTables.runningInstancesTable).toBeDefined();
@@ -52,7 +52,7 @@ describe('CDK Constructs', () => {
     const template = Template.fromStack(stack);
 
     template.hasResource('AWS::DynamoDB::Table', {
-      DeletionPolicy: 'Delete'
+      DeletionPolicy: 'Delete',
     });
   });
 });

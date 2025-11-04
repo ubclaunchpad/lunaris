@@ -14,7 +14,12 @@ import {
   validateErrorHandlingConfig,
   validateWorkflowConfigs,
 } from '../lib/workflows/utilities';
-import { WorkflowConfig, LambdaFunctionRef, RetryConfig, ErrorHandlingConfig } from '../lib/workflows/types';
+import {
+  WorkflowConfig,
+  LambdaFunctionRef,
+  RetryConfig,
+  ErrorHandlingConfig,
+} from '../lib/workflows/types';
 
 describe('Workflow Utilities', () => {
   describe('createSequentialWorkflow', () => {
@@ -22,7 +27,7 @@ describe('Workflow Utilities', () => {
       const config = createSequentialWorkflow(
         'TestSequentialWorkflow',
         'A test sequential workflow',
-        ['functionA', 'functionB', 'functionC']
+        ['functionA', 'functionB', 'functionC'],
       );
 
       expect(config.name).toBe('TestSequentialWorkflow');
@@ -49,7 +54,7 @@ describe('Workflow Utilities', () => {
           retryConfig,
           errorHandling,
           definitionPath: 'custom/path/definition.asl.json',
-        }
+        },
       );
 
       expect(config.timeout).toBe(timeout);
@@ -70,7 +75,7 @@ describe('Workflow Utilities', () => {
       const config = createParallelWorkflow(
         'TestParallelWorkflow',
         'A test parallel workflow',
-        branches
+        branches,
       );
 
       expect(config.name).toBe('TestParallelWorkflow');
@@ -94,7 +99,7 @@ describe('Workflow Utilities', () => {
         'TestChoiceWorkflow',
         'A test choice workflow',
         'decisionFunction',
-        branches
+        branches,
       );
 
       expect(config.name).toBe('TestChoiceWorkflow');
@@ -141,20 +146,36 @@ describe('Workflow Utilities', () => {
     });
 
     test('should throw error for invalid maxAttempts', () => {
-      expect(() => createRetryConfig(0, 2.0, 2)).toThrow('retry config maxAttempts must be a positive integer');
-      expect(() => createRetryConfig(-1, 2.0, 2)).toThrow('retry config maxAttempts must be a positive integer');
-      expect(() => createRetryConfig(1.5, 2.0, 2)).toThrow('retry config maxAttempts must be a positive integer');
+      expect(() => createRetryConfig(0, 2.0, 2)).toThrow(
+        'retry config maxAttempts must be a positive integer',
+      );
+      expect(() => createRetryConfig(-1, 2.0, 2)).toThrow(
+        'retry config maxAttempts must be a positive integer',
+      );
+      expect(() => createRetryConfig(1.5, 2.0, 2)).toThrow(
+        'retry config maxAttempts must be a positive integer',
+      );
     });
 
     test('should throw error for invalid backoffRate', () => {
-      expect(() => createRetryConfig(3, 0, 2)).toThrow('retry config backoffRate must be a positive number');
-      expect(() => createRetryConfig(3, -1, 2)).toThrow('retry config backoffRate must be a positive number');
+      expect(() => createRetryConfig(3, 0, 2)).toThrow(
+        'retry config backoffRate must be a positive number',
+      );
+      expect(() => createRetryConfig(3, -1, 2)).toThrow(
+        'retry config backoffRate must be a positive number',
+      );
     });
 
     test('should throw error for invalid intervalSeconds', () => {
-      expect(() => createRetryConfig(3, 2.0, 0)).toThrow('retry config intervalSeconds must be a positive integer');
-      expect(() => createRetryConfig(3, 2.0, -1)).toThrow('retry config intervalSeconds must be a positive integer');
-      expect(() => createRetryConfig(3, 2.0, 1.5)).toThrow('retry config intervalSeconds must be a positive integer');
+      expect(() => createRetryConfig(3, 2.0, 0)).toThrow(
+        'retry config intervalSeconds must be a positive integer',
+      );
+      expect(() => createRetryConfig(3, 2.0, -1)).toThrow(
+        'retry config intervalSeconds must be a positive integer',
+      );
+      expect(() => createRetryConfig(3, 2.0, 1.5)).toThrow(
+        'retry config intervalSeconds must be a positive integer',
+      );
     });
   });
 
@@ -168,8 +189,8 @@ describe('Workflow Utilities', () => {
 
     test('should create error handling configuration with custom states', () => {
       const customStates = {
-        'CustomError': 'HandleCustomError',
-        'AnotherError': 'HandleAnotherError',
+        CustomError: 'HandleCustomError',
+        AnotherError: 'HandleAnotherError',
       };
 
       const config = createErrorHandlingConfig(false, customStates);
@@ -207,7 +228,7 @@ describe('Workflow Utilities', () => {
       const config = createWorkflowWithDefaults(
         'DefaultWorkflow',
         'Workflow with defaults',
-        lambdaFunctions
+        lambdaFunctions,
       );
 
       expect(config.name).toBe('DefaultWorkflow');
@@ -235,7 +256,7 @@ describe('Workflow Utilities', () => {
           timeout: customTimeout,
           retryConfig: customRetry,
           definitionPath: 'custom/definition.asl.json',
-        }
+        },
       );
 
       expect(config.timeout).toBe(customTimeout);
@@ -277,7 +298,9 @@ describe('Workflow Utilities', () => {
         lambdaFunctions: {},
       };
 
-      expect(() => validateWorkflowConfig(invalidConfig)).toThrow('must have a non-empty description');
+      expect(() => validateWorkflowConfig(invalidConfig)).toThrow(
+        'must have a non-empty description',
+      );
     });
 
     test('should throw error for missing definition path', () => {
@@ -288,7 +311,9 @@ describe('Workflow Utilities', () => {
         lambdaFunctions: {},
       };
 
-      expect(() => validateWorkflowConfig(invalidConfig)).toThrow('must have a non-empty definitionPath');
+      expect(() => validateWorkflowConfig(invalidConfig)).toThrow(
+        'must have a non-empty definitionPath',
+      );
     });
 
     test('should validate retry configuration if present', () => {
@@ -304,7 +329,9 @@ describe('Workflow Utilities', () => {
         },
       };
 
-      expect(() => validateWorkflowConfig(invalidConfig)).toThrow('maxAttempts must be a positive integer');
+      expect(() => validateWorkflowConfig(invalidConfig)).toThrow(
+        'maxAttempts must be a positive integer',
+      );
     });
   });
 
@@ -326,8 +353,9 @@ describe('Workflow Utilities', () => {
         required: true,
       };
 
-      expect(() => validateLambdaFunctionRef('TestWorkflow', 'step1', invalidRef))
-        .toThrow('must have a non-empty functionName');
+      expect(() => validateLambdaFunctionRef('TestWorkflow', 'step1', invalidRef)).toThrow(
+        'must have a non-empty functionName',
+      );
     });
 
     test('should throw error for missing placeholder', () => {
@@ -337,8 +365,9 @@ describe('Workflow Utilities', () => {
         required: true,
       };
 
-      expect(() => validateLambdaFunctionRef('TestWorkflow', 'step1', invalidRef))
-        .toThrow('must have a non-empty placeholder');
+      expect(() => validateLambdaFunctionRef('TestWorkflow', 'step1', invalidRef)).toThrow(
+        'must have a non-empty placeholder',
+      );
     });
 
     test('should throw error for invalid required field', () => {
@@ -348,8 +377,9 @@ describe('Workflow Utilities', () => {
         required: 'true', // Should be boolean
       };
 
-      expect(() => validateLambdaFunctionRef('TestWorkflow', 'step1', invalidRef))
-        .toThrow('required field must be a boolean');
+      expect(() => validateLambdaFunctionRef('TestWorkflow', 'step1', invalidRef)).toThrow(
+        'required field must be a boolean',
+      );
     });
   });
 
@@ -371,8 +401,9 @@ describe('Workflow Utilities', () => {
         intervalSeconds: 2,
       };
 
-      expect(() => validateRetryConfigObject('TestWorkflow', invalidConfig))
-        .toThrow('maxAttempts must be a positive integer');
+      expect(() => validateRetryConfigObject('TestWorkflow', invalidConfig)).toThrow(
+        'maxAttempts must be a positive integer',
+      );
     });
   });
 
@@ -381,7 +412,7 @@ describe('Workflow Utilities', () => {
       const validConfig: ErrorHandlingConfig = {
         catchAll: true,
         customErrorStates: {
-          'CustomError': 'HandleCustomError',
+          CustomError: 'HandleCustomError',
         },
       };
 
@@ -393,8 +424,9 @@ describe('Workflow Utilities', () => {
         catchAll: 'true', // Should be boolean
       };
 
-      expect(() => validateErrorHandlingConfig('TestWorkflow', invalidConfig))
-        .toThrow('catchAll must be a boolean');
+      expect(() => validateErrorHandlingConfig('TestWorkflow', invalidConfig)).toThrow(
+        'catchAll must be a boolean',
+      );
     });
 
     test('should throw error for invalid custom error states', () => {
@@ -405,8 +437,9 @@ describe('Workflow Utilities', () => {
         },
       };
 
-      expect(() => validateErrorHandlingConfig('TestWorkflow', invalidConfig))
-        .toThrow('customErrorStates keys must be non-empty strings');
+      expect(() => validateErrorHandlingConfig('TestWorkflow', invalidConfig)).toThrow(
+        'customErrorStates keys must be non-empty strings',
+      );
     });
   });
 

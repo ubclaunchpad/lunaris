@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState } from 'react';
 
 interface UserContextType {
   userId: string | null;
@@ -16,9 +16,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
   const [streamingLink, setStreamingLink] = useState<string | null>(null);
 
   return (
-    <UserContext.Provider
-      value={{ userId, setUserId, streamingLink, setStreamingLink }}
-    >
+    <UserContext.Provider value={{ userId, setUserId, streamingLink, setStreamingLink }}>
       {children}
     </UserContext.Provider>
   );
@@ -27,7 +25,7 @@ export const UserProvider = ({ children }: { children: React.ReactNode }) => {
 export const useUser = () => {
   const context = useContext(UserContext);
   if (!context) {
-    throw new Error("useUser must be used within a UserProvider");
+    throw new Error('useUser must be used within a UserProvider');
   }
   return context;
 };

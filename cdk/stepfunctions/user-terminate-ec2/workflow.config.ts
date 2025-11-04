@@ -3,7 +3,7 @@ import { Duration } from 'aws-cdk-lib';
 
 /**
  * Configuration for the UserTerminateEC2 workflow
- * 
+ *
  * This workflow orchestrates the EC2 termination process for users by:
  * 1. Checking if there is an active running stream for the user
  * 2. Terminating the EC2 instance if a valid stream exists
@@ -39,10 +39,10 @@ const config: WorkflowConfig = {
   errorHandling: {
     catchAll: true,
     customErrorStates: {
-      'MissingTableNameEnv': 'HandleMissingTableName',
-      'DatabaseError': 'HandleDatabaseError',
-      'InvalidStreamError': 'HandleInvalidStreamError',
-      'TerminationFailedError': 'HandleFailedTermination',
+      MissingTableNameEnv: 'HandleMissingTableName',
+      DatabaseError: 'HandleDatabaseError',
+      InvalidStreamError: 'HandleInvalidStreamError',
+      TerminationFailedError: 'HandleFailedTermination',
     },
   },
 };

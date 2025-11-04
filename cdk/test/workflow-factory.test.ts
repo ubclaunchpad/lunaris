@@ -17,7 +17,7 @@ describe('WorkflowFactory', () => {
     app = new cdk.App();
     stack = new cdk.Stack(app, 'TestStack');
     workflowFactory = new WorkflowFactory(stack, 'TestWorkflowFactory');
-    
+
     // Create a test Lambda function
     testLambdaFunction = new Function(stack, 'TestLambda', {
       runtime: Runtime.NODEJS_18_X,
@@ -49,7 +49,7 @@ describe('WorkflowFactory', () => {
       const template = Template.fromStack(stack);
 
       expect(workflow).toBeDefined();
-      
+
       // Verify StateMachine is created
       template.resourceCountIs('AWS::StepFunctions::StateMachine', 1);
     });
@@ -77,7 +77,7 @@ describe('WorkflowFactory', () => {
       const template = Template.fromStack(stack);
 
       expect(workflow).toBeDefined();
-      
+
       // Verify StateMachine is created with timeout
       template.resourceCountIs('AWS::StepFunctions::StateMachine', 1);
     });
@@ -100,7 +100,9 @@ describe('WorkflowFactory', () => {
 
       expect(() => {
         workflowFactory.createWorkflow(config, lambdaFunctions);
-      }).toThrow("Required Lambda function 'missingFunction' not found for workflow 'TestWorkflow'");
+      }).toThrow(
+        "Required Lambda function 'missingFunction' not found for workflow 'TestWorkflow'",
+      );
     });
 
     test('should throw error for missing workflow name', () => {
@@ -221,24 +223,27 @@ describe('WorkflowFactory', () => {
     test('should handle multiple placeholder patterns', () => {
       // Create additional test definition file with multiple placeholders
       const multiPlaceholderDefinition = {
-        "Comment": "Test workflow with multiple placeholders",
-        "StartAt": "FirstLambda",
-        "States": {
-          "FirstLambda": {
-            "Type": "Task",
-            "Resource": "${FirstLambdaArn}",
-            "Next": "SecondLambda"
+        Comment: 'Test workflow with multiple placeholders',
+        StartAt: 'FirstLambda',
+        States: {
+          FirstLambda: {
+            Type: 'Task',
+            Resource: '${FirstLambdaArn}',
+            Next: 'SecondLambda',
           },
-          "SecondLambda": {
-            "Type": "Task",
-            "Resource": "${SecondLambdaArn}",
-            "End": true
-          }
-        }
+          SecondLambda: {
+            Type: 'Task',
+            Resource: '${SecondLambdaArn}',
+            End: true,
+          },
+        },
       };
 
       // Write test definition file
-      const testDefPath = path.join(__dirname, '../stepfunctions/multi-placeholder-test/definition.asl.json');
+      const testDefPath = path.join(
+        __dirname,
+        '../stepfunctions/multi-placeholder-test/definition.asl.json',
+      );
       const testDefDir = path.dirname(testDefPath);
       if (!fs.existsSync(testDefDir)) {
         fs.mkdirSync(testDefDir, { recursive: true });

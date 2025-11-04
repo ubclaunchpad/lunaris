@@ -1,9 +1,9 @@
-import { Construct } from "constructs";
-import { StateMachine, DefinitionBody } from "aws-cdk-lib/aws-stepfunctions";
-import { Function } from "aws-cdk-lib/aws-lambda";
-import { WorkflowConfig } from "../workflows/types";
-import * as fs from "fs";
-import * as path from "path";
+import { Construct } from 'constructs';
+import { StateMachine, DefinitionBody } from 'aws-cdk-lib/aws-stepfunctions';
+import { Function } from 'aws-cdk-lib/aws-lambda';
+import { WorkflowConfig } from '../workflows/types';
+import * as fs from 'fs';
+import * as path from 'path';
 
 /**
  * Factory class for creating Step Functions workflows from configuration
@@ -21,14 +21,14 @@ export class WorkflowFactory extends Construct {
    */
   public createWorkflow(
     config: WorkflowConfig,
-    lambdaFunctions: Record<string, Function>
+    lambdaFunctions: Record<string, Function>,
   ): StateMachine {
     // Validate configuration
     this.validateConfig(config, lambdaFunctions);
-    
+
     // Load and process definition
     const definitionBody = this.processDefinition(config, lambdaFunctions);
-    
+
     // Create state machine
     const stateMachineProps: any = {
       definitionBody: DefinitionBody.fromString(definitionBody),
@@ -56,19 +56,16 @@ export class WorkflowFactory extends Construct {
    * @param lambdaFunctions Available Lambda functions
    * @throws Error if validation fails
    */
-  private validateConfig(
-    config: WorkflowConfig,
-    lambdaFunctions: Record<string, Function>
-  ): void {
+  private validateConfig(config: WorkflowConfig, lambdaFunctions: Record<string, Function>): void {
     // Validate required fields
     if (!config.name) {
-      throw new Error("Workflow configuration must have a name");
+      throw new Error('Workflow configuration must have a name');
     }
-    
+
     if (!config.description) {
       throw new Error(`Workflow '${config.name}' must have a description`);
     }
-    
+
     if (!config.definitionPath) {
       throw new Error(`Workflow '${config.name}' must have a definitionPath`);
     }
@@ -77,7 +74,7 @@ export class WorkflowFactory extends Construct {
     const definitionPath = this.getDefinitionPath(config.definitionPath);
     if (!fs.existsSync(definitionPath)) {
       throw new Error(
-        `Definition file not found for workflow '${config.name}' at path: ${definitionPath}`
+        `Definition file not found for workflow '${config.name}' at path: ${definitionPath}`,
       );
     }
 
@@ -85,7 +82,7 @@ export class WorkflowFactory extends Construct {
     Object.entries(config.lambdaFunctions).forEach(([key, ref]) => {
       if (ref.required && !lambdaFunctions[ref.functionName]) {
         throw new Error(
-          `Required Lambda function '${ref.functionName}' not found for workflow '${config.name}'`
+          `Required Lambda function '${ref.functionName}' not found for workflow '${config.name}'`,
         );
       }
     });
@@ -104,20 +101,16 @@ export class WorkflowFactory extends Construct {
    */
   private validateRetryConfig(workflowName: string, retryConfig: any): void {
     if (retryConfig.maxAttempts <= 0) {
-      throw new Error(
-        `Workflow '${workflowName}' retry config maxAttempts must be greater than 0`
-      );
+      throw new Error(`Workflow '${workflowName}' retry config maxAttempts must be greater than 0`);
     }
-    
+
     if (retryConfig.backoffRate <= 0) {
-      throw new Error(
-        `Workflow '${workflowName}' retry config backoffRate must be greater than 0`
-      );
+      throw new Error(`Workflow '${workflowName}' retry config backoffRate must be greater than 0`);
     }
-    
+
     if (retryConfig.intervalSeconds <= 0) {
       throw new Error(
-        `Workflow '${workflowName}' retry config intervalSeconds must be greater than 0`
+        `Workflow '${workflowName}' retry config intervalSeconds must be greater than 0`,
       );
     }
   }
@@ -130,10 +123,10 @@ export class WorkflowFactory extends Construct {
    */
   private processDefinition(
     config: WorkflowConfig,
-    lambdaFunctions: Record<string, Function>
+    lambdaFunctions: Record<string, Function>,
   ): string {
     const definitionPath = this.getDefinitionPath(config.definitionPath);
-    
+
     try {
       let template = fs.readFileSync(definitionPath, 'utf8');
 
@@ -142,7 +135,7 @@ export class WorkflowFactory extends Construct {
         JSON.parse(template);
       } catch (jsonError) {
         throw new Error(
-          `Invalid JSON in definition file for workflow '${config.name}': ${jsonError}`
+          `Invalid JSON in definition file for workflow '${config.name}': ${jsonError}`,
         );
       }
 
@@ -152,7 +145,7 @@ export class WorkflowFactory extends Construct {
         if (lambdaFunction) {
           template = template.replace(
             new RegExp(this.escapeRegex(ref.placeholder), 'g'),
-            lambdaFunction.functionArn
+            lambdaFunction.functionArn,
           );
         }
       });
@@ -165,9 +158,7 @@ export class WorkflowFactory extends Construct {
       if (error instanceof Error) {
         throw error;
       }
-      throw new Error(
-        `Failed to process definition for workflow '${config.name}': ${error}`
-      );
+      throw new Error(`Failed to process definition for workflow '${config.name}': ${error}`);
     }
   }
 
@@ -182,7 +173,7 @@ export class WorkflowFactory extends Construct {
       if (ref.required && processedTemplate.includes(ref.placeholder)) {
         throw new Error(
           `Required placeholder '${ref.placeholder}' was not substituted in workflow '${config.name}'. ` +
-          `Check that Lambda function '${ref.functionName}' is provided.`
+            `Check that Lambda function '${ref.functionName}' is provided.`,
         );
       }
     });
@@ -197,7 +188,7 @@ export class WorkflowFactory extends Construct {
   private grantPermissions(
     config: WorkflowConfig,
     lambdaFunctions: Record<string, Function>,
-    stateMachine: StateMachine
+    stateMachine: StateMachine,
   ): void {
     Object.entries(config.lambdaFunctions).forEach(([key, ref]) => {
       const lambdaFunction = lambdaFunctions[ref.functionName];
@@ -213,7 +204,7 @@ export class WorkflowFactory extends Construct {
    * @returns Full path to the definition file
    */
   private getDefinitionPath(relativePath: string): string {
-    return path.join(__dirname, "../../stepfunctions", relativePath);
+    return path.join(__dirname, '../../stepfunctions', relativePath);
   }
 
   /**

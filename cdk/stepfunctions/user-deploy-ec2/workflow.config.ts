@@ -3,7 +3,7 @@ import { Duration } from 'aws-cdk-lib';
 
 /**
  * Configuration for the UserDeployEC2 workflow
- * 
+ *
  * This workflow orchestrates the EC2 deployment process for users by:
  * 1. Checking if there are any running streams for the user
  * 2. Deploying a new EC2 instance if no streams are running
@@ -39,10 +39,10 @@ const config: WorkflowConfig = {
   errorHandling: {
     catchAll: true,
     customErrorStates: {
-      'MissingTableNameEnv': 'HandleMissingTableName',
-      'DatabaseError': 'HandleDatabaseError',
-      'StreamsRunningError': 'HandleStreamsRunningError',
-      'DeploymentFailedError': 'HandleFailedDeployment',
+      MissingTableNameEnv: 'HandleMissingTableName',
+      DatabaseError: 'HandleDatabaseError',
+      StreamsRunningError: 'HandleStreamsRunningError',
+      DeploymentFailedError: 'HandleFailedDeployment',
     },
   },
 };

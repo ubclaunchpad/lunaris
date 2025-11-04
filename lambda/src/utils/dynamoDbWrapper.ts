@@ -1,4 +1,4 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
   DynamoDBDocumentClient,
   GetCommand,
@@ -9,7 +9,7 @@ import {
   type PutCommandInput,
   type GetCommandOutput,
   type UpdateCommandInput,
-} from "@aws-sdk/lib-dynamodb";
+} from '@aws-sdk/lib-dynamodb';
 
 class DynamoDBWrapper {
   private client: DynamoDBDocumentClient;
@@ -17,17 +17,14 @@ class DynamoDBWrapper {
 
   constructor(tableName: string, translateConfig?: TranslateConfig) {
     // DynamoDBDocumentClient allows use of native JS types rather than aws AttributeValue types
-    this.client = DynamoDBDocumentClient.from(
-      new DynamoDBClient({}),
-      translateConfig
-    );
+    this.client = DynamoDBDocumentClient.from(new DynamoDBClient({}), translateConfig);
     this.tableName = tableName;
   }
 
   async getItem(
-    key: GetCommandInput["Key"],
-    options?: Partial<GetCommandInput>
-  ): Promise<GetCommandOutput["Item"] | null> {
+    key: GetCommandInput['Key'],
+    options?: Partial<GetCommandInput>,
+  ): Promise<GetCommandOutput['Item'] | null> {
     const inputConfig: GetCommandInput = {
       ...(options ?? {}),
       TableName: this.tableName,
@@ -38,10 +35,7 @@ class DynamoDBWrapper {
     return response?.Item ?? null;
   }
 
-  async putItem(
-    Item: PutCommandInput["Item"],
-    options?: Partial<PutCommandInput>
-  ) {
+  async putItem(Item: PutCommandInput['Item'], options?: Partial<PutCommandInput>) {
     const inputConfig: PutCommandInput = {
       ...(options ?? {}),
       TableName: this.tableName,
@@ -51,10 +45,7 @@ class DynamoDBWrapper {
     await this.client.send(new PutCommand(inputConfig));
   }
 
-  async updateItem(
-    key: UpdateCommandInput["Key"],
-    options?: Partial<UpdateCommandInput>
-  ) {
+  async updateItem(key: UpdateCommandInput['Key'], options?: Partial<UpdateCommandInput>) {
     const inputConfig: UpdateCommandInput = {
       ...(options ?? {}),
       TableName: this.tableName,

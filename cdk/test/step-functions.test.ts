@@ -15,10 +15,10 @@ describe('StepFunctions Construct', () => {
   beforeEach(() => {
     app = new cdk.App();
     stack = new cdk.Stack(app, 'TestStack');
-    
+
     // Clear the workflow registry before each test
     WorkflowRegistry.clearRegistry();
-    
+
     // Create test Lambda functions
     testLambdaFunctions = {
       checkRunningStreamsFunction: new Function(stack, 'CheckRunningStreamsFunction', {
@@ -72,7 +72,7 @@ describe('StepFunctions Construct', () => {
 
       // Should create StateMachine (UserDeployEC2Workflow from registry)
       template.resourceCountIs('AWS::StepFunctions::StateMachine', 1);
-      
+
       // Test workflow doesn't exist, so should be undefined
       const workflow = stepFunctions.getWorkflow('TestRegistryWorkflow');
       expect(workflow).toBeUndefined();
@@ -110,15 +110,15 @@ describe('StepFunctions Construct', () => {
       WorkflowRegistry.registerWorkflow(workflow2);
 
       const stepFunctions = new StepFunctions(stack, 'TestStepFunctions', testLambdaFunctions);
-      
+
       // Test workflows don't exist, so should be undefined
       expect(stepFunctions.getWorkflow('TestWorkflow1')).toBeUndefined();
       expect(stepFunctions.getWorkflow('TestWorkflow2')).toBeUndefined();
-      
+
       // Should return only the UserDeployEC2Workflow
       const allWorkflows = stepFunctions.getAllWorkflows();
       expect(allWorkflows.length).toBe(1);
-      
+
       // Should return only the UserDeployEC2Workflow name
       const workflowNames = stepFunctions.getWorkflowNames();
       expect(workflowNames).toContain('UserDeployEC2Workflow');
@@ -127,23 +127,21 @@ describe('StepFunctions Construct', () => {
     });
   });
 
-
-
   describe('Workflow Access Methods', () => {
     test('should return undefined for non-existent workflow', () => {
       const stepFunctions = new StepFunctions(stack, 'TestStepFunctions', testLambdaFunctions);
-      
+
       const workflow = stepFunctions.getWorkflow('NonExistentWorkflow');
       expect(workflow).toBeUndefined();
     });
 
     test('should return workflows when auto-discovery finds configurations', () => {
       const stepFunctions = new StepFunctions(stack, 'TestStepFunctions', testLambdaFunctions);
-      
+
       // Auto-discovery should find the UserDeployEC2Workflow configuration
       const allWorkflows = stepFunctions.getAllWorkflows();
       expect(allWorkflows.length).toBeGreaterThanOrEqual(0);
-      
+
       const workflowNames = stepFunctions.getWorkflowNames();
       // May contain auto-discovered workflows
       expect(Array.isArray(workflowNames)).toBe(true);
@@ -184,7 +182,7 @@ describe('StepFunctions Construct', () => {
 
       // Should create StateMachine resources
       template.resourceCountIs('AWS::StepFunctions::StateMachine', 1);
-      
+
       // Should have proper IAM policies for Lambda invocation
       const policies = template.findResources('AWS::IAM::Policy');
       expect(Object.keys(policies).length).toBeGreaterThan(0);
@@ -192,18 +190,18 @@ describe('StepFunctions Construct', () => {
 
     test('should use new workflow configuration for UserDeployEC2Workflow', () => {
       const stepFunctions = new StepFunctions(stack, 'TestStepFunctions', testLambdaFunctions);
-      
+
       // Should find the workflow in the registry
       const registeredWorkflow = WorkflowRegistry.getWorkflow('UserDeployEC2Workflow');
       expect(registeredWorkflow).toBeDefined();
       expect(registeredWorkflow?.name).toBe('UserDeployEC2Workflow');
       expect(registeredWorkflow?.description).toBe('Orchestrates user EC2 deployment process');
-      
+
       // Should have the correct Lambda function mappings
       expect(registeredWorkflow?.lambdaFunctions).toHaveProperty('checkRunningStreams');
       expect(registeredWorkflow?.lambdaFunctions).toHaveProperty('deployEC2');
       expect(registeredWorkflow?.lambdaFunctions).toHaveProperty('updateRunningStreams');
-      
+
       // Should have timeout and retry configuration
       expect(registeredWorkflow?.timeout).toBeDefined();
       expect(registeredWorkflow?.retryConfig).toBeDefined();
@@ -234,7 +232,7 @@ describe('StepFunctions Construct', () => {
 
       // Should create StateMachine (UserDeployEC2Workflow from registry)
       template.resourceCountIs('AWS::StepFunctions::StateMachine', 1);
-      
+
       const workflow = stepFunctions.getWorkflow('FactoryTestWorkflow');
       expect(workflow).toBeUndefined(); // Test workflow doesn't exist, so should be undefined
     });
@@ -265,7 +263,7 @@ describe('StepFunctions Construct', () => {
 
       // Should create StateMachine (UserDeployEC2Workflow from registry)
       template.resourceCountIs('AWS::StepFunctions::StateMachine', 1);
-      
+
       // Should have IAM policies for Lambda function invocation
       // Note: The exact count may vary based on CDK's IAM policy optimization
       const policies = template.findResources('AWS::IAM::Policy');

@@ -1,10 +1,10 @@
-import DynamoDBWrapper from "../../utils/dynamoDbWrapper";
+import DynamoDBWrapper from '../../utils/dynamoDbWrapper';
 
 export const handler = async (
-  event: UpdateRunningStreamsEvent
+  event: UpdateRunningStreamsEvent,
 ): Promise<UpdateRunningStreamsResult> => {
   if (!process.env.RUNNING_STREAMS_TABLE_NAME) {
-    throw new Error("MissingTableNameEnv");
+    throw new Error('MissingTableNameEnv');
   }
 
   const db = new DynamoDBWrapper(process.env.RUNNING_STREAMS_TABLE_NAME);
@@ -20,8 +20,8 @@ export const handler = async (
         updatedAt = :updatedAt
     `,
     ExpressionAttributeValues: {
-      ":running": false,
-      ":updatedAt": payload.updatedAt,
+      ':running': false,
+      ':updatedAt': payload.updatedAt,
     },
   };
 
