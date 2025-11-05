@@ -49,6 +49,7 @@ class EBSWrapper {
     async createAndAttachEBSVolume(config: CreateVolumeCommandConfig, instanceId: string): Promise<EBSVolumeResult> {
         // first check RunningInstance table
         // if the user already has an instace? worry abt this later
+        // should EBSvolume have instance ARN?
 
         try {
             const volume = await this.createAndWaitForEBSVolume(config)

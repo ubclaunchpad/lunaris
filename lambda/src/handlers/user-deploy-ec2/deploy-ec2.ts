@@ -1,6 +1,6 @@
 import { _InstanceType } from "@aws-sdk/client-ec2";
 import EC2Wrapper, { type EC2InstanceConfig } from "../../utils/ec2Wrapper";
-import EBSWrapper, {type CreateVolumeCommandConfig} from '../../utils/ebsWrapper';
+import EBSWrapper, {type CreateVolumeCommandConfig type EBSStatusEnum} from '../../utils/ebsWrapper';
 
 type DeployEc2Event = {
     userId: string;
@@ -18,16 +18,11 @@ type DeployEc2Result = {
     state?: string;
     createdAt?: string;
     streamingUrl?: string;
+    volumeId?: string;
+    attachmentStatus?: EBSStatusEnum
 
     error?: string;
 };
-
-type AttachEbsResult = {
-    success: boolean;
-    volumeId: string;
-    // FIX
-    attachmentStatus: boolean;
-}
 
 export const handler = async (
     event: DeployEc2Event
@@ -51,7 +46,6 @@ export const handler = async (
 
         console.log(`Instance ${instanceResult.instanceId} is ready!`);
 
-        // TODO worry about return result later
         const ebsWrapper = new EBSWrapper();
 
         const ebsConfig: CreateVolumeCommandConfig =  {
@@ -61,7 +55,8 @@ export const handler = async (
 
         const ebsResult = await ebsWrapper.createAndAttachEBSVolume(ebsConfig, instanceResult.instanceId)
 
-        return { success: true, ...instanceResult }
+        // Update instanceResult
+        return { success: true, ...instanceResult, ...ebsResult}
 
     } catch (error: any) {
         return {
