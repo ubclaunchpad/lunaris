@@ -24,7 +24,7 @@ export interface EBSVolumeResult {
     status: EBSStatusEnum
 }
 
-enum EBSStatusEnum {
+export enum EBSStatusEnum {
     AVAILABLE = 'available',
     IN_USE = 'in-use'
 }
@@ -45,44 +45,47 @@ class EBSWrapper {
         this.size = size ?? this.size
     }
 
-    async createAndAttachEbsVolume(config: CreateVolumeCommandConfig, instanceId: string): Promise<EBSVolumeResult> {
+    async createAndAttachEBSVolume(config: CreateVolumeCommandConfig, instanceId: string): Promise<EBSVolumeResult> {
         // first check RunningInstance table
         // if the user already has an instace? worry abt this later
 
         try {
-            const volume = await this.createAndWaitForEbsVolume(config)
+            const volume = await this.createAndwaitForEBSVolume(config)
             if (!volume.volumeId) {
                 throw new Error("Volume creation failed - no VolumeId returned")
             }
-            const response = await this.attachAndWaitForEbsVolume(instanceId, volume.volumeId)
+            const response = await this.attachAndwaitForEBSVolume(instanceId, volume.volumeId)
 
             return response
         } catch (err: any) {
-            throw new Error(err.message)
-        }
-    }
-
-     async createAndWaitForEbsVolume(config: CreateVolumeCommandConfig): Promise<EBSVolumeResult> {
-        try {
-            const volume = await this.createEBSVolume(config)
-            const status = await this.waitForEbsVolume(volume.volumeId, 300, EBSStatusEnum.AVAILABLE)
-            return {
-                volumeId: volume.VolumeId, status}
-
-        } catch (err: any) {
-            console.error("failed to create EbsVolume")
             throw err
         }
     }
 
-     async attachAndWaitForEbsVolume(instanceId: string, volumeId: string): Promise<EBSVolumeResult> {
+     async createAndwaitForEBSVolume(config: CreateVolumeCommandConfig): Promise<EBSVolumeResult> {
         try {
-            const response = await this.attachEbsVolume(instanceId, volumeId)
-            const status = await this.waitForEbsVolume(volumeId,300, EBSStatusEnum.IN_USE)
+            const volume = await this.createEBSVolume(config)
+            if (!volume.VolumeId) {
+                throw new Error("Volume creation failed - no VolumeId returned")
+            }
+            const status = await this.waitForEBSVolume(volume.VolumeId, 300, EBSStatusEnum.AVAILABLE)
             return {
-                volumeId: response.VolumeId, status}
+                volumeId: volume.VolumeId, status}
+
         } catch (err: any) {
-            console.error("failed to attach EbsVolume to EC2instance")
+            console.error(`Failed to create EBS volume for user ${config.userId}:`, err)
+            throw err
+        }
+    }
+
+     async attachAndwaitForEBSVolume(instanceId: string, volumeId: string): Promise<EBSVolumeResult> {
+        try {
+            const response = await this.attachEBSVolume(instanceId, volumeId)
+            const status = await this.waitForEBSVolume(volumeId, 300, EBSStatusEnum.IN_USE)
+            return {
+                volumeId: volumeId, status}
+        } catch (err: any) {
+            console.error(`Failed to attach volume ${volumeId} to instance ${instanceId}:`, err)
             throw err
         }
 
@@ -118,7 +121,7 @@ class EBSWrapper {
                             Key: "purpose",
                             Value: "cloud-gaming"
                         },
-                        ...Object.entries(tags).map(([key, value]) => ({key, value}))
+                        ...Object.entries(tags).map(([key, value]) => ({Key: key, Value: value}))
                     ]
                 }
             ]
@@ -138,19 +141,20 @@ class EBSWrapper {
                 case "InsufficientVolumeCapacity":
                     throw new Error("Cannot create volume: There is not enough capacity to fulfill the EBS volume provision request")
                 default:
-                    throw new Error("Cannot create volume: Failed to create EBS volume")
+                    console.error("Failed to create EBS volume:", err)
+                    throw err
             }
         }
     }
 
-    async attachEbsVolume(instanceId: string, volumeId: string): Promise<AttachVolumeCommandOutput> {
+    async attachEBSVolume(instanceId: string, volumeId: string): Promise<AttachVolumeCommandOutput> {
         try {
             const attachEBSInput: AttachVolumeCommandInput = {
                 InstanceId: instanceId,
                 VolumeId: volumeId,
                 Device: "/dev/sdf",
             }
-            const attachEBSCommand = await AttachVolumeCommand(attachEBSInput)
+            const attachEBSCommand = new AttachVolumeCommand(attachEBSInput)
             const response = await this.client.send(attachEBSCommand)
 
             // set DeleteOnTermination to false
@@ -158,25 +162,24 @@ class EBSWrapper {
                 InstanceId: instanceId,
                 BlockDeviceMappings: [
                     {
-                    DeviceName: "dev/sdf",
+                    DeviceName: "/dev/sdf",
                     Ebs: {
-                        VolumeId: volumeId,
                         DeleteOnTermination: false
 
                         }
                     }
                 ]
             }
-            const modifyEBSCommand = await ModifyInstanceAttributeCommand(modifyEBSInput)
+            const modifyEBSCommand = new ModifyInstanceAttributeCommand(modifyEBSInput)
             await this.client.send(modifyEBSCommand);
             return response
         } catch (err: any) {
-            console.error(`Failed to attach ${volumeId}`)
+            console.error(`Failed to attach volume ${volumeId} to instance ${instanceId}:`, err)
             throw err
         }
     }
 
-    async waitForEbsVolume(volumeId: string,
+    async waitForEBSVolume(volumeId: string,
         maxWaitTimeSeconds: number = 300,
         status: EBSStatusEnum
     ): Promise<EBSStatusEnum> {
@@ -186,13 +189,22 @@ class EBSWrapper {
 
         while (Date.now() - startTime < maxWaitTime) {
             const command = new DescribeVolumesCommand({VolumeIds: [volumeId]})
-            const response = await EC2Client.send(command)
+            const response = await this.client.send(command)
 
             // check if the command status matches what we need
             const volumeState = response.Volumes?.[0]?.State
-            if (volumeState == status) {
+
+            if (!volumeState) {
+               throw new Error(`Volume ${volumeId} not found`);
+            }
+
+            if (volumeState === 'error') {
+               throw new Error(`Volume ${volumeId} entered error state`);
+            }
+
+            if (volumeState === status) {
                 console.log(`Volume ${volumeId} is now ${status}`)
-                return volumeState
+                return volumeState as EBSStatusEnum
             }
 
             await new Promise(resolve => setTimeout(resolve, pollInterval))
