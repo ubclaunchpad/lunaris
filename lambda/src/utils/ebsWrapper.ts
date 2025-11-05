@@ -51,11 +51,11 @@ class EBSWrapper {
         // if the user already has an instace? worry abt this later
 
         try {
-            const volume = await this.createAndwaitForEBSVolume(config)
+            const volume = await this.createAndWaitForEBSVolume(config)
             if (!volume.volumeId) {
                 throw new Error("Volume creation failed - no VolumeId returned")
             }
-            const response = await this.attachAndwaitForEBSVolume(instanceId, volume.volumeId)
+            const response = await this.attachAndWaitForEBSVolume(instanceId, volume.volumeId)
 
             return response
         } catch (err: any) {
@@ -63,7 +63,7 @@ class EBSWrapper {
         }
     }
 
-     async createAndwaitForEBSVolume(config: CreateVolumeCommandConfig): Promise<EBSVolumeResult> {
+     async createAndWaitForEBSVolume(config: CreateVolumeCommandConfig): Promise<EBSVolumeResult> {
         try {
             const volume = await this.createEBSVolume(config)
             if (!volume.VolumeId) {
@@ -79,7 +79,7 @@ class EBSWrapper {
         }
     }
 
-     async attachAndwaitForEBSVolume(instanceId: string, volumeId: string): Promise<EBSVolumeResult> {
+     async attachAndWaitForEBSVolume(instanceId: string, volumeId: string): Promise<EBSVolumeResult> {
         try {
             const response = await this.attachEBSVolume(instanceId, volumeId)
             const status = await this.waitForEBSVolume(volumeId, 300, EBSStatusEnum.IN_USE)
@@ -211,7 +211,7 @@ class EBSWrapper {
             await new Promise(resolve => setTimeout(resolve, pollInterval))
         }
 
-        throw new Error(`Timeout: Volume ${volumeId} did not become ${status} within the wait Time`)
+        throw new Error(`Timeout: Volume ${volumeId} did not become ${status} within ${maxWaitTimeSeconds} seconds`)
 
     }
 }
