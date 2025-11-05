@@ -8,13 +8,14 @@ import {
     type CreateVolumeRequest,
     type CreateVolumeCommandOutput,
     type AttachVolumeCommandOutput,
-    type ModifyInstanceAttributeCommandInput} from "@aws-sdk/client-ec2";
+    type ModifyInstanceAttributeCommandInput,
+    VolumeType} from "@aws-sdk/client-ec2";
 
 export interface CreateVolumeCommandConfig {
     userId: string;
     availabilityZone?: string;
     size?: number;
-    volumeType?: string;
+    volumeType?: VolumeType;
     tags?: Record<string, string>;
 
 }
@@ -36,7 +37,7 @@ class EBSWrapper {
     private client: EC2Client
     private region: string
     private size: number = 100 // default
-    private type: string = 'gp3' // default
+    private type: VolumeType = 'gp3' // default
 
     // leaving optional call to size here for future config
     constructor( region?: string, size?: number) {

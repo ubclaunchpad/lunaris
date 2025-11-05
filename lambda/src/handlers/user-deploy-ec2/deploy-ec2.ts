@@ -59,7 +59,7 @@ export const handler = async (
             // the rest of the fields are optional for later customizations to ebs volumes
         }
 
-        const ebsResult = await ebsWrapper.createAndAttachEbsVolume(ebsConfig, instanceResult.instanceId)
+        const ebsResult = await ebsWrapper.createAndAttachEBSVolume(ebsConfig, instanceResult.instanceId)
 
         return { success: true, ...instanceResult }
 
