@@ -10,6 +10,8 @@ import {
     type AttachVolumeCommandOutput,
     type ModifyInstanceAttributeCommandInput,
     VolumeType} from "@aws-sdk/client-ec2";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, QueryCommand } from "@aws-sdk/lib-dynamodb";
 
 export interface CreateVolumeCommandConfig {
     userId: string;
@@ -35,23 +37,33 @@ const GBtoGIBConversion: number = 1.074
 
 class EBSWrapper {
     private client: EC2Client
+    private dynamoClient: DynamoDBDocumentClient
     private region: string
     private size: number = 100 // default
     private type: VolumeType = 'gp3' // default
+    private tableName: string
 
     // leaving optional call to size here for future config
-    constructor( region?: string, size?: number) {
+    constructor(region?: string, size?: number, tableName?: string) {
         this.client = new EC2Client({ region});
+
+        const ddbClient = new DynamoDBClient({ region });
+        this.dynamoClient = DynamoDBDocumentClient.from(ddbClient);
+
         this.region = region || process.env.CDK_DEFAULT_REGION || "us-east-1";
         this.size = size ?? this.size
+        this.tableName = tableName || process.env.RUNNING_INSTANCES_TABLE || 'RunningInstances';
     }
 
     async createAndAttachEBSVolume(config: CreateVolumeCommandConfig, instanceId: string): Promise<EBSVolumeResult> {
-        // first check RunningInstance table
-        // if the user already has an instace? worry abt this later
-        // should EBSvolume have instance ARN?
-
         try {
+            const existingInstance = await this.checkExistingInstance(config.userId)
+
+            // if user already has a running instance, stop
+            if (existingInstance) {
+                throw new Error(`User ${config.userId} already has an active instance`)
+            }
+
             const volume = await this.createAndWaitForEBSVolume(config)
             if (!volume.volumeId) {
                 throw new Error("Volume creation failed - no VolumeId returned")
@@ -60,6 +72,34 @@ class EBSWrapper {
 
             return response
         } catch (err: any) {
+            throw err
+        }
+    }
+
+    private async checkExistingInstance(userId: string): Promise<boolean>{
+        try {
+            const command = new QueryCommand({
+                TableName: this.tableName,
+                IndexName: "UserIdIndex",
+                KeyConditionExpression: "userId = :userId",
+                FilterExpression: "#status = :status",
+                ExpressionAttributeNames: {
+                    '#status': 'status'
+                },
+                ExpressionAttributeValues: {
+                    ":userId": userId,
+                    ":status": "running"
+                },
+                Limit: 1
+            })
+
+            const response = await this.dynamoClient.send(command);
+            if (response.Items && response.Items.length > 0) {
+                return true
+            }
+            return false
+        } catch (err: any) {
+            console.error(`Failed to check existing instance for user ${userId}:`, err);
             throw err
         }
     }
