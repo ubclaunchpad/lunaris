@@ -1,12 +1,7 @@
 # Dependencies
 node_modules
 
-# Source files
-src
 test
-*.ts
-!dist/**/*.ts
-tsconfig.json
 jest.config.js
 
 # Build artifacts

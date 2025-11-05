@@ -1,15 +1,24 @@
 FROM public.ecr.aws/lambda/nodejs:22 AS deps
 WORKDIR ${LAMBDA_TASK_ROOT}
 
-COPY package.json package-lock.json  ./
+COPY package.json package-lock.json tsconfig.json ./
 
-RUN npm ci --omit=dev --ignore-scripts
+RUN npm ci --ignore-scripts
+
+FROM public.ecr.aws/lambda/nodejs:22 AS builder
+WORKDIR ${LAMBDA_TASK_ROOT}
+COPY --from=deps ${LAMBDA_TASK_ROOT}/node_modules ./node_modules
+COPY --from=deps ${LAMBDA_TASK_ROOT}/package.json ./package.json
+COPY --from=deps ${LAMBDA_TASK_ROOT}/tsconfig.json ./tsconfig.json
+
+COPY src/ ./src/
+RUN npm run build
 
 FROM public.ecr.aws/lambda/nodejs:22 AS runtime          
 WORKDIR ${LAMBDA_TASK_ROOT}
+COPY --from=builder ${LAMBDA_TASK_ROOT}/dist ./
 COPY --from=deps ${LAMBDA_TASK_ROOT}/node_modules ./node_modules
 
-COPY dist/ ./
 COPY package.json ./
 
 # Set the CMD to your handler                                                                               │
