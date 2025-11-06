@@ -19,7 +19,7 @@ type DeployEc2Result = {
     createdAt?: string;
     streamingUrl?: string;
     volumeId?: string;
-    attachmentStatus?: EBSStatusEnum
+    status?: EBSStatusEnum
 
     error?: string;
 };

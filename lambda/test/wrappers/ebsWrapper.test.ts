@@ -1,5 +1,5 @@
 import EBSWrapper, { CreateVolumeCommandConfig, EBSStatusEnum } from "../../src/utils/ebsWrapper";
-import { ec2Mock, dynamoDBMock, resetAllMocks } from '../__mocks__/aws-mocks';
+import { ec2Mock, dynamoDBDocumentMock, resetAllMocks } from '../__mocks__/aws-mocks';
 import {
     CreateVolumeCommand,
     AttachVolumeCommand,
@@ -106,7 +106,7 @@ describe("EBSWrapper", () => {
     };
 
     const mockDynamoQuerySuccess = (hasExistingInstance = false) => {
-        dynamoDBMock.on(QueryCommand).resolves({
+        dynamoDBDocumentMock.on(QueryCommand).resolves({
             Items: hasExistingInstance ? [{
                 instanceId: mockInstanceId,
                 userId: mockUserId,
@@ -122,7 +122,7 @@ describe("EBSWrapper", () => {
     };
 
     const mockDynamoPutSuccess = () => {
-        dynamoDBMock.on(PutCommand).resolves({
+        dynamoDBDocumentMock.on(PutCommand).resolves({
             $metadata: {
                 httpStatusCode: 200,
                 requestId: 'test-request-id',

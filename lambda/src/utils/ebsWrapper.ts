@@ -40,7 +40,7 @@ const GBtoGIBConversion: number = 1.074
 class EBSWrapper {
     private client: EC2Client
     private dynamoClient: DynamoDBDocumentClient
-    private region: string
+    private region: string = "us-east-1"
     private size: number = 100 // default
     private type: VolumeType = 'gp3' // default
     private tableName: string
@@ -74,6 +74,7 @@ class EBSWrapper {
 
             return response
         } catch (err: any) {
+            console.log("region is missing?", this.region)
             throw err
         }
     }
@@ -127,7 +128,7 @@ class EBSWrapper {
             const response = await this.attachEBSVolume(instanceId, volumeId)
             const status = await this.waitForEBSVolume(volumeId, 300, EBSStatusEnum.IN_USE)
             return {
-                volumeId: volumeId, status}
+                volumeId: volumeId, status: status}
         } catch (err: any) {
             console.error(`Failed to attach volume ${volumeId} to instance ${instanceId}:`, err)
             throw err

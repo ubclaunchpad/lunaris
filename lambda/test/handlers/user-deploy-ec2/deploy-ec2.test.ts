@@ -1,7 +1,9 @@
 import { handler } from '../../../src/handlers/user-deploy-ec2/deploy-ec2';
 import EC2Wrapper from '../../../src/utils/ec2Wrapper';
+import EBSWrapper from '../../../src/utils/ebsWrapper';
 
 jest.mock('../../../src/utils/ec2Wrapper');
+jest.mock('../../../src/utils/ebsWrapper');
 
 describe('deploy-ec2 Step Function handler', () => {
     const originalEnv = process.env;
@@ -46,9 +48,40 @@ describe('deploy-ec2 Step Function handler', () => {
         } as any));
     };
 
+    const mockEBSWrapperSuccess = (overrides = {}) => {
+        const mockVolume = {
+            volumeId: 'vol-mockvolume123',
+            status: 'in-use',
+            ...overrides
+        };
+
+        (EBSWrapper as jest.MockedClass<typeof EBSWrapper>).mockImplementation(() => ({
+            createAndAttachEBSVolume: jest.fn().mockResolvedValue(mockVolume),
+            createAndWaitForEBSVolume: jest.fn(),
+            attachAndWaitForEBSVolume: jest.fn(),
+            createEBSVolume: jest.fn(),
+            attachEBSVolume: jest.fn(),
+            waitForEBSVolume: jest.fn(),
+        } as any));
+
+        return mockVolume;
+    };
+
+    const mockEBSWrapperFailure = (errorMessage: string) => {
+        (EBSWrapper as jest.MockedClass<typeof EBSWrapper>).mockImplementation(() => ({
+            createAndAttachEBSVolume: jest.fn().mockRejectedValue(new Error(errorMessage)),
+            createAndWaitForEBSVolume: jest.fn(),
+            attachAndWaitForEBSVolume: jest.fn(),
+            createEBSVolume: jest.fn(),
+            attachEBSVolume: jest.fn(),
+            waitForEBSVolume: jest.fn(),
+        } as any));
+    };
+
     describe('successful deployment', () => {
         it('should create EC2 instance and return success with all fields', async () => {
             const mockInstance = mockEC2WrapperSuccess();
+            const mockVolume = mockEBSWrapperSuccess()
 
             const event = {
                 userId: 'test-user-123',
@@ -63,6 +96,8 @@ describe('deploy-ec2 Step Function handler', () => {
             expect(result.state).toBe('running');
             expect(result.publicIp).toBe(mockInstance.publicIp);
             expect(result.privateIp).toBe(mockInstance.privateIp);
+            expect(result.volumeId).toBe(mockVolume.volumeId)
+            expect(result.status).toBe(mockVolume.status)
             expect(result.createdAt).toBeDefined();
             expect(result.error).toBeUndefined();
 
@@ -75,10 +110,20 @@ describe('deploy-ec2 Step Function handler', () => {
             expect(calledConfig.securityGroupIds).toEqual(['sg-test123']);
             expect(calledConfig.subnetId).toBe('subnet-test456');
             expect(calledConfig.keyName).toBe('test-keypair');
+
+            const mockEBSWrapper = (EBSWrapper as jest.MockedClass<typeof EBSWrapper>).mock.results[0].value;
+            expect(mockEBSWrapper.createAndAttachEBSVolume).toHaveBeenCalledTimes(1)
+            const ebsConfig = (mockEBSWrapper.createAndAttachEBSVolume as jest.Mock).mock.calls[0][0];
+            expect(ebsConfig.userId).toBe('test-user-123');
+
+            const ebsInstanceId = (mockEBSWrapper.createAndAttachEBSVolume as jest.Mock).mock.calls[0][1];
+            expect(ebsInstanceId).toBe(mockInstance.instanceId);
         });
 
         it('should handle missing environment variables gracefully', async () => {
             mockEC2WrapperSuccess();
+            mockEBSWrapperSuccess();
+
 
             delete process.env.SECURITY_GROUP_ID;
             delete process.env.SUBNET_ID;
@@ -117,6 +162,23 @@ describe('deploy-ec2 Step Function handler', () => {
             expect(result.error).toBe('Instance limit exceeded');
             expect(result.instanceId).toBeUndefined();
             expect(result.state).toBeUndefined();
+        });
+
+        it('should return error response when EBS volume creation/attachment fails', async () => {
+            mockEC2WrapperSuccess();
+            mockEBSWrapperFailure('Volume limit exceeded');
+
+            const event = {
+                userId: 'test-user-123',
+                instanceType: 't3.micro' as const,
+            };
+
+            const result = await handler(event);
+
+            expect(result.success).toBe(false);
+            expect(result.error).toBe('Volume limit exceeded');
+            expect(result.volumeId).toBeUndefined();
+            expect(result.status).toBeUndefined();
         });
     });
 });
