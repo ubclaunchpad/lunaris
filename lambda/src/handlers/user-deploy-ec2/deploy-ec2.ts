@@ -1,6 +1,6 @@
 import { _InstanceType } from "@aws-sdk/client-ec2";
 import EC2Wrapper, { type EC2InstanceConfig } from "../../utils/ec2Wrapper";
-import EBSWrapper, {type CreateVolumeCommandConfig type EBSStatusEnum} from '../../utils/ebsWrapper';
+import EBSWrapper, {type CreateVolumeCommandConfig, type EBSStatusEnum} from '../../utils/ebsWrapper';
 
 type DeployEc2Event = {
     userId: string;
