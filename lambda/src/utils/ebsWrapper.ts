@@ -28,6 +28,8 @@ export interface EBSVolumeResult {
 }
 
 export enum EBSStatusEnum {
+    ERROR= 'error',
+    CREATING = 'creating',
     AVAILABLE = 'available',
     IN_USE = 'in-use'
 }

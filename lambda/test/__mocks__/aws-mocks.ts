@@ -22,8 +22,8 @@ export const resetAllMocks = () => {
 export const mockResponses = {
   dynamodb: {
     putItem: { $metadata: { httpStatusCode: 200 } },
-    getItem: { 
-      Item: { 
+    getItem: {
+      Item: {
         id: { S: 'test-id' },
         status: { S: 'active' }
       }
