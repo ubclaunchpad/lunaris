@@ -1,13 +1,16 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
-import { EC2Client, RunInstancesCommand, _InstanceType } from '@aws-sdk/client-ec2';
+
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
 
-const ec2Client = new EC2Client({});
+import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
+
+const sfnClient = new SFNClient({});
 const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
 const RUNNING_INSTANCES_TABLE = process.env.RUNNING_INSTANCES_TABLE || '';
+const STEP_FUNCTION_ARN = process.env.USER_DEPLOY_EC2_WORKFLOW_ARN || ''; 
 
 interface DeployInstanceRequest {
     userId: string;
@@ -34,28 +37,32 @@ export const handler = async (event: APIGatewayProxyEvent, context: any): Promis
             };
         }
 
-        // Start EC2 instance
-        const runInstancesCommand = new RunInstancesCommand({
-            ImageId: amiId,
-            InstanceType: instanceType as _InstanceType,
-            MinCount: 1,
-            MaxCount: 1,
-            TagSpecifications: [
-                {
-                    ResourceType: 'instance',
-                    Tags: [
-                        { Key: 'UserId', Value: userId },
-                        { Key: 'ManagedBy', Value: 'Lunaris' }
-                    ]
-                }
-            ]
+        // Start the UserDeployEC2 Step Function
+        if (!STEP_FUNCTION_ARN) {
+            return {
+                statusCode: 500,
+                body: JSON.stringify({ message: 'UserDeployEC2 Step Function ARN is not set' })
+            };
+        }
+        
+        const stepFunctionInput = {
+            userId: userId,
+            instanceType: instanceType,
+            amiId: amiId
+        }
+
+        const executionName = `${userId}-${Date.now()}`;
+
+        const startExecutionCommand = new StartExecutionCommand({
+            stateMachineArn: STEP_FUNCTION_ARN,
+            input: JSON.stringify(stepFunctionInput),
+            name: executionName
         });
 
-        const runInstancesResponse = await ec2Client.send(runInstancesCommand);
-        const instance = runInstancesResponse.Instances?.[0];
+        const executionResponse = await sfnClient.send(startExecutionCommand);
 
-        if (!instance || !instance.InstanceId) {
-            throw new Error('Failed to create EC2 instance');
+        if (!executionResponse.executionArn) {
+            throw new Error('Failed to start UserDeployEC2 Step Function');
         }
 
         const now = new Date().toISOString();
@@ -64,30 +71,25 @@ export const handler = async (event: APIGatewayProxyEvent, context: any): Promis
         const putCommand = new PutCommand({
             TableName: RUNNING_INSTANCES_TABLE,
             Item: {
-                instanceId: instance.InstanceId,
-                instanceArn: instance.InstanceId && context.invokedFunctionArn
-                    ? `arn:aws:ec2:${context.invokedFunctionArn.split(':')[3]}:${context.invokedFunctionArn.split(':')[4]}:instance/${instance.InstanceId}`
-                    : '',
-                ebsVolumes: instance.BlockDeviceMappings?.map(bdm => bdm.Ebs?.VolumeId).filter((id): id is string => Boolean(id)) || [],
-                creationTime: now,
-                status: instance.State?.Name || 'pending',
-                region: instance.Placement?.AvailabilityZone || 'unknown',
-                instanceType: instance.InstanceType || instanceType,
-                lastModifiedTime: now,
-                userId: userId
+                userId: userId,
+                executionArn: executionResponse.executionArn,
+                status: 'RUNNING',
+                createdAt: now,
+                instanceType: instanceType,
+                amiId: amiId
             }
         });
 
         await docClient.send(putCommand);
 
-        console.log(`Successfully deployed instance ${instance.InstanceId} for user ${userId}`);
+        console.log(`Started Step Function execution ${executionResponse.executionArn} for user ${userId}`);
 
         return {
             statusCode: 200,
             body: JSON.stringify({
-                message: 'Instance deployed successfully',
-                instanceId: instance.InstanceId,
-                status: instance.State?.Name
+                status: 'success',
+                message: 'Deployment workflow started successfully',
+                statusCode: 200
             })
         };
 
