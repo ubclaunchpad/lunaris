@@ -11,7 +11,9 @@ import {
     type ModifyInstanceAttributeCommandInput,
     VolumeType} from "@aws-sdk/client-ec2";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+
+import DynamoDBWrapper from "./dynamoDbWrapper";
 
 export interface CreateVolumeCommandConfig {
     userId: string;
@@ -81,23 +83,10 @@ class EBSWrapper {
 
     private async checkExistingInstance(userId: string): Promise<boolean>{
         try {
-            const command = new QueryCommand({
-                TableName: this.tableName,
-                IndexName: "UserIdIndex",
-                KeyConditionExpression: "userId = :userId",
-                FilterExpression: "#status = :status",
-                ExpressionAttributeNames: {
-                    '#status': 'status'
-                },
-                ExpressionAttributeValues: {
-                    ":userId": userId,
-                    ":status": "running"
-                },
-                Limit: 1
-            })
 
-            const response = await this.dynamoClient.send(command);
-            if (response.Items && response.Items.length > 0) {
+            const dynamoDbWrapper = new DynamoDBWrapper(this.tableName)
+            const instance = await dynamoDbWrapper.getItem({ userId: userId });
+            if (instance && instance.status === "running") {
                 return true
             }
             return false

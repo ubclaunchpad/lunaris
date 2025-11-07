@@ -9,7 +9,8 @@ import {
     type AttachVolumeCommandOutput,
     type DescribeVolumesCommandOutput
 } from "@aws-sdk/client-ec2";
-import { QueryCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+
 
 describe("EBSWrapper", () => {
     let ebsWrapper: EBSWrapper;
@@ -105,22 +106,35 @@ describe("EBSWrapper", () => {
         });
     };
 
-    const mockDynamoQuerySuccess = (hasExistingInstance = false) => {
-        dynamoDBDocumentMock.on(QueryCommand).resolves({
-            Items: hasExistingInstance ? [{
-                instanceId: mockInstanceId,
-                userId: mockUserId,
-                status: 'running'
-            }] : [],
-            $metadata: {
+    const mockDynamoGetSuccess = (hasExistingInstance = false) => {
+        if (hasExistingInstance) {
+            dynamoDBDocumentMock.on(GetCommand).resolves({
+                Item: {
+                    instanceId: mockInstanceId,
+                    userId: mockUserId,
+                    status: 'running'
+            }, $metadata: {
                 httpStatusCode: 200,
                 requestId: 'test-request-id',
                 attempts: 1,
                 totalRetryDelay: 0
             }
         });
+        } else {
+            dynamoDBDocumentMock.on(GetCommand).resolves({
+                Item: undefined,
+                $metadata: {
+                    httpStatusCode: 200,
+                    requestId: 'test-request-id',
+                    attempts: 1,
+                    totalRetryDelay: 0
+                }
+            })
+        }
+
     };
 
+    // dont need for now
     const mockDynamoPutSuccess = () => {
         dynamoDBDocumentMock.on(PutCommand).resolves({
             $metadata: {
@@ -141,6 +155,7 @@ describe("EBSWrapper", () => {
     describe('createEBSVolume', () => {
         it('should create EBS volume with correct parameters', async () => {
             mockCreateVolumeSuccess();
+            mockDynamoGetSuccess(false)
 
             const config: CreateVolumeCommandConfig = {
                 userId: mockUserId,
@@ -237,7 +252,7 @@ describe("EBSWrapper", () => {
 
     describe('createAndAttachEBSVolume', () => {
         it('should create and attach volume successfully', async () => {
-            mockDynamoQuerySuccess(false);
+            mockDynamoGetSuccess(false);
             mockCreateVolumeSuccess();
 
             let callCount = 0;
@@ -260,6 +275,24 @@ describe("EBSWrapper", () => {
 
             expect(result.volumeId).toBe(mockVolumeId);
             expect(result.status).toBe(EBSStatusEnum.IN_USE);
+        });
+        it('should return error when there is already an existing Instance', async () => {
+            mockDynamoGetSuccess(true);
+
+            const config: CreateVolumeCommandConfig = {
+                userId: mockUserId,
+                size: 100
+            }
+
+            await expect(
+                ebsWrapper.createAndAttachEBSVolume(config, mockInstanceId)
+            ).rejects.toThrow(`User ${mockUserId} already has an active instance`)
+
+            const createVolumeCalls = ec2Mock.commandCalls(CreateVolumeCommand);
+            expect(createVolumeCalls).toHaveLength(0);
+
+            const attachVolumeCalls = ec2Mock.commandCalls(AttachVolumeCommand);
+            expect(attachVolumeCalls).toHaveLength(0);
         });
     });
 });
