@@ -55,9 +55,15 @@ export class DynamoDbTables extends Construct {
         table.addGlobalSecondaryIndex({
             indexName: "StatusCreationTimeIndex",
             partitionKey: {name: "status", type: AttributeType.STRING},
-            sortKey: {name: "creationTime", type: AttributeType.STRING}, 
+            sortKey: {name: "creationTime", type: AttributeType.STRING},
             projectionType: ProjectionType.ALL,
         });
+
+        table.addGlobalSecondaryIndex({
+            indexName: "UserIdIndex",
+            partitionKey: {name: "userId", type: AttributeType.STRING},
+            projectionType: ProjectionType.ALL
+        })
 
         return table;
     }
