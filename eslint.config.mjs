@@ -15,29 +15,42 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const compat = new FlatCompat({ baseDirectory: join(__dirname, 'frontend') });
 
+// TODO: look into parserOptions, languageOptions
+// TODO: fix npx eslint cdk/scripts/validate-cloudformation.js
 export default defineConfig([
   globalIgnores(['node_modules/**']),
   eslintConfigPrettier,
-  // Common js/ts config
   {
-    files: ['**/*.{js,ts,jsx,tsx}'],
-    extends: [eslintJs.configs.recommended, ...tseslint.configs.recommended],
+    files: ['**/*.{js,jsx,mjs,cjs}'],
+    extends: [eslintJs.configs.recommended],
+  },
+  {
+    files: ['**/*.{ts,tsx,mts,cts}'],
+    extends: [...tseslint.configs.recommended],
   },
   // Frontend config
-  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  ...compat.extends('next/core-web-vitals', 'next/typescript').map((config) => ({
+    ...config,
+    files: ['frontend/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}'],
+  })),
   {
     settings: {
       next: {
         rootDir: 'frontend/',
       },
     },
-    files: ['frontend/**/*.{js,ts,jsx,tsx}'],
+    files: ['frontend/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}'],
     ignores: ['.next/**', 'out/**', 'build/**', 'next-env.d.ts'],
     languageOptions: { globals: { ...globals.browser } },
   },
-  /// CDK config
+  // CDK config
+  // TODO: this config is really slow, either:
+  // a) need to fix the ts parsing issue or 2) this cdk plugin is just slow
   {
-    files: ['cdk/**/*.ts'],
+    files: ['cdk/**/*.{ts,mts,cts,js,mjs,cjs}'],
     extends: [cdkPlugin.configs.recommended],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
   },
 ]);
