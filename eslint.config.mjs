@@ -5,6 +5,7 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 import globals from 'globals';
 import eslintJs from '@eslint/js';
 import tseslint from 'typescript-eslint';
+import cdkPlugin from 'eslint-plugin-awscdk';
 import eslintConfigPrettier from 'eslint-config-prettier/flat';
 
 // Use FlatCompat to apply legacy eslint configs (like next/core-web-vitals)
@@ -17,13 +18,10 @@ const compat = new FlatCompat({ baseDirectory: join(__dirname, 'frontend') });
 export default defineConfig([
   globalIgnores(['node_modules/**']),
   eslintConfigPrettier,
+  // Common js/ts config
   {
     files: ['**/*.{js,ts,jsx,tsx}'],
-    extends: [eslintJs.configs.recommended, tseslint.configs.recommended],
-    rules: {
-      'no-unused-vars': 'warn',
-      '@typescript-eslint/no-unused-vars': 'warn',
-    },
+    extends: [eslintJs.configs.recommended, ...tseslint.configs.recommended],
   },
   // Frontend config
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
@@ -36,5 +34,10 @@ export default defineConfig([
     files: ['frontend/**/*.{js,ts,jsx,tsx}'],
     ignores: ['.next/**', 'out/**', 'build/**', 'next-env.d.ts'],
     languageOptions: { globals: { ...globals.browser } },
+  },
+  /// CDK config
+  {
+    files: ['cdk/**/*.ts'],
+    extends: [cdkPlugin.configs.recommended],
   },
 ]);

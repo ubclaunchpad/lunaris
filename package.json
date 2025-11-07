@@ -38,6 +38,7 @@
     "eslint": "^9.39.1",
     "eslint-config-next": "^16.0.1",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-awscdk": "^4.0.4",
     "eslint-plugin-react": "^7.37.5",
     "globals": "^16.5.0",
     "prettier": "^3.6.2",
