@@ -18,7 +18,8 @@ const compat = new FlatCompat({ baseDirectory: join(__dirname, "frontend") });
 // TODO: look into parserOptions, languageOptions
 // TODO: fix npx eslint cdk/scripts/validate-cloudformation.js
 export default defineConfig([
-    globalIgnores(["node_modules/**"]),
+    // Globals
+    globalIgnores(["node_modules/**", "dist/**", "build/**", "out/**"]),
     eslintConfigPrettier,
     {
         files: ["**/*.{js,jsx,mjs,cjs}"],
@@ -31,26 +32,57 @@ export default defineConfig([
     // Frontend config
     ...compat.extends("next/core-web-vitals", "next/typescript").map((config) => ({
         ...config,
-        files: ["frontend/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"],
+        basePath: "frontend",
+        files: ["**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"],
     })),
     {
+        basePath: "frontend",
+        files: ["**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"],
+        ignores: [".next/**", "next-env.d.ts"],
         settings: {
             next: {
-                rootDir: "frontend/",
+                rootDir: "frontend",
             },
         },
-        files: ["frontend/**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}"],
-        ignores: [".next/**", "out/**", "build/**", "next-env.d.ts"],
-        languageOptions: { globals: { ...globals.browser } },
+        languageOptions: {
+            globals: { ...globals.browser },
+            parserOptions: {
+                ecmaFeatures: {
+                    jsx: true,
+                },
+            },
+        },
     },
     // CDK config
     // TODO: this config is really slow, either:
     // a) need to fix the ts parsing issue or 2) this cdk plugin is just slow
     {
-        files: ["cdk/**/*.{ts,mts,cts,js,mjs,cjs}"],
+        basePath: "cdk",
+        files: ["**/*.{ts,mts,cts,js,mjs,cjs}"],
         extends: [cdkPlugin.configs.recommended],
         languageOptions: {
             globals: { ...globals.node },
+        },
+    },
+    // Lambda config
+    {
+        basePath: "lambda",
+        files: ["**/*.{ts,mts,cts,js,mjs,cjs}"],
+        languageOptions: {
+            globals: { ...globals.node },
+        },
+    },
+    // Rule overrides
+    {
+        files: ["**/*.{js,jsx,mjs,cjs}"],
+        rules: {
+            "no-unused-vars": "warn",
+        },
+    },
+    {
+        files: ["**/*.{ts,tsx,mts,cts}"],
+        rules: {
+            "@typescript-eslint/no-unused-vars": "warn",
         },
     },
 ]);
