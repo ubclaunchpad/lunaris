@@ -1,8 +1,8 @@
-import { mockClient } from 'aws-sdk-client-mock';
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { EC2Client } from '@aws-sdk/client-ec2';
-import { SSMClient } from '@aws-sdk/client-ssm';
-import { SFNClient } from '@aws-sdk/client-sfn';
+import { mockClient } from "aws-sdk-client-mock";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { EC2Client } from "@aws-sdk/client-ec2";
+import { SSMClient } from "@aws-sdk/client-ssm";
+import { SFNClient } from "@aws-sdk/client-sfn";
 
 // Create mock clients for AWS services
 export const dynamoDBMock = mockClient(DynamoDBClient);
@@ -12,56 +12,56 @@ export const sfnMock = mockClient(SFNClient);
 
 // Helper function to reset all mocks
 export const resetAllMocks = () => {
-  dynamoDBMock.reset();
-  ec2Mock.reset();
-  ssmMock.reset();
-  sfnMock.reset();
+    dynamoDBMock.reset();
+    ec2Mock.reset();
+    ssmMock.reset();
+    sfnMock.reset();
 };
 
 // Common mock responses
 export const mockResponses = {
-  dynamodb: {
-    putItem: { $metadata: { httpStatusCode: 200 } },
-    getItem: {
-      Item: {
-        id: { S: 'test-id' },
-        status: { S: 'active' },
-      },
-    },
-    updateItem: { $metadata: { httpStatusCode: 200 } },
-    deleteItem: { $metadata: { httpStatusCode: 200 } },
-  },
-  ec2: {
-    runInstances: {
-      Instances: [
-        {
-          InstanceId: 'i-1234567890abcdef0',
-          State: { Name: 'pending' },
+    dynamodb: {
+        putItem: { $metadata: { httpStatusCode: 200 } },
+        getItem: {
+            Item: {
+                id: { S: "test-id" },
+                status: { S: "active" },
+            },
         },
-      ],
+        updateItem: { $metadata: { httpStatusCode: 200 } },
+        deleteItem: { $metadata: { httpStatusCode: 200 } },
     },
-    terminateInstances: {
-      TerminatingInstances: [
-        {
-          InstanceId: 'i-1234567890abcdef0',
-          CurrentState: { Name: 'shutting-down' },
+    ec2: {
+        runInstances: {
+            Instances: [
+                {
+                    InstanceId: "i-1234567890abcdef0",
+                    State: { Name: "pending" },
+                },
+            ],
         },
-      ],
+        terminateInstances: {
+            TerminatingInstances: [
+                {
+                    InstanceId: "i-1234567890abcdef0",
+                    CurrentState: { Name: "shutting-down" },
+                },
+            ],
+        },
     },
-  },
-  ssm: {
-    getParameter: {
-      Parameter: {
-        Name: '/test/parameter',
-        Value: 'test-value',
-      },
+    ssm: {
+        getParameter: {
+            Parameter: {
+                Name: "/test/parameter",
+                Value: "test-value",
+            },
+        },
     },
-  },
-  sfn: {
-    startExecution: {
-      executionArn:
-        'arn:aws:states:us-east-1:123456789012:execution:test-state-machine:test-execution',
-      startDate: new Date(),
+    sfn: {
+        startExecution: {
+            executionArn:
+                "arn:aws:states:us-east-1:123456789012:execution:test-state-machine:test-execution",
+            startDate: new Date(),
+        },
     },
-  },
 };
