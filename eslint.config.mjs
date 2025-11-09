@@ -15,11 +15,16 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const compat = new FlatCompat({ baseDirectory: join(__dirname, "frontend") });
 
-// TODO: look into parserOptions, languageOptions
-// TODO: fix npx eslint cdk/scripts/validate-cloudformation.js
 export default defineConfig([
     // Globals
-    globalIgnores(["node_modules/**", "dist/**", "build/**", "out/**"]),
+    globalIgnores([
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/build/**",
+        "**/out/**",
+        "**/test/**",
+        "**/*.config.js",
+    ]),
     eslintConfigPrettier,
     {
         files: ["**/*.{js,jsx,mjs,cjs}"],
@@ -54,8 +59,6 @@ export default defineConfig([
         },
     },
     // CDK config
-    // TODO: this config is really slow, either:
-    // a) need to fix the ts parsing issue or 2) this cdk plugin is just slow
     {
         basePath: "cdk",
         files: ["**/*.{ts,mts,cts,js,mjs,cjs}"],
@@ -83,6 +86,7 @@ export default defineConfig([
         files: ["**/*.{ts,tsx,mts,cts}"],
         rules: {
             "@typescript-eslint/no-unused-vars": "warn",
+            "@typescript-eslint/no-require-imports": "off",
         },
     },
 ]);

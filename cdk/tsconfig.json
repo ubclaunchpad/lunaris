@@ -8,6 +8,7 @@
         "declaration": true,
         "outDir": "./dist",
         "rootDir": "./",
+        "allowJs": true,
         "strict": true,
         "noImplicitAny": true,
         "strictNullChecks": true,
@@ -26,6 +27,6 @@
         "forceConsistentCasingInFileNames": true,
         "typeRoots": ["./node_modules/@types"]
     },
-    "include": ["bin/**/*", "lib/**/*", "stepfunctions/**/*.ts"],
+    "include": ["bin/**/*", "lib/**/*", "stepfunctions/**/*.ts", "scripts/**/*"],
     "exclude": ["node_modules", "cdk.out", "test", "dist"]
 }
