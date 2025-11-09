@@ -20,8 +20,6 @@ export class CdkStack extends Stack {
       runningStreamsTable: dynamoDbTables.runningStreamsTable,
     });
 
-
-
     // Grant EC2 permissions to deployInstance Lambda
     lambdaFunctions.deployInstanceFunction.addToRolePolicy(
       new PolicyStatement({
@@ -65,20 +63,47 @@ export class CdkStack extends Stack {
     const stepFunctions = new StepFunctions(this, "StepFunctions", {
       checkRunningStreamsFunction: lambdaFunctions.checkRunningStreamsFunction,
       deployEC2Function: lambdaFunctions.deployEC2Function,
-      updateRunningStreamsFunction: lambdaFunctions.updateRunningStreamsFunction,
-      checkRunningStreamsTerminateFunction: lambdaFunctions.checkRunningStreamsTerminateFunction,
+      updateRunningStreamsFunction:
+        lambdaFunctions.updateRunningStreamsFunction,
+      checkRunningStreamsTerminateFunction:
+        lambdaFunctions.checkRunningStreamsTerminateFunction,
       terminateEC2Function: lambdaFunctions.terminateEC2Function,
-      updateRunningStreamsTerminateFunction: lambdaFunctions.updateRunningStreamsTerminateFunction,
+      updateRunningStreamsTerminateFunction:
+        lambdaFunctions.updateRunningStreamsTerminateFunction,
     });
 
     // Apply consistent tags to Step Functions resources
     cdk.Tags.of(stepFunctions).add("Component", "StepFunctions");
     cdk.Tags.of(stepFunctions).add("ManagedBy", "CDK");
 
+    // Get UserTerminateEC2Workflow
+
+    const terminateWorkflow = stepFunctions.getWorkflow(
+      "UserTerminateEC2Workflow"
+    );
+    if (!terminateWorkflow) {
+      throw new Error("UserTerminateEC2Workflow not found");
+    }
+
+    //grant step functions permissions to terminateInstanceFunction
+    lambdaFunctions.terminateInstanceFunction.addToRolePolicy(
+      new PolicyStatement({
+        actions: ["stepfunctions:StartExecution"],
+        resources: [terminateWorkflow.stateMachineArn],
+      })
+    );
+    // Grant EC2 termination permissions to terminateEC2Function
+    lambdaFunctions.terminateEC2Function.addToRolePolicy(
+      new PolicyStatement({
+        actions: ["ec2:TerminateInstances", "ec2:DescribeInstances"],
+        resources: ["*"],
+      })
+    );
+
     // Create API Gateway
     const apiGateway = new ApiGateway(this, "ApiGateway", {
       deployInstanceFunction: lambdaFunctions.deployInstanceFunction,
-      terminateInstanceFunction: lambdaFunctions.terminateInstanceFunction,
+      terminateInstanceStateMachine: terminateWorkflow,
       streamingLinkFunction: lambdaFunctions.streamingLinkFunction,
     });
   }

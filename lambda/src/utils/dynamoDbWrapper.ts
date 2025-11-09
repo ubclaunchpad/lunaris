@@ -4,11 +4,15 @@ import {
   GetCommand,
   PutCommand,
   UpdateCommand,
+  DeleteCommand,
+  QueryCommand,
   type TranslateConfig,
   type GetCommandInput,
   type PutCommandInput,
   type GetCommandOutput,
   type UpdateCommandInput,
+  type DeleteCommandInput,
+  type QueryCommandInput,
 } from "@aws-sdk/lib-dynamodb";
 
 class DynamoDBWrapper {
@@ -62,6 +66,65 @@ class DynamoDBWrapper {
     };
 
     await this.client.send(new UpdateCommand(inputConfig));
+  }
+
+  async deleteItem(
+    key: DeleteCommandInput["Key"],
+    options?: Partial<DeleteCommandInput>
+  ) {
+    const inputConfig: DeleteCommandInput = {
+      ...(options ?? {}),
+      TableName: this.tableName,
+      Key: key,
+    };
+
+    await this.client.send(new DeleteCommand(inputConfig));
+  }
+
+  async query(options: Partial<QueryCommandInput>) {
+    const inputConfig: QueryCommandInput = {
+      ...options,
+      TableName: this.tableName,
+    };
+
+    const response = await this.client.send(new QueryCommand(inputConfig));
+    return response.Items ?? [];
+  }
+
+  async queryByUserId(userId: string) {
+    return this.query({
+      IndexName: "UserIdIndex",
+      KeyConditionExpression: "userId = :userId",
+      ExpressionAttributeValues: {
+        ":userId": userId,
+      },
+    });
+  }
+
+  async queryByStatus(status: string) {
+    return this.query({
+      IndexName: "StatusCreationTimeIndex",
+      KeyConditionExpression: "#status = :status",
+      ExpressionAttributeNames: {
+        "#status": "status",
+      },
+      ExpressionAttributeValues: {
+        ":status": status,
+      },
+    });
+  }
+
+  async queryByRegion(region: string) {
+    return this.query({
+      IndexName: "RegionIndex",
+      KeyConditionExpression: "#region = :region",
+      ExpressionAttributeNames: {
+        "#region": "region",
+      },
+      ExpressionAttributeValues: {
+        ":region": region,
+      },
+    });
   }
 }
 
