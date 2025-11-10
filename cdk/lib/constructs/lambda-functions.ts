@@ -162,7 +162,9 @@ export class LambdaFunctions extends Construct {
     > {
         return {
             runtime: Runtime.NODEJS_22_X,
-            code: Code.fromAsset("stepfunctions/example-workflow/lambdas"),
+            code: Code.fromAsset("../lambda/dist"),
+            timeout: Duration.seconds(30),
+            memorySize: 256,
         };
     }
 }
