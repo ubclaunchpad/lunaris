@@ -22,6 +22,7 @@
         }
       ]
     },
+
     "CheckIfValidStream": {
       "Type": "Choice",
       "Choices": [
@@ -33,16 +34,19 @@
       ],
       "Default": "InvalidStreamError"
     },
+
     "TerminateEC2": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "Parameters": {
         "FunctionName": "${TerminateEC2Arn}",
         "Payload": {
-          "userId.$": "$.userId"
+          "userId.$": "$.userId",
+          "instanceId.$": "$.checkRunningStreamsResult.Payload.instanceId",
+          "instanceArn.$": "$.checkRunningStreamsResult.Payload.instanceArn"
         }
       },
-      "ResultPath": "$.terminateResult",
+      "ResultPath": "$.terminateEc2Result",
       "Next": "UpdateRunningStreams",
       "Catch": [
         {
@@ -59,8 +63,7 @@
         "Payload": {
           "userId.$": "$.userId",
           "sessionId.$": "$.checkRunningStreamsResult.Payload.sessionId",
-          "instanceArn.$": "$.checkRunningStreamsResult.Payload.instanceArn",
-          "running": false
+          "instanceArn.$": "$.checkRunningStreamsResult.Payload.instanceArn"
         }
       },
       "ResultPath": "$.updateResult",

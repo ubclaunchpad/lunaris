@@ -2,6 +2,11 @@ import { EC2Client, TerminateInstancesCommand } from "@aws-sdk/client-ec2";
 
 const ec2Client = new EC2Client({});
 
+/**
+ * This lambda function terminates an EC2 instance
+ * @param event containing the instanceId, userId, and instanceArn
+ * @returns
+ */
 export const handler = async (
   event: TerminateEc2Event
 ): Promise<TerminateEc2Result> => {
@@ -36,7 +41,7 @@ export const handler = async (
       instanceId: instanceId,
       previousState: terminatingInstance.PreviousState?.Name || "unknown",
       currentState: terminatingInstance.CurrentState?.Name || "shutting-down",
-    };
+    } as TerminateEc2Result;
   } catch (error) {
     console.error("Error terminating EC2 instance:", error);
     throw new Error(
@@ -48,7 +53,7 @@ export const handler = async (
 };
 
 type TerminateEc2Event = {
-  userId: string;
+  userId?: string;
   instanceId: string;
   instanceArn: string;
 };

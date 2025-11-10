@@ -54,8 +54,11 @@ export class ApiGateway extends Construct {
     });
   }
 
+  /**
+   * executes the terminate instance step function
+   * @param stateMachine
+   */
   private createTerminateInstanceEndpoint(stateMachine: StateMachine): void {
-    //change from lambda integration to step functions integration
     const integration = StepFunctionsIntegration.startExecution(stateMachine);
     const resource = this.restApi.root.addResource("terminateInstance");
 

@@ -17,7 +17,6 @@ export const handler = async (
   try {
     console.log(`Checking running streams for user: ${userId}`);
 
-    // Query using UserIdIndex GSI
     const items = await db.query({
       IndexName: "UserIdIndex",
       KeyConditionExpression: "userId = :userId",
@@ -33,7 +32,8 @@ export const handler = async (
       };
     }
 
-    // Return the first active stream
+    //Assume that one EC2 instance has only one running stream,
+    //  Return the first active stream
     const stream = items[0];
 
     console.log(
@@ -42,8 +42,9 @@ export const handler = async (
 
     return {
       valid: true,
-      sessionId: stream.streamingId || userId,
+      userId: userId,
       instanceArn: stream.instanceArn,
+      //process the instanceArn to get the instanceId
       instanceId: stream.instanceArn.split("/").pop() || "", // Extract instanceId from ARN
     };
   } catch (error) {
@@ -62,8 +63,8 @@ type CheckRunningStreamsEvent = {
 
 type CheckRunningStreamsResult = {
   valid: boolean;
-  message?: string;
-  sessionId?: string;
+  userId?: string;
   instanceArn?: string;
   instanceId?: string;
+  message?: string;
 };

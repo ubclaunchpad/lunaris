@@ -27,11 +27,20 @@ export class DynamoDbTables extends Construct {
    * - updatedAt (ISO 8601 formatted date string)
    */
   setUpRunningStreamsTable(): Table {
-    return new Table(this, "RunningStreams", {
+    const table = new Table(this, "RunningStreams", {
       partitionKey: { name: "instanceArn", type: AttributeType.STRING },
       billingMode: BillingMode.PAY_PER_REQUEST,
       removalPolicy: RemovalPolicy.DESTROY, // Use RETAIN for production
     });
+
+    table.addGlobalSecondaryIndex({
+      indexName: "UserIdIndex",
+      partitionKey: { name: "userId", type: AttributeType.STRING },
+      sortKey: { name: "createdAt", type: AttributeType.STRING },
+      projectionType: ProjectionType.ALL,
+    });
+
+    return table;
   }
 
   /**
@@ -52,10 +61,19 @@ export class DynamoDbTables extends Construct {
     // TODO future: add autoscaling group
     // TODO: or add grantX to specific lambda functions
 
+    //add global secondary index for status and creation time
     table.addGlobalSecondaryIndex({
       indexName: "StatusCreationTimeIndex",
       partitionKey: { name: "status", type: AttributeType.STRING },
       sortKey: { name: "creationTime", type: AttributeType.STRING },
+      projectionType: ProjectionType.ALL,
+    });
+
+    //add global secondary index for userId
+    table.addGlobalSecondaryIndex({
+      indexName: "UserIdIndex",
+      partitionKey: { name: "userId", type: AttributeType.STRING },
+      sortKey: { name: "createdAt", type: AttributeType.STRING },
       projectionType: ProjectionType.ALL,
     });
 

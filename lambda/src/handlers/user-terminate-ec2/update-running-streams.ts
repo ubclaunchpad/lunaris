@@ -34,9 +34,9 @@ export const handler = async (
 
 type UpdateRunningStreamsEvent = {
   userId: string;
-  sessionId: string;
   instanceArn: string;
-  running: boolean;
+  previousState: string;
+  currentState: string;
 };
 
 type UpdateRunningStreamsResult = {
