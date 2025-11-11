@@ -17,6 +17,10 @@
         "docker:test": "npm run docker:test:lambda",
         "docker:test:lambda": "cd lambda && npm test",
         "docker:clean": "docker-compose down -v && docker system prune -f",
+        "db:start": "docker-compose up -d dynamodb",
+        "db:stop": "docker-compose stop dynamodb",
+        "db:create-tables": "tsx scripts/init-dynamodb-tables.ts",
+        "db:reset": "npm run db:stop && docker-compose rm -f dynamodb && npm run db:start && sleep 2 && npm run db:create-tables",
         "build:all": "npm run build --workspaces --if-present",
         "test:all": "npm test --workspaces --if-present",
         "install:all": "npm install --workspaces"
@@ -28,5 +32,9 @@
     "repository": {
         "type": "git",
         "url": "https://github.com/ubclaunchpad/lunaris"
+    },
+    "devDependencies": {
+        "@aws-sdk/client-dynamodb": "^3.917.0",
+        "tsx": "^4.19.2"
     }
 }
