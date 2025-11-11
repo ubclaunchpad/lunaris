@@ -9,6 +9,8 @@
         "frontend"
     ],
     "scripts": {
+        "dev:start": "npm run docker:build && npm run docker:start && sleep 3 && npm run db:create-tables",
+        "dev:stop": "npm run docker:stop",
         "docker:build": "docker-compose build",
         "docker:start": "docker-compose up -d",
         "docker:stop": "docker-compose down",
