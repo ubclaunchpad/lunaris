@@ -73,30 +73,14 @@ export class CdkStack extends Stack {
     cdk.Tags.of(stepFunctions).add("Component", "StepFunctions");
     cdk.Tags.of(stepFunctions).add("ManagedBy", "CDK");
 
-    // UserDeployEC2 Workflow
     const userDeployEC2Workflow = stepFunctions.getWorkflow('UserDeployEC2Workflow');
-    
     if (!userDeployEC2Workflow) {
       throw new Error('UserDeployEC2Workflow not found');
     }
 
-    // Add Step Function ARN as environment variable to deployInstance
-    lambdaFunctions.deployInstanceFunction.addEnvironment(
-      'USER_DEPLOY_EC2_WORKFLOW_ARN',
-      userDeployEC2Workflow.stateMachineArn
-    );
-
-    // Grant Step Function permissions to deployInstance
-    lambdaFunctions.deployInstanceFunction.addToRolePolicy(
-      new PolicyStatement({
-        actions: ['states:StartExecution'],
-        resources: [userDeployEC2Workflow.stateMachineArn],
-      })
-    );
-    
     // Create API Gateway
     const apiGateway = new ApiGateway(this, "ApiGateway", {
-      deployInstanceFunction: lambdaFunctions.deployInstanceFunction,
+      userDeployEC2Workflow: userDeployEC2Workflow,
       terminateInstanceFunction: lambdaFunctions.terminateInstanceFunction,
       streamingLinkFunction: lambdaFunctions.streamingLinkFunction,
     });
