@@ -91,6 +91,19 @@ Once started, you'll have:
 | **Lambda Container** | 9000 | http://localhost:9000 | Lambda Runtime Interface Emulator |
 | **Frontend** | 3000 | http://localhost:3000 | Next.js production build |
 
+#### Initialize DynamoDB Tables
+
+Before testing Lambda functions, initialize the required DynamoDB tables:
+
+```bash
+# Start DynamoDB and create tables
+npm run db:start
+npm run db:create-tables
+
+# Verify tables were created
+aws dynamodb list-tables --endpoint-url http://localhost:8000
+```
+
 #### Running Specific Lambda Handlers
 
 ```bash
