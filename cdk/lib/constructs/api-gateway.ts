@@ -89,6 +89,7 @@ export class ApiGateway extends Construct {
           selectionPattern: "4\\d{2}",
           responseTemplates: {
             "application/json": `{
+              "error": "BadRequest",
               "message": "Bad Request",
               "statusCode": 400
             }`,
@@ -99,6 +100,7 @@ export class ApiGateway extends Construct {
           selectionPattern: "5\\d{2}",
           responseTemplates: {
             "application/json": `{
+              "error": "InternalError",
               "message": "Internal Server Error",
               "statusCode": 500
             }`,
