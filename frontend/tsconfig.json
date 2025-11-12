@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "baseUrl": ".",
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
@@ -19,6 +20,8 @@
       }
     ],
     "paths": {
+      "dcv": ["./nice-dcv-web-client-sdk/dcvjs-esm/dcv.js"],
+      "dcv-ui": ["./nice-dcv-web-client-sdk/dcv-ui/dcv-ui.js"],
       "@/*": ["./*"]
     }
   },
