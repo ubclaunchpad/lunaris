@@ -16,6 +16,8 @@ export interface EC2InstanceConfig {
     keyName?: string;
     securityGroupIds?: string[];
     subnetId?: string;
+    iamInstanceProfile?: string
+    amiId?: string
 
     tags?: Record<string, string>;
 }
@@ -31,6 +33,7 @@ export interface EC2InstanceResult {
 
 const DEFAULT_INSTANCE_TYPE = "t3.medium";
 
+// EC2 Instances need custom IAM permissions
 class EC2Wrapper {
     private client: EC2Client;
     private region: string;
@@ -193,6 +196,7 @@ class EC2Wrapper {
             if (waitForRunning) {
                 return await this.waitForInstanceRunning(instanceResult.instanceId);
             }
+
             return instanceResult;
 
         } catch (error: any) {
