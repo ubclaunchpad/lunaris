@@ -1,8 +1,7 @@
 name: Eslint Check
 on:
     pull_request:
-        branches:
-            - main
+        # intentionally blank, should run on all PRs
 jobs:
     eslint:
         name: Eslint Check
