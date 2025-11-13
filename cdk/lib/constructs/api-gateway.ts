@@ -1,15 +1,20 @@
 import { Construct } from "constructs";
-import { LambdaRestApi, LambdaIntegration, Resource } from "aws-cdk-lib/aws-apigateway";
+import {
+    type IRestApi,
+    LambdaRestApi,
+    LambdaIntegration,
+    Resource,
+} from "aws-cdk-lib/aws-apigateway";
 import { Function } from "aws-cdk-lib/aws-lambda";
 
 export interface ApiGatewayProps {
-    deployInstanceFunction: Function;
-    terminateInstanceFunction: Function;
-    streamingLinkFunction: Function;
+    readonly deployInstanceFunction: Function;
+    readonly terminateInstanceFunction: Function;
+    readonly streamingLinkFunction: Function;
 }
 
 export class ApiGateway extends Construct {
-    public readonly restApi: LambdaRestApi;
+    public readonly restApi: IRestApi;
 
     constructor(scope: Construct, id: string, props: ApiGatewayProps) {
         super(scope, id);
