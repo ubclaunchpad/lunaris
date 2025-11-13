@@ -207,8 +207,8 @@ npm run lint:cdk:fix
 npm run lint:lambda:fix
 ```
 
-
 ### For VS Code users:
+
 It’s recommended to install the following extensions:
 
 - `Prettier - Code Formatter` — enables auto-formatting on save (may have to enable this feature in settings)
