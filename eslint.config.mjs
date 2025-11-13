@@ -84,7 +84,7 @@ export default defineConfig([
     {
         files: ["**/*.{js,jsx,mjs,cjs}"],
         rules: {
-            "no-unused-vars": "warn",
+            "no-unused-vars": ["warn", { argsIgnorePattern: "^_$" }],
         },
     },
     {
