@@ -66,6 +66,10 @@ export default defineConfig([
         languageOptions: {
             globals: { ...globals.node },
         },
+        rules: {
+            "awscdk/no-construct-stack-suffix": "off",
+            "awscdk/no-variable-construct-id": "off",
+        },
     },
     // Lambda config
     {
