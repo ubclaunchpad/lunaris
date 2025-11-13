@@ -153,3 +153,63 @@ curl -X POST http://localhost:3000/terminateInstance \
   -H "Content-Type: application/json" \
   -d '{"instanceId":"i-1234567890abcdef0","userId":"user123"}'
 ```
+
+# Formatting and Linting
+
+The CI pipeline enforces formatting and linting checks on all pull requests.
+Before pushing, run the relevant `prettier` and `lint` commands locally to ensure your code passes these checks.
+
+### Prettier (Formatting)
+
+Running Prettier on the entire project:
+
+```bash
+# Checks for prettier formatting issues (no changes applied)
+npm run prettier
+# Fixes formatting issues
+npm run prettier:fix
+```
+
+Run Prettier on specific folders:
+
+```bash
+# Checks
+npm run prettier:frontend
+npm run prettier:cdk
+npm run prettier:lambda
+# Fixes
+npm run prettier:frontend:fix
+npm run prettier:cdk:fix
+npm run prettier:lambda:fix
+```
+
+### ESLint (Linting)
+
+Running ESLint on the entire project:
+
+```bash
+# Checks for lint issues (no changes applied)
+npm run lint
+# Fixes lint issues (if possible)
+npm run lint:fix
+```
+
+Run ESLint for specific folders:
+
+```bash
+# Checks
+npm run lint:frontend
+npm run lint:cdk
+npm run lint:lambda
+# Fixes
+npm run lint:frontend:fix
+npm run lint:cdk:fix
+npm run lint:lambda:fix
+```
+
+
+### For VS Code users:
+It’s recommended to install the following extensions:
+
+- `Prettier - Code Formatter` — enables auto-formatting on save (may have to enable this feature in settings)
+- `ESLint` — integrates lint rules directly in the IDE, showing warnings and errors in real time
