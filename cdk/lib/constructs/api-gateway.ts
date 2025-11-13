@@ -3,7 +3,6 @@ import {
     type IRestApi,
     LambdaRestApi,
     LambdaIntegration,
-    Resource,
 } from "aws-cdk-lib/aws-apigateway";
 import { Function } from "aws-cdk-lib/aws-lambda";
 

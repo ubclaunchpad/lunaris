@@ -10,7 +10,7 @@ const createResponse = (statusCode: number, body: any): APIGatewayProxyResult =>
     body: JSON.stringify(body),
 });
 
-export const handler: APIGatewayProxyHandler = async (event, context) => {
+export const handler: APIGatewayProxyHandler = async (event) => {
     try {
         // Extract and validate userId
         const userId = event.queryStringParameters?.userId;
@@ -29,8 +29,8 @@ export const handler: APIGatewayProxyHandler = async (event, context) => {
             userId,
             message: `Hello, user ${userId}!`,
         });
-    } catch (error: any) {
-        console.error("Error occurred:", error.message);
+    } catch (error: unknown) {
+        console.error("Error occurred:", (error as Error).message);
 
         return createResponse(500, {
             error: "Internal Server Error",

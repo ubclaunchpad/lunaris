@@ -82,7 +82,7 @@ export class WorkflowFactory extends Construct {
         }
 
         // Validate all required Lambda functions exist
-        Object.entries(config.lambdaFunctions).forEach(([key, ref]) => {
+        Object.entries(config.lambdaFunctions).forEach(([_, ref]) => {
             if (ref.required && !lambdaFunctions[ref.functionName]) {
                 throw new Error(
                     `Required Lambda function '${ref.functionName}' not found for workflow '${config.name}'`,
@@ -147,7 +147,7 @@ export class WorkflowFactory extends Construct {
             }
 
             // Apply substitutions
-            Object.entries(config.lambdaFunctions).forEach(([key, ref]) => {
+            Object.entries(config.lambdaFunctions).forEach(([_, ref]) => {
                 const lambdaFunction = lambdaFunctions[ref.functionName];
                 if (lambdaFunction) {
                     template = template.replace(
@@ -179,7 +179,7 @@ export class WorkflowFactory extends Construct {
         config: WorkflowConfig,
         processedTemplate: string,
     ): void {
-        Object.entries(config.lambdaFunctions).forEach(([key, ref]) => {
+        Object.entries(config.lambdaFunctions).forEach(([_, ref]) => {
             if (ref.required && processedTemplate.includes(ref.placeholder)) {
                 throw new Error(
                     `Required placeholder '${ref.placeholder}' was not substituted in workflow '${config.name}'. ` +
@@ -200,7 +200,7 @@ export class WorkflowFactory extends Construct {
         lambdaFunctions: Record<string, Function>,
         stateMachine: StateMachine,
     ): void {
-        Object.entries(config.lambdaFunctions).forEach(([key, ref]) => {
+        Object.entries(config.lambdaFunctions).forEach(([_, ref]) => {
             const lambdaFunction = lambdaFunctions[ref.functionName];
             if (lambdaFunction) {
                 lambdaFunction.grantInvoke(stateMachine);
