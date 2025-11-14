@@ -15,13 +15,19 @@ class DCVWrapper {
 
     }
 
-    async getAndCreateDCVSession(): Promise<string> {
+    async getDCVSession(): Promise<string> {
         try {
-             // call install dcv
-            await this.installDCV()
+            const instance = await this.ec2.getInstance(this.instanceId)
+
+            const dcvTag = instance.Tags?.find(tag => tag.Key === "dcvConfigured");
+            const isDCVConfigured = dcvTag?.Value === "true";
+
+            if (!isDCVConfigured) {
+                await this.installDCV();
+            }
 
             // call start dcv session
-            const url = await this.createDCVSession()
+            const url = await this.createDCVSession();
 
             return url
         } catch (error) {
@@ -30,21 +36,8 @@ class DCVWrapper {
         }
     }
 
-     // 1. Install DCV on a running instance
     async installDCV(): Promise<void> {
         try {
-            const instance = await this.ec2.getInstance(this.instanceId)
-
-            const dcvTag = instance.Tags?.find(tag => tag.Key === "dcvConfigured");
-            const isDCVConfigured = dcvTag?.Value === "true";
-
-            if (isDCVConfigured) {
-                console.log(`DCV already configured on ${this.instanceId}`);
-                return;
-            }
-
-            console.log(`installing DCV on ${this.instanceId}...`);
-
             const commandId = await this.ssm.runInstall({
                 instanceId: this.instanceId
             });

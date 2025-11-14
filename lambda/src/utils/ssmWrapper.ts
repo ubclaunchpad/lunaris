@@ -8,7 +8,9 @@ import {
     GetCommandInvocationCommand,
     type CreateDocumentCommandInput,
     type SendCommandCommandInput
-    type GetCommandInvocationCommandInput
+    type GetCommandInvocationCommandInput,
+    GetParameterCommand,
+    PutParameterCommand
 } from "@aws-sdk/client-ssm";
 
 const INSTALL_DCV_DOCUMENT_NAME = "Lunaris-Install-DCV-Document";
@@ -184,6 +186,44 @@ class SSMWrapper {
         } catch (err: any) {
             console.error('Error getting command status:', err);
             throw err;
+        }
+    }
+
+    async getParamFromParamStore(paramName: string): Promise<string> {
+        try {
+            const command = new GetParameterCommand({
+                Name: paramName
+            })
+
+            const response =  await this.client.send(command)
+            if (!response.Parameter?.Value) {
+                throw new Error(`Parameter ${paramName} must have a value`)
+            }
+
+            return response.Parameter.Value
+
+        } catch (error) {
+            console.error(`Unable to get parameter ${paramName}`, error)
+            return ""
+        }
+    }
+
+    async putParamInParamStore(paramName: string, paramValue: string): Promise<number> {
+        try {
+            const command = new PutParameterCommand({
+                Name: paramName,
+                Value: paramValue
+            })
+
+            const response =  await this.client.send(command)
+            if (!response.Version) {
+                throw new Error("must return a version")
+            }
+            return response.Version
+
+        } catch (error) {
+            console.error(`Unable to get parameter ${paramName}`, error)
+            throw error;
         }
     }
 }

@@ -2,6 +2,8 @@ import { _InstanceType } from "@aws-sdk/client-ec2";
 import EC2Wrapper, { type EC2InstanceConfig } from "../../utils/ec2Wrapper";
 import IAMWrapper from "../../utils/iamWrapper";
 import DCVWrapper from "../../utils/dcvWrapper";
+import SSMWrapper from "../../utils/ssmWrapper";
+import { SSM } from "@aws-sdk/client-ssm";
 
 type DeployEc2Event = {
     userId: string;
@@ -23,6 +25,8 @@ type DeployEc2Result = {
     error?: string;
 };
 
+const AMI_ID_KEY = 'ami_id'
+
 export const handler = async (
     event: DeployEc2Event
 ): Promise<DeployEc2Result> => {
@@ -31,8 +35,8 @@ export const handler = async (
 
         // check param store for AMI ID
         // if found, pass it in to ec2Instance config
-
-
+        const ssmWrapper = new SSMWrapper()
+        const amiId = await ssmWrapper.getParamFromParamStore(AMI_ID_KEY)
 
         const iamWrapper = new IAMWrapper();
         const iamProfileArn = await iamWrapper.getProfile();
@@ -47,6 +51,7 @@ export const handler = async (
             instanceType: instanceType,
             securityGroupIds: process.env.SECURITY_GROUP_ID ? [process.env.SECURITY_GROUP_ID] : undefined,
             iamInstanceProfile: iamProfileArn,
+            amiId: amiId,
             subnetId: process.env.SUBNET_ID,
             keyName: process.env.KEY_PAIR_NAME,
         };
@@ -56,14 +61,19 @@ export const handler = async (
         const instanceResult = await ec2Wrapper.createAndWaitForInstance(instanceConfig);
 
         console.log(`Instance ${instanceResult.instanceId} is ready!`);
-        // if AMI ID not found, use DCV wrapper here to install DCV
-        // create snapshot and save the AMI ID
+
+        // dcv wrapper is written so if the dcv is already configured, it will skip over creation
         const dcvWrapper = new DCVWrapper(instanceResult.instanceId, userId);
-        const url = await dcvWrapper.getAndCreateDCVSession()
+        const url = await dcvWrapper.getDCVSession()
 
-        const amiId = ec2Wrapper.snapshotAMIImage(instanceResult.instanceId, userId)
+        // if AMI ID not found, create snapshot and save the AMI ID
+        // in the future i think this should be moved to terminate instance
+        if (!amiId) {
+             const newAmiId = await ec2Wrapper.snapshotAMIImage(instanceResult.instanceId, userId)
+             await ssmWrapper.putParamInParamStore(AMI_ID_KEY, newAmiId)
+        }
 
-        return { success: true, ...instanceResult }
+        return { success: true, streamingUrl: url, ...instanceResult }
 
 
 

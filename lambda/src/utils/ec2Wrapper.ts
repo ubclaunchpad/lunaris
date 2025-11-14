@@ -54,6 +54,7 @@ class EC2Wrapper {
             keyName,
             securityGroupIds,
             subnetId,
+            amiId,
             tags = {},
         } = config;
 
@@ -94,6 +95,7 @@ class EC2Wrapper {
             MinCount: 1,
             MaxCount: 1,
             TagSpecifications: tagSpecifications,
+            ImageId: amiId
         };
 
         if (keyName) input.KeyName = keyName;
