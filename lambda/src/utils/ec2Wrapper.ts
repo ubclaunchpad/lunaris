@@ -4,7 +4,9 @@ import {
     DescribeInstancesCommand,
     waitUntilInstanceRunning,
     type RunInstancesCommandInput,
+    type Instance,
     type _InstanceType,
+    CreateTagsCommand,
 } from "@aws-sdk/client-ec2";
 import { generateArn } from "./generateArn";
 
@@ -72,6 +74,10 @@ class EC2Wrapper {
                     {
                         Key: "purpose",
                         Value: "cloud-gaming"
+                    },
+                    {
+                        Key: "dcvConfigured",
+                        Value: 'false'
                     },
                     ...Object.entries(tags).map(([key, value]) => ({ Key: key, Value: value }))
                 ],
@@ -204,6 +210,39 @@ class EC2Wrapper {
             throw new Error(`Failed to create and wait for instance: ${errorMessage}`, { cause: error });
         }
     }
+
+    async getInstance(instanceId: string): Promise<Instance> {
+        try {
+            const command = new DescribeInstancesCommand({
+                InstanceIds: [instanceId]
+            })
+
+            const response = await this.client.send(command);
+
+            return response.Reservations![0].Instances![0]
+        } catch (err: any) {
+            throw err
+        }
+    }
+
+    async modifyInstanceTag(instanceId: string, key: string, value: string): Promise<void> {
+        try {
+            const command = new CreateTagsCommand({
+                Resources: [instanceId],
+                Tags: [
+                    {
+                        Key: key,
+                        Value: value
+                    }
+                ]
+            })
+            await this.client.send(command)
+
+        } catch (err: any) {
+            throw err
+        }
+    }
+
 }
 
 export default EC2Wrapper;

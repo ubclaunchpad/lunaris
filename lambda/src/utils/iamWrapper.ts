@@ -25,7 +25,6 @@ class IAMWrapper {
 
     }
 
-
     // get EC2role calls get, if there isn't one, call create and attach policy
     async getRole(): Promise<string> {
         try {

@@ -1,0 +1,178 @@
+schemaVersion: '2.2'
+description: Install and verify DCV server on Windows
+parameters:
+  DcvMsiUrl:
+    type: String
+    default: https://d1uj6qtbmh3dt5.cloudfront.net/nice-dcv-server-x64-Release-2025.0-20103.msi
+  SessionName:
+    type: String
+    default: lunaris-gaming-session
+  SessionOwner:
+    type: String
+    default: Administrator
+
+mainSteps:
+  - action: aws:runPowerShellScript
+    name: PreFlight
+    inputs:
+      runCommand:
+        - '$ErrorActionPreference = "Stop"'
+        - |
+          Write-Host "Checking for existing DCV installation..."
+
+          $dcvService = Get-Service -Name "DcvServer" -ErrorAction SilentlyContinue
+
+          if ($dcvService) {
+              Write-Host "Status: $($dcvService.Status)"
+              exit 0
+          }
+
+          Write-Host "DCV not installed, proceeding with installation"
+        - 'New-Item -ItemType Directory -Path "C:\Temp" -Force | Out-Null'
+
+  - name: InstallDcv
+    action: aws:runPowerShellScript
+    inputs:
+      runCommand:
+        - '$ErrorActionPreference = "Stop"'
+        - '$msi = "C:\Temp\nice-dcv.msi"'
+        - |
+          try {
+              Invoke-WebRequest -Uri "{{ DcvMsiUrl }}" -OutFile $msi -UseBasicParsing
+          } catch {
+              Write-Error "Failed to download DCV installer: $_"
+              exit 1
+          }
+        - |
+          Write-Host "Installing DCV Server (this may take a few minutes)..."
+          $process = Start-Process "msiexec.exe" `
+              -ArgumentList "/i `"$msi`" /qn /norestart /l*v C:\Temp\dcv_install.log" `
+              -Wait -PassThru
+
+          if ($process.ExitCode -ne 0) {
+              Write-Error "MSI installation failed with exit code: $($process.ExitCode)"
+              Write-Host "Last 20 lines of install log:"
+              Get-Content "C:\Temp\dcv_install.log" -Tail 20 -ErrorAction SilentlyContinue
+              exit 1
+          }
+
+        - |
+          if (!(Test-Path "C:\Program Files\NICE\DCV\Server\bin\dcv.exe")) {
+              Write-Error "DCV executable not found after installation"
+              exit 1
+          }
+          Write-Host "DCV executable verified"
+
+  - name: VerifyService
+    action: aws:runPowerShellScript
+    inputs:
+      runCommand:
+        - '$ErrorActionPreference = "Stop"'
+        - '$dcv = "C:\Program Files\NICE\DCV\Server\bin\dcv.exe"'
+        - |
+          Write-Host "Verifying DCV installation"
+          Write-Host "`nDCV Version:"
+          & $dcv --version
+
+          $service = Get-Service -Name "DcvServer" -ErrorAction SilentlyContinue
+
+          if (!$service) {
+              Write-Error "DCV Server service not found"
+              exit 1
+          }
+
+          Write-Host "`nDCV Server service status: $($service.Status)"
+
+          if ($service.Status -ne "Running") {
+              Write-Host "Starting DCV Server service"
+              Start-Service -Name "DcvServer"
+              Start-Sleep -Seconds 5
+
+              $service = Get-Service -Name "DcvServer"
+              if ($service.Status -ne "Running") {
+                  Write-Error "Failed to start DCV Server service"
+                  exit 1
+              }
+              Write-Host "DCV Server service started"
+          } else {
+              Write-Host "DCV Server service is already running"
+          }
+
+          Write-Host "`nCurrent DCV sessions:"
+          $sessions = & $dcv list-sessions 2>&1
+          if ($LASTEXITCODE -eq 0) {
+              Write-Host $sessions
+          } else {
+              Write-Host "No sessions found (normal for fresh install)"
+          }
+
+  - name: CreateConsoleSession
+    action: aws:runPowerShellScript
+    inputs:
+      runCommand:
+        - '$ErrorActionPreference = "Stop"'
+        - '$dcv = "C:\Program Files\NICE\DCV\Server\bin\dcv.exe"'
+        - '$name = "{{ SessionName }}"'
+        - '$owner = "{{ SessionOwner }}"'
+        - |
+          Write-Host "Creating DCV console session"
+
+          # Check if session already exists
+          $existingSession = & $dcv list-sessions 2>&1 | Select-String -SimpleMatch $name
+
+          if ($existingSession) {
+              Write-Host "Session '$name' already exists"
+          } else {
+              Write-Host "Creating new session: $name"
+              & $dcv create-session --name $name --owner $owner --type console
+
+              if ($LASTEXITCODE -ne 0) {
+                  Write-Error "Failed to create DCV session"
+                  exit 1
+              }
+              Write-Host "Session created successfully"
+          }
+
+          Write-Host "`nActive sessions:"
+          & $dcv list-sessions | Out-String | Write-Host
+
+  - name: CheckPort8443
+    action: aws:runPowerShellScript
+    inputs:
+      runCommand:
+        - '$ErrorActionPreference = "Stop"'
+        - |
+          Write-Host "Verifying DCV is accessible"
+
+          # Check local port
+          Write-Host "Checking port 8443..."
+          $test = Test-NetConnection -ComputerName localhost -Port 8443 -WarningAction SilentlyContinue
+
+          if (-not $test.TcpTestSucceeded) {
+              Write-Error "Port 8443 not listening. DCV may not be configured correctly."
+              Get-Service -Name "DcvServer" | Select-Object Name, Status, StartType | Format-List
+              exit 1
+          }
+          Write-Host "Port 8443 is listening"
+
+          # Get public IP
+          Write-Host "Retrieving public IP"
+          $ip = Invoke-RestMethod -Uri "http://169.254.169.254/latest/meta-data/public-ipv4" -TimeoutSec 5 -ErrorAction Stop
+
+          if (-not $ip) {
+              Write-Error "Could not retrieve public IP from instance metadata"
+              exit 1
+          }
+          Write-Host "Public IP: $ip"
+
+          # Construct URL
+          $url = "https://{0}:8443?session-id={1}" -f $ip, "{{ SessionName }}"
+          Write-Host "`n=========================================="
+          Write-Host "DCV STREAMING URL:"
+          Write-Host $url
+          Write-Host "=========================================="
+          Write-Host "FINAL_DCV_URL=$url"
+
+
+
+
