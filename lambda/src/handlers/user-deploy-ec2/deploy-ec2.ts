@@ -1,6 +1,7 @@
 import { _InstanceType } from "@aws-sdk/client-ec2";
 import EC2Wrapper, { type EC2InstanceConfig } from "../../utils/ec2Wrapper";
 import IAMWrapper from "../../utils/iamWrapper";
+import DCVWrapper from "../../utils/dcvWrapper";
 
 type DeployEc2Event = {
     userId: string;
@@ -55,10 +56,16 @@ export const handler = async (
         const instanceResult = await ec2Wrapper.createAndWaitForInstance(instanceConfig);
 
         console.log(`Instance ${instanceResult.instanceId} is ready!`);
-        return { success: true, ...instanceResult }
-
         // if AMI ID not found, use DCV wrapper here to install DCV
         // create snapshot and save the AMI ID
+        const dcvWrapper = new DCVWrapper(instanceResult.instanceId, userId);
+        const url = await dcvWrapper.getAndCreateDCVSession()
+
+        const amiId = ec2Wrapper.snapshotAMIImage(instanceResult.instanceId, userId)
+
+        return { success: true, ...instanceResult }
+
+
 
     } catch (error: any) {
         return {

@@ -5,17 +5,28 @@ import {
     GetDocumentCommand,
     SSMClient,
     CreateDocumentCommand,
+    GetCommandInvocationCommand,
     type CreateDocumentCommandInput,
     type SendCommandCommandInput
+    type GetCommandInvocationCommandInput
 } from "@aws-sdk/client-ssm";
 
-const INSTALL_DCV_DOCUMENT_NAME = "Lunaris-Install-DCV-Document"; // ✅ Fixed typo
+const INSTALL_DCV_DOCUMENT_NAME = "Lunaris-Install-DCV-Document";
+const INSTALL_DCV_DOCUMENT_FILE_NAME = "install_dcv.yml";
+
+const RUN_SESSION_DOCUMENT_NAME = "Lunaris-Run-DCV-Session-Document";
+const RUN_SESSION_DOCUMENT_FILE_NAME = "run_dcv.yml";
+
 
 interface InstallDCVParams {
     instanceId: string;
     dcvMsiUrl?: string | undefined;
-    sessionName?: string | undefined;
-    sessionOwner?: string | undefined;
+}
+
+interface RunDCVParams {
+    instanceId: string,
+    sessionName: string,
+    sessionOwner?: string
 }
 
 class SSMWrapper {
@@ -28,7 +39,7 @@ class SSMWrapper {
     async runInstall(params: InstallDCVParams): Promise<string> {
         try {
             // Check if document exists, create if not
-            await this.ensureDocumentExists();
+            await this.ensureDocumentExists(INSTALL_DCV_DOCUMENT_NAME, INSTALL_DCV_DOCUMENT_FILE_NAME);
 
             // Send SSM command with parameters
             const commandId = await this.sendSSMCommand(
@@ -36,8 +47,6 @@ class SSMWrapper {
                 INSTALL_DCV_DOCUMENT_NAME,
                 {
                     DcvMsiUrl: params.dcvMsiUrl ? [params.dcvMsiUrl] : [],
-                    SessionName: params.sessionName ? [params.sessionName] : [],
-                    SessionOwner: params.sessionOwner ? [params.sessionOwner] : []
                 }
             );
 
@@ -49,24 +58,36 @@ class SSMWrapper {
         }
     }
 
-     async runCreateSession() {
+     async runCreateSession(params: RunDCVParams):Promise<string> {
         try {
+            // here i need to create the run doc
+             await this.ensureDocumentExists(RUN_SESSION_DOCUMENT_NAME, RUN_SESSION_DOCUMENT_FILE_NAME);
 
-            // then pass this doc to ssmCommand
+            // Send SSM command with parameters
+            const commandId = await this.sendSSMCommand(
+                params.instanceId,
+                RUN_SESSION_DOCUMENT_NAME,
+                {
+                    SessionName: params.sessionName ? [params.sessionName] : [],
+                    SessionOwner: params.sessionOwner ? [params.sessionOwner] : []
+                }
+            );
 
+            return commandId;
         } catch (err: any) {
+            throw err
 
         }
     }
 
 
 
-    private async ensureDocumentExists(): Promise<void> {
+    private async ensureDocumentExists(docName: string, docFile: string): Promise<void> {
         try {
-            await this.getDocument();
+            await this.getDocument(docName);
         } catch (err: any) {
             if (err.name === 'InvalidDocument') {
-                await this.createDocument();
+                await this.createDocument(docName, docFile);
             } else {
                 throw err;
             }
@@ -83,7 +104,7 @@ class SSMWrapper {
                 InstanceIds: [instanceId],
                 DocumentName: documentName,
                 Parameters: parameters,
-                TimeoutSeconds: 600,
+                TimeoutSeconds: documentName === INSTALL_DCV_DOCUMENT_NAME ? 1800 : 300,
                 Comment: `Lunaris DCV installation on ${instanceId}`
             };
 
@@ -102,10 +123,10 @@ class SSMWrapper {
         }
     }
 
-    private async getDocument(): Promise<string> {
+    private async getDocument(docName: string): Promise<string> {
         try {
             const response = await this.client.send(
-                new GetDocumentCommand({ Name: INSTALL_DCV_DOCUMENT_NAME })
+                new GetDocumentCommand({ Name: docName })
             );
 
             if (!response.Name) {
@@ -119,14 +140,14 @@ class SSMWrapper {
         }
     }
 
-    private async createDocument(): Promise<void> {
+    private async createDocument(docName: string, docFile: string): Promise<void> {
         try {
-            const yamlPath = join(__dirname, "../documents/install_dcv.yml");
+            const yamlPath = join(__dirname, `../documents/${docFile}`);
             const yamlContent = readFileSync(yamlPath, "utf-8");
 
             const input: CreateDocumentCommandInput = {
                 Content: yamlContent,
-                Name: INSTALL_DCV_DOCUMENT_NAME,
+                Name: docName,
                 DocumentFormat: "YAML",
                 DocumentType: "Command",
                 Tags: [
@@ -144,6 +165,25 @@ class SSMWrapper {
             }
             console.error('Failed to create SSM document:', error);
             throw error;
+        }
+    }
+
+    async getCommandStatus(commandId: string, instanceId: string): Promise<string> {
+        try {
+            const input: GetCommandInvocationCommandInput = {
+                CommandId: commandId,
+                InstanceId: instanceId
+            };
+
+            const response = await this.client.send(
+                new GetCommandInvocationCommand(input)
+            );
+
+            return response.Status || 'Unknown';
+
+        } catch (err: any) {
+            console.error('Error getting command status:', err);
+            throw err;
         }
     }
 }

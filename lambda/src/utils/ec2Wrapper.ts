@@ -3,6 +3,8 @@ import {
     RunInstancesCommand,
     DescribeInstancesCommand,
     waitUntilInstanceRunning,
+    CreateImageCommand,
+    type CreateImageCommandInput,
     type RunInstancesCommandInput,
     type Instance,
     type _InstanceType,
@@ -211,6 +213,58 @@ class EC2Wrapper {
         }
     }
 
+    async snapshotAMIImage(instanceId: string, userId: string): Promise<string> {
+        try {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+            const imageName = userId ? `Lunaris-DCV-${userId}-${timestamp}` : `Lunaris-DCV-${instanceId}-${timestamp}`
+            const input: CreateImageCommandInput = {
+                InstanceId: instanceId,
+                Name: imageName,
+
+                Description: `DCV gaming snapshot for ${userId || instanceId} - Created ${new Date().toISOString()}`,
+
+                NoReboot: true,
+
+                TagSpecifications: [
+                    {
+                        ResourceType: 'image',
+                        Tags: [
+                            { Key: 'Name', Value: imageName },
+                            { Key: 'CreatedBy', Value: 'Lunaris' },
+                            { Key: 'CreatedAt', Value: new Date().toISOString() },
+                            { Key: 'SourceInstance', Value: instanceId },
+                            { Key: 'Purpose', Value: 'cloud-gaming' },
+                            { Key: 'HasDCV', Value: 'true' },
+                            ...(userId ? [{ Key: 'UserId', Value: userId }] : [])
+                        ]
+                    },
+                    {
+                        ResourceType: 'snapshot',
+                        Tags: [
+                            { Key: 'Name', Value: `${imageName}-snapshot` },
+                            { Key: 'CreatedBy', Value: 'Lunaris' },
+                            { Key: 'SourceInstance', Value: instanceId }
+                        ]
+                    }
+                ]
+            }
+
+            const command = new CreateImageCommand(input)
+            const response = await this.client.send(command)
+
+            if (!response.ImageId) {
+                throw new Error(`AMI ID is undefined for this instance ${instanceId}`)
+            }
+            console.log(`Ami created: ${response.ImageId}`)
+            return response.ImageId
+
+        } catch (error) {
+            console.error("Unable to snapshot image:", instanceId, error)
+            throw error;
+        }
+
+    }
+
     async getInstance(instanceId: string): Promise<Instance> {
         try {
             const command = new DescribeInstancesCommand({
@@ -220,6 +274,7 @@ class EC2Wrapper {
             const response = await this.client.send(command);
 
             return response.Reservations![0].Instances![0]
+
         } catch (err: any) {
             throw err
         }
