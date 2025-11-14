@@ -23,14 +23,14 @@ mainSteps:
               Write-Error "DCV not installed. Run install_dcv.yml first."
               exit 1
           }
-          Write-Host "✅ DCV executable found"
+          Write-Host "DCV executable found"
 
           $service = Get-Service -Name "DcvServer" -ErrorAction SilentlyContinue
           if (!$service) {
               Write-Error "DCV Server service not found. Run install_dcv.yml first."
               exit 1
           }
-          Write-Host "✅ DCV Server service found (Status: $($service.Status))"
+          Write-Host "DCV Server service found (Status: $($service.Status))"
 
   - name: EnsureServiceRunning
     action: aws:runPowerShellScript
@@ -52,9 +52,9 @@ mainSteps:
                   Write-Error "Failed to start DCV Server. Status: $($service.Status)"
                   exit 1
               }
-              Write-Host "✅ DCV Server started"
+              Write-Host "DCV Server started"
           } else {
-              Write-Host "✅ DCV Server already running"
+              Write-Host "DCV Server already running"
           }
 
   - name: CreateOrGetSession
@@ -83,7 +83,7 @@ mainSteps:
           $existingSession = $sessions | Select-String -SimpleMatch $sessionName
 
           if ($existingSession) {
-              Write-Host "`n✅ Session '$sessionName' already exists"
+              Write-Host "`n Session '$sessionName' already exists"
               Write-Host "Reusing existing session"
           } else {
               Write-Host "`nCreating new session: $sessionName"
@@ -98,7 +98,7 @@ mainSteps:
                   exit 1
               }
 
-              Write-Host "✅ Session created successfully"
+              Write-Host "Session created successfully"
 
               # Wait a moment for session to initialize
               Start-Sleep -Seconds 3
@@ -134,7 +134,7 @@ mainSteps:
               }
           }
 
-          Write-Host "✅ Port 8443 is accessible"
+          Write-Host "Port 8443 is accessible"
 
   - name: GenerateStreamingUrl
     action: aws:runPowerShellScript

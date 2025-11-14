@@ -7,7 +7,7 @@ import {
     CreateDocumentCommand,
     GetCommandInvocationCommand,
     type CreateDocumentCommandInput,
-    type SendCommandCommandInput
+    type SendCommandCommandInput,
     type GetCommandInvocationCommandInput,
     GetParameterCommand,
     PutParameterCommand
@@ -47,9 +47,7 @@ class SSMWrapper {
             const commandId = await this.sendSSMCommand(
                 params.instanceId,
                 INSTALL_DCV_DOCUMENT_NAME,
-                {
-                    DcvMsiUrl: params.dcvMsiUrl ? [params.dcvMsiUrl] : [],
-                }
+                params.dcvMsiUrl ? { DcvMsiUrl: [params.dcvMsiUrl] }: undefined
             );
 
             return commandId;
@@ -66,13 +64,18 @@ class SSMWrapper {
              await this.ensureDocumentExists(RUN_SESSION_DOCUMENT_NAME, RUN_SESSION_DOCUMENT_FILE_NAME);
 
             // Send SSM command with parameters
+            const parameters: { [key: string]: string[] } = {
+                SessionName: [params.sessionName]
+            };
+
+            if (params.sessionOwner) {
+                parameters.SessionOwner = [params.sessionOwner];
+            }
+
             const commandId = await this.sendSSMCommand(
                 params.instanceId,
                 RUN_SESSION_DOCUMENT_NAME,
-                {
-                    SessionName: params.sessionName ? [params.sessionName] : [],
-                    SessionOwner: params.sessionOwner ? [params.sessionOwner] : []
-                }
+                parameters
             );
 
             return commandId;

@@ -17,7 +17,7 @@ mainSteps:
           $dcvService = Get-Service -Name "DcvServer" -ErrorAction SilentlyContinue
 
           if ($dcvService) {
-              Write-Host "✅ DCV Server service already exists"
+              Write-Host "DCV Server service already exists"
               Write-Host "Status: $($dcvService.Status)"
               Write-Host "Version:"
               & "C:\Program Files\NICE\DCV\Server\bin\dcv.exe" --version 2>&1
@@ -26,7 +26,7 @@ mainSteps:
 
           Write-Host "DCV not installed, proceeding with installation..."
         - 'New-Item -ItemType Directory -Path "C:\Temp" -Force | Out-Null'
-        - 'Write-Host "✅ Temp directory ready"'
+        - 'Write-Host "Temp directory ready"'
 
   - name: DownloadInstaller
     action: aws:runPowerShellScript
@@ -41,7 +41,7 @@ mainSteps:
               Invoke-WebRequest -Uri "{{ DcvMsiUrl }}" -OutFile $msi -UseBasicParsing
 
               $fileSize = (Get-Item $msi).Length / 1MB
-              Write-Host "✅ Download complete ($([Math]::Round($fileSize, 2)) MB)"
+              Write-Host "Download complete ($([Math]::Round($fileSize, 2)) MB)"
           } catch {
               Write-Error "Failed to download DCV installer: $_"
               exit 1
@@ -70,7 +70,7 @@ mainSteps:
               exit 1
           }
 
-          Write-Host "✅ MSI installation completed successfully"
+          Write-Host "MSI installation completed successfully"
 
   - name: VerifyInstallation
     action: aws:runPowerShellScript
@@ -88,7 +88,7 @@ mainSteps:
               Get-ChildItem "C:\Program Files" -Recurse -Filter "dcv.exe" -ErrorAction SilentlyContinue | Select-Object FullName
               exit 1
           }
-          Write-Host "✅ DCV executable found"
+          Write-Host "DCV executable found"
 
           # Check version
           Write-Host "`nDCV Version:"
@@ -102,7 +102,7 @@ mainSteps:
               Get-Service | Where-Object { $_.Name -like "*dcv*" } | Format-Table Name, Status, StartType
               exit 1
           }
-          Write-Host "✅ DCV Server service found"
+          Write-Host "DCV Server service found"
           Write-Host "Service Status: $($service.Status)"
           Write-Host "Service Start Type: $($service.StartType)"
 
@@ -117,7 +117,7 @@ mainSteps:
           $service = Get-Service -Name "DcvServer"
 
           if ($service.Status -eq "Running") {
-              Write-Host "✅ DCV Server service already running"
+              Write-Host "DCV Server service already running"
           } else {
               Start-Service -Name "DcvServer"
               Start-Sleep -Seconds 10
@@ -127,7 +127,7 @@ mainSteps:
                   Write-Error "Failed to start DCV Server service. Status: $($service.Status)"
                   exit 1
               }
-              Write-Host "✅ DCV Server service started successfully"
+              Write-Host "DCV Server service started successfully"
           }
 
           # Verify port is listening
@@ -137,7 +137,7 @@ mainSteps:
           $test = Test-NetConnection -ComputerName localhost -Port 8443 -WarningAction SilentlyContinue
 
           if ($test.TcpTestSucceeded) {
-              Write-Host "✅ DCV is listening on port 8443"
+              Write-Host "DCV is listening on port 8443"
           } else {
               Write-Warning "Port 8443 not responding yet (may need more time)"
           }
