@@ -9,8 +9,8 @@ import {
 import { RemovalPolicy } from "aws-cdk-lib";
 
 export class DynamoDbTables extends Construct {
-    public readonly runningStreamsTable: ITable;
-    public readonly runningInstancesTable: ITable;
+    private readonly runningStreamsTable: ITable;
+    private readonly runningInstancesTable: ITable;
 
     constructor(scope: Construct, id: string) {
         super(scope, id);
@@ -27,7 +27,7 @@ export class DynamoDbTables extends Construct {
      * - createdAt (ISO 8601 formatted date string)
      * - updatedAt (ISO 8601 formatted date string)
      */
-    setUpRunningStreamsTable(): ITable {
+    private setUpRunningStreamsTable(): ITable {
         return new Table(this, "RunningStreams", {
             partitionKey: { name: "instanceArn", type: AttributeType.STRING },
             billingMode: BillingMode.PAY_PER_REQUEST,
@@ -39,7 +39,7 @@ export class DynamoDbTables extends Construct {
      * Schema: instanceId (PK), instanceArn, ebsVolumes (list), creationTime,
      *         status, region, instanceType, lastModifiedTime
      */
-    setupRunningInstances(): ITable {
+    private setupRunningInstances(): ITable {
         const table = new Table(this, "RunningInstances", {
             partitionKey: { name: "instanceId", type: AttributeType.STRING },
             pointInTimeRecoverySpecification: {
@@ -61,5 +61,13 @@ export class DynamoDbTables extends Construct {
         });
 
         return table;
+    }
+
+    public getRunningInstanceTable() {
+        return this.runningInstancesTable;
+    }
+
+    public getRunningStreamsTable() {
+        return this.runningStreamsTable;
     }
 }

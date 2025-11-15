@@ -50,80 +50,85 @@ sam --version
 
 ```
 
-# Setup
+# Quick Start
 
-### 1. Install Dependencies
+Get the entire local development stack running with one command:
 
 ```bash
-# From project root
-
-# Install all project dependencies
+# Install dependencies first (one-time setup)
 npm run install:all
+
+# Start everything: Docker services + DynamoDB tables
+npm run dev:start
+
+# Stop everything
+npm run dev:stop
 ```
 
-### 2. Build All Project Code
+That's it! Your local environment is ready with:
+
+| Service                             | Port | URL                   |
+| ----------------------------------- | ---- | --------------------- |
+| **DynamoDB Local (w/ tables init)** | 8000 | http://localhost:8000 |
+| **Lambda Container**                | 9000 | http://localhost:9000 |
+| **Frontend**                        | 3000 | http://localhost:3000 |
+
+## Lambda Handler Management
+
+### Understanding Lambda Handlers
+
+The Lambda container only runs **ONE handler at a time** on port 9000 because each emulator needs its own port. Although you can easily switch between handlers by restarting the container.
+
+### Available Handlers
+
+| Handler                    | Path                                                      |
+| -------------------------- | --------------------------------------------------------- |
+| **deployInstance**         | `handlers/deployInstance.handler`                         |
+| **terminateInstance**      | `handlers/terminateInstance.handler`                      |
+| **streamingLink**          | `handlers/streamingLink.handler`                          |
+| **check-running-streams**  | `handlers/user-deploy-ec2/check-running-streams.handler`  |
+| **deploy-ec2**             | `handlers/user-deploy-ec2/deploy-ec2.handler`             |
+| **update-running-streams** | `handlers/user-deploy-ec2/update-running-streams.handler` |
+
+### How to Switch Lambda Handlers
+
+To test a different handler, stop the Lambda container and restart it with the desired handler:
 
 ```bash
-# From project root
+# Stop the Lambda container
+docker-compose stop lambda
 
-# Build all Docker images
-npm run docker:build
-
-# Start all services (DynamoDB + Lambda + Frontend)
-npm run docker:start
-
-# View logs from all services
-npm run docker:logs
-
-# Stop all services
-npm run docker:stop
-
-# Remove volumes and containers)
-npm run docker:clean
+# Restart with a different handler (e.g., streamingLink)
+docker-compose run --rm -p 9000:8080 lambda handlers/streamingLink.handler
 ```
 
-#### What's Running?
+**Note:** The Lambda image must be built first (`npm run docker:build`)
 
-Once started, you'll have:
+### Testing Lambda Handlers Example
 
-| Service              | Port | URL                   | Purpose                           |
-| -------------------- | ---- | --------------------- | --------------------------------- |
-| **DynamoDB Local**   | 8000 | http://localhost:8000 | Local DynamoDB for testing        |
-| **Lambda Container** | 9000 | http://localhost:9000 | Lambda Runtime Interface Emulator |
-| **Frontend**         | 3000 | http://localhost:3000 | Next.js production build          |
+Each handler expects different inputs. Here is one example using the dockerized lambda:
 
-#### Running Specific Lambda Handlers
+#### Test deployInstance Handler (Default)
 
 ```bash
-# Run all containers, default handler for lambda (deployInstance)
-npm run docker:run
-
-# Or specify a different handler w/ format
-docker run --rm -p 9000:8080 lunaris-lambda handlers/streamingLink.handler
-docker run --rm -p 9000:8080 lunaris-lambda handlers/terminateInstance.handler
-docker run --rm -p 9000:8080 lunaris-lambda handlers/user-deploy-ec2/check-running-streams.handler
-```
-
-#### Test Lambda Function
-
-```bash
-# In another terminal or Postman, invoke the Lambda
 curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" \
-  -d '{"userId":"test-user","instanceType":"g4dn.xlarge","region":"us-west-2"}'
+  -H "Content-Type: application/json" \
+  -d '{
+    "body": "{\"userId\":\"test-user\",\"instanceType\":\"t3.micro\",\"amiId\":\"ami-12345678\"}"
+  }'
 ```
 
-#### Testing the Stack
+### Testing Other Services
 
 ```bash
-# Test Lambda function
-curl -X POST "http://localhost:9000/2015-03-31/functions/function/invocations" \
-  -d '{"userId":"test-user","instanceType":"g4dn.xlarge","region":"us-west-2"}'
-
 # Test Frontend
 open http://localhost:3000
 
 # Test DynamoDB connection
 aws dynamodb list-tables --endpoint-url http://localhost:8000
+
+# View all container logs
+npm run docker:logs
 ```
 
 # Local Development with SAM

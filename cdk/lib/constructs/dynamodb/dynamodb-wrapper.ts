@@ -9,25 +9,40 @@ import {
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 
-// Data model interfaces - These data models should match the data schema design
+/**
+ * Data model interfaces for Running Streams table
+ */
 export interface RunningStream {
     streamingId: string;
     instanceArn: string;
     userId: string;
     streamingLink: string;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
+/**
+ * Data model interfaces for Running EC2Instances table
+ */
 export interface RunningInstance {
     instanceId: string;
     instanceArn: string;
     userId: string;
+    status?: "running" | "stopped" | "terminated";
     ebsVolumes: string[];
     creationTime: string;
-    status: "running" | "stopped" | "terminated";
     region: string;
     instanceType: string;
     lastModifiedTime: string;
 }
+/**
+ * Abstract class for DynamoDB wrappers
+ * This class provides a common interface for all DynamoDB wrappers
+ * and implements common methods for all wrappers
+ * @param table - The DynamoDB table to wrap
+ * @returns Abstract class for DynamoDB wrappers
+ *
+ */
 
 export abstract class DynamoDbWrapper {
     protected client: DynamoDBClient;
@@ -47,6 +62,11 @@ export abstract class DynamoDbWrapper {
     abstract deleteItem(key: string): Promise<any>;
     abstract queryItems(params: any): Promise<any>;
 
+    /**
+     * Query items by user ID. The table should have a global secondary index on the userId field.
+     * @param userId - The user ID to query by
+     * @returns The items matching the user ID
+     */
     async queryItemsByUserId(userId: string): Promise<RunningInstance[]> {
         return this.queryItems({
             IndexName: "UserIdIndex",
@@ -56,13 +76,24 @@ export abstract class DynamoDbWrapper {
         });
     }
 }
-
-// Running Streams Wrapper
+/**
+ * concrete class for Running Streams Wrapper
+ * This class provides a concrete implementation for the DynamoDbWrapper abstract class
+ * for the Running Streams table
+ * @param table - The DynamoDB table to wrap
+ * @returns Concrete class for Running Streams Wrapper
+ *
+ */
 export class RunningStreamWrapper extends DynamoDbWrapper {
     constructor(table: Table) {
         super(table);
     }
 
+    /**
+     * create a new stream item and save it to the dynamo db table
+     * @param stream - The stream to create
+     * @returns The created stream
+     */
     async createItem(stream: RunningStream): Promise<RunningStream> {
         const command = new PutItemCommand({
             TableName: this.tableName,
@@ -80,7 +111,11 @@ export class RunningStreamWrapper extends DynamoDbWrapper {
         }
     }
 
-    //finds the item by its partition key: instanceArn
+    /**
+     * get an item by its partition key: instanceArn
+     * @param instanceArn - The partition key to get the item by
+     * @returns The item matching the partition key
+     */
     async getItem(instanceArn: string): Promise<RunningStream | null> {
         const command = new GetItemCommand({
             TableName: this.tableName,
@@ -98,6 +133,12 @@ export class RunningStreamWrapper extends DynamoDbWrapper {
         }
     }
 
+    /**
+     * update an existing stream item in the DynamoDB table
+     * @param instanceArn - The partition key to update the item by
+     * @param updates - The updates json object that contains the fileds to update
+     * @returns The updated stream
+     */
     async updateItem(instanceArn: string, updates: Partial<RunningStream>): Promise<RunningStream> {
         const updateExpression = Object.keys(updates)
             .map((key, index) => `#${key} = :val${index}`)
@@ -133,6 +174,12 @@ export class RunningStreamWrapper extends DynamoDbWrapper {
         }
     }
 
+    /**
+     * delete an existing stream item from the DynamoDB table
+     * @param instanceArn - The partition key to delete the item by
+     * @returns True if the item was deleted, false otherwise
+     *
+     */
     async deleteItem(instanceArn: string): Promise<boolean> {
         const command = new DeleteItemCommand({
             TableName: this.tableName,
@@ -150,7 +197,11 @@ export class RunningStreamWrapper extends DynamoDbWrapper {
         }
     }
 
-    //find all the items matching params criteria
+    /**
+     * query items from the DynamoDB table
+     * @param params - json object that contains the query parameters
+     * @returns The items matching the query parameters
+     */
     async queryItems(params: any): Promise<RunningStream[]> {
         const command = new QueryCommand({
             TableName: this.tableName,
@@ -170,11 +221,25 @@ export class RunningStreamWrapper extends DynamoDbWrapper {
 }
 
 // Running Instances Wrapper
+
+/**
+ * concrete class for Running Instances Wrapper
+ * This class provides a concrete implementation for the DynamoDbWrapper abstract class
+ * for the Running Instances table
+ * @param table - The DynamoDB table to wrap
+ * @returns Concrete class for Running Instances Wrapper
+ *
+ */
 export class RunningInstanceWrapper extends DynamoDbWrapper {
     constructor(table: Table) {
         super(table);
     }
 
+    /**
+     * create a new running EC2 instance item and save it to the dynamo db table
+     * @param instance - The running EC2 instance to create
+     * @returns The created instance
+     */
     async createItem(instance: RunningInstance): Promise<RunningInstance> {
         const command = new PutItemCommand({
             TableName: this.tableName,
@@ -192,6 +257,11 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
         }
     }
 
+    /**
+     * get an item by its partition key: instanceId
+     * @param instanceId - The partition key to get the item by
+     * @returns The item matching the partition key
+     */
     async getItem(instanceId: string): Promise<RunningInstance | null> {
         const command = new GetItemCommand({
             TableName: this.tableName,
@@ -209,6 +279,12 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
         }
     }
 
+    /**
+     * update an existing running EC2 instance item in the DynamoDB table
+     * @param instanceId - The partition key to update the item by
+     * @param updates - json object that contains the fileds to update
+     * @returns The updated instance
+     */
     async updateItem(
         instanceId: string,
         updates: Partial<RunningInstance>,
@@ -247,6 +323,12 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
         }
     }
 
+    /**
+     * delete an existing running EC2 instance item from the DynamoDB table
+     * @param instanceId - The partition key to delete the item by
+     * @returns True if the item was deleted, false otherwise
+     *
+     */
     async deleteItem(instanceId: string): Promise<boolean> {
         const command = new DeleteItemCommand({
             TableName: this.tableName,
@@ -264,6 +346,11 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
         }
     }
 
+    /**
+     * query items from the DynamoDB table by parameters
+     * @param params - json object that contains the query parameters
+     * @returns
+     */
     async queryItems(params: any): Promise<RunningInstance[]> {
         const command = new QueryCommand({
             TableName: this.tableName,
@@ -281,8 +368,14 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
         }
     }
 
-    // Table-specific method for status queries
-    async queryItemsByStatus(status: string): Promise<RunningInstance[]> {
+    /**
+     * query items by status. The table should have a global secondary index on the status field.
+     * @param status - The status to query by
+     * @returns The items matching the status
+     */
+    async queryItemsByStatus(
+        status: "running" | "stopped" | "terminated",
+    ): Promise<RunningInstance[]> {
         return this.queryItems({
             IndexName: "StatusCreationTimeIndex",
             KeyConditionExpression: "#status = :status",
@@ -291,6 +384,11 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
         });
     }
 
+    /**
+     * query items by region. The table should have a global secondary index on the region field.
+     * @param region - The region to query by
+     * @returns The items matching the region
+     */
     async queryItemsByRegion(region: string): Promise<RunningInstance[]> {
         return this.queryItems({
             IndexName: "RegionIndex",
@@ -301,7 +399,12 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
     }
 }
 
-// Factory function - should be used to create appropriate dynamodbwrapper
+/**
+ * Factory function to create a DynamoDB wrapper for a given table type
+ * @param tableType - The type of table to create a wrapper for ("streams" or "instances")
+ * @param table - The DynamoDB table to wrap
+ * @returns The appropriate DynamoDB wrapper for the given table type
+ */
 export function createDynamoDbWrapper(
     tableType: "streams" | "instances",
     table: Table,
