@@ -6,6 +6,7 @@ import {
     UpdateItemCommand,
     DeleteItemCommand,
     QueryCommand,
+    type QueryCommandInput,
 } from "@aws-sdk/client-dynamodb";
 import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
 
@@ -35,6 +36,12 @@ export interface RunningInstance {
     instanceType: string;
     lastModifiedTime: string;
 }
+
+/**
+ * Generic union type for DynamoDB item types
+ */
+type DynamoItem = RunningStream | RunningInstance;
+
 /**
  * Abstract class for DynamoDB wrappers
  * This class provides a common interface for all DynamoDB wrappers
@@ -43,8 +50,7 @@ export interface RunningInstance {
  * @returns Abstract class for DynamoDB wrappers
  *
  */
-
-export abstract class DynamoDbWrapper {
+export abstract class DynamoDbWrapper<T extends DynamoItem> {
     protected client: DynamoDBClient;
     protected tableName: string;
     protected partitionKey: string;
@@ -56,18 +62,18 @@ export abstract class DynamoDbWrapper {
     }
 
     // Common CRUD operations
-    abstract createItem(item: RunningInstance | RunningStream): Promise<any>;
-    abstract getItem(key: string): Promise<any>;
-    abstract updateItem(key: string, updates: any): Promise<any>;
-    abstract deleteItem(key: string): Promise<any>;
-    abstract queryItems(params: any): Promise<any>;
+    abstract createItem(item: T): Promise<T>;
+    abstract getItem(key: string): Promise<T | null>;
+    abstract updateItem(key: string, updates: Partial<T>): Promise<T>;
+    abstract deleteItem(key: string): Promise<boolean>;
+    abstract queryItems(params: Partial<Omit<QueryCommandInput, "TableName">>): Promise<T[]>;
 
     /**
      * Query items by user ID. The table should have a global secondary index on the userId field.
      * @param userId - The user ID to query by
      * @returns The items matching the user ID
      */
-    async queryItemsByUserId(userId: string): Promise<RunningInstance[]> {
+    async queryItemsByUserId(userId: string): Promise<T[]> {
         return this.queryItems({
             IndexName: "UserIdIndex",
             KeyConditionExpression: "#userId = :userId",
@@ -84,7 +90,7 @@ export abstract class DynamoDbWrapper {
  * @returns Concrete class for Running Streams Wrapper
  *
  */
-export class RunningStreamWrapper extends DynamoDbWrapper {
+export class RunningStreamWrapper extends DynamoDbWrapper<RunningStream> {
     constructor(table: Table) {
         super(table);
     }
@@ -202,7 +208,9 @@ export class RunningStreamWrapper extends DynamoDbWrapper {
      * @param params - json object that contains the query parameters
      * @returns The items matching the query parameters
      */
-    async queryItems(params: any): Promise<RunningStream[]> {
+    async queryItems(
+        params: Partial<Omit<QueryCommandInput, "TableName">>,
+    ): Promise<RunningStream[]> {
         const command = new QueryCommand({
             TableName: this.tableName,
             ...params,
@@ -210,7 +218,7 @@ export class RunningStreamWrapper extends DynamoDbWrapper {
 
         try {
             const result = await this.client.send(command);
-            return result.Items?.map((item: any) => unmarshall(item) as RunningStream) || [];
+            return result.Items?.map((item) => unmarshall(item) as RunningStream) || [];
         } catch (error) {
             console.error("Error querying streams:", error);
             throw new Error(
@@ -230,7 +238,7 @@ export class RunningStreamWrapper extends DynamoDbWrapper {
  * @returns Concrete class for Running Instances Wrapper
  *
  */
-export class RunningInstanceWrapper extends DynamoDbWrapper {
+export class RunningInstanceWrapper extends DynamoDbWrapper<RunningInstance> {
     constructor(table: Table) {
         super(table);
     }
@@ -351,7 +359,9 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
      * @param params - json object that contains the query parameters
      * @returns
      */
-    async queryItems(params: any): Promise<RunningInstance[]> {
+    async queryItems(
+        params: Partial<Omit<QueryCommandInput, "TableName">>,
+    ): Promise<RunningInstance[]> {
         const command = new QueryCommand({
             TableName: this.tableName,
             ...params,
@@ -408,7 +418,7 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
 export function createDynamoDbWrapper(
     tableType: "streams" | "instances",
     table: Table,
-): DynamoDbWrapper {
+): DynamoDbWrapper<DynamoItem> {
     switch (tableType) {
         case "streams":
             return new RunningStreamWrapper(table);
