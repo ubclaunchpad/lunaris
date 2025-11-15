@@ -1,7 +1,11 @@
 import { Construct } from "constructs";
-import { StateMachine, DefinitionBody } from "aws-cdk-lib/aws-stepfunctions";
+import {
+    StateMachine,
+    DefinitionBody,
+    type StateMachineProps,
+} from "aws-cdk-lib/aws-stepfunctions";
 import { Function } from "aws-cdk-lib/aws-lambda";
-import { WorkflowConfig } from "../workflows/types";
+import type { WorkflowConfig, RetryConfig } from "../workflows/types";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -30,17 +34,11 @@ export class WorkflowFactory extends Construct {
         const definitionBody = this.processDefinition(config, lambdaFunctions);
 
         // Create state machine
-        const stateMachineProps: any = {
+        const stateMachineProps: StateMachineProps = {
             definitionBody: DefinitionBody.fromString(definitionBody),
+            comment: config?.description,
+            timeout: config?.timeout,
         };
-
-        if (config.description) {
-            stateMachineProps.comment = config.description;
-        }
-
-        if (config.timeout) {
-            stateMachineProps.timeout = config.timeout;
-        }
 
         const stateMachine = new StateMachine(this, config.name, stateMachineProps);
 
@@ -102,7 +100,7 @@ export class WorkflowFactory extends Construct {
      * @param retryConfig Retry configuration to validate
      * @throws Error if validation fails
      */
-    private validateRetryConfig(workflowName: string, retryConfig: any): void {
+    private validateRetryConfig(workflowName: string, retryConfig: RetryConfig): void {
         if (retryConfig.maxAttempts <= 0) {
             throw new Error(
                 `Workflow '${workflowName}' retry config maxAttempts must be greater than 0`,
