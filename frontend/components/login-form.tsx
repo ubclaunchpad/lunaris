@@ -4,7 +4,7 @@ import { GalleryVerticalEnd } from "lucide-react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useUser } from "@/context/usercontext";
-
+import { login } from "@/lib/auth"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -32,19 +32,29 @@ export function LoginForm({
     password: "admin123"
   }
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError("")
 
-    // Check if credentials match
-    if (email === validCredentials.email && password === validCredentials.password) {
-      console.log("Login successful!")
-      // Redirect to browse page on successful login
-      setUserId("admin")
-      router.push("/browse")
-    } else {
-      setError("Invalid email or password")
-    }
+    const result = await login(email, password);
+
+      if (result?.success) {
+        setUserId(result.userId);
+        router.push("/browser");
+      } else {
+        setError("Invalid email or password")
+      }
+
+
+    // Temporary auth system
+    // if (email === validCredentials.email && password === validCredentials.password) {
+    //   console.log("Login successful!")
+    //   // Redirect to browse page on successful login
+    //   setUserId("admin")
+    //   router.push("/browse")
+    // } else {
+    //   setError("Invalid email or password")
+    // }
   }
 
   return (
