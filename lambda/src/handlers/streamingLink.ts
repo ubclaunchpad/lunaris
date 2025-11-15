@@ -36,7 +36,9 @@ export const handler: APIGatewayProxyHandler = async (event) => {
             message: `Hello, user ${userId}!`,
         });
     } catch (error: unknown) {
-        console.error("Error occurred:", (error as Error).message);
+        if (error instanceof Error) {
+            console.error("Error occurred:", error.message);
+        }
 
         return createResponse(500, {
             error: "Internal Server Error",
