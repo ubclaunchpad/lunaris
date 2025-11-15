@@ -6,10 +6,14 @@ import { LambdaFunctions } from "./constructs/lambda-functions";
 import { StepFunctions } from "./constructs/step-functions";
 import { ApiGateway } from "./constructs/api-gateway";
 import { DynamoDbTables } from "./constructs/dynamodb-tables";
+import { CognitoUserPool } from "./constructs/cognito-user-pool";
 
 export class CdkStack extends Stack {
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
+
+    // Create Cognito User Pool
+    const cognitoUserPool = new CognitoUserPool(this, "CognitoUserPool");
 
     // Create DynamoDB tables
     const dynamoDbTables = new DynamoDbTables(this, "DynamoDbTables");
@@ -80,6 +84,7 @@ export class CdkStack extends Stack {
       deployInstanceFunction: lambdaFunctions.deployInstanceFunction,
       terminateInstanceFunction: lambdaFunctions.terminateInstanceFunction,
       streamingLinkFunction: lambdaFunctions.streamingLinkFunction,
+      userPool: cognitoUserPool.userPool,
     });
   }
 }
