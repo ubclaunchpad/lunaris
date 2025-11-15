@@ -13,27 +13,27 @@ import { marshall, unmarshall } from "@aws-sdk/util-dynamodb";
  * Data model interfaces for Running Streams table
  */
 export interface RunningStream {
-  streamingId: string;
-  instanceArn: string;
-  userId: string;
-  streamingLink: string;
-  createdAt?: string;
-  updatedAt?: string;
+    streamingId: string;
+    instanceArn: string;
+    userId: string;
+    streamingLink: string;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 /**
  * Data model interfaces for Running EC2Instances table
  */
 export interface RunningInstance {
-  instanceId: string;
-  instanceArn: string;
-  userId: string;
-  status?: "running" | "stopped" | "terminated";
-  ebsVolumes: string[];
-  creationTime: string;
-  region: string;
-  instanceType: string;
-  lastModifiedTime: string;
+    instanceId: string;
+    instanceArn: string;
+    userId: string;
+    status?: "running" | "stopped" | "terminated";
+    ebsVolumes: string[];
+    creationTime: string;
+    region: string;
+    instanceType: string;
+    lastModifiedTime: string;
 }
 /**
  * Abstract class for DynamoDB wrappers
@@ -62,19 +62,19 @@ export abstract class DynamoDbWrapper {
     abstract deleteItem(key: string): Promise<any>;
     abstract queryItems(params: any): Promise<any>;
 
-  /**
-   * Query items by user ID. The table should have a global secondary index on the userId field.
-   * @param userId - The user ID to query by
-   * @returns The items matching the user ID
-   */
-  async queryItemsByUserId(userId: string): Promise<RunningInstance[]> {
-    return this.queryItems({
-      IndexName: "UserIdIndex",
-      KeyConditionExpression: "#userId = :userId",
-      ExpressionAttributeNames: { "#userId": "userId" },
-      ExpressionAttributeValues: marshall({ ":userId": userId }),
-    });
-  }
+    /**
+     * Query items by user ID. The table should have a global secondary index on the userId field.
+     * @param userId - The user ID to query by
+     * @returns The items matching the user ID
+     */
+    async queryItemsByUserId(userId: string): Promise<RunningInstance[]> {
+        return this.queryItems({
+            IndexName: "UserIdIndex",
+            KeyConditionExpression: "#userId = :userId",
+            ExpressionAttributeNames: { "#userId": "userId" },
+            ExpressionAttributeValues: marshall({ ":userId": userId }),
+        });
+    }
 }
 /**
  * concrete class for Running Streams Wrapper
@@ -89,16 +89,16 @@ export class RunningStreamWrapper extends DynamoDbWrapper {
         super(table);
     }
 
-  /**
-   * create a new stream item and save it to the dynamo db table
-   * @param stream - The stream to create
-   * @returns The created stream
-   */
-  async createItem(stream: RunningStream): Promise<RunningStream> {
-    const command = new PutItemCommand({
-      TableName: this.tableName,
-      Item: marshall(stream),
-    });
+    /**
+     * create a new stream item and save it to the dynamo db table
+     * @param stream - The stream to create
+     * @returns The created stream
+     */
+    async createItem(stream: RunningStream): Promise<RunningStream> {
+        const command = new PutItemCommand({
+            TableName: this.tableName,
+            Item: marshall(stream),
+        });
 
         try {
             await this.client.send(command);
@@ -111,16 +111,16 @@ export class RunningStreamWrapper extends DynamoDbWrapper {
         }
     }
 
-  /**
-   * get an item by its partition key: instanceArn
-   * @param instanceArn - The partition key to get the item by
-   * @returns The item matching the partition key
-   */
-  async getItem(instanceArn: string): Promise<RunningStream | null> {
-    const command = new GetItemCommand({
-      TableName: this.tableName,
-      Key: marshall({ [this.partitionKey]: instanceArn }),
-    });
+    /**
+     * get an item by its partition key: instanceArn
+     * @param instanceArn - The partition key to get the item by
+     * @returns The item matching the partition key
+     */
+    async getItem(instanceArn: string): Promise<RunningStream | null> {
+        const command = new GetItemCommand({
+            TableName: this.tableName,
+            Key: marshall({ [this.partitionKey]: instanceArn }),
+        });
 
         try {
             const result = await this.client.send(command);
@@ -133,19 +133,16 @@ export class RunningStreamWrapper extends DynamoDbWrapper {
         }
     }
 
-  /**
-   * update an existing stream item in the DynamoDB table
-   * @param instanceArn - The partition key to update the item by
-   * @param updates - The updates json object that contains the fileds to update
-   * @returns The updated stream
-   */
-  async updateItem(
-    instanceArn: string,
-    updates: Partial<RunningStream>
-  ): Promise<RunningStream> {
-    const updateExpression = Object.keys(updates)
-      .map((key, index) => `#${key} = :val${index}`)
-      .join(", ");
+    /**
+     * update an existing stream item in the DynamoDB table
+     * @param instanceArn - The partition key to update the item by
+     * @param updates - The updates json object that contains the fileds to update
+     * @returns The updated stream
+     */
+    async updateItem(instanceArn: string, updates: Partial<RunningStream>): Promise<RunningStream> {
+        const updateExpression = Object.keys(updates)
+            .map((key, index) => `#${key} = :val${index}`)
+            .join(", ");
 
         const expressionAttributeNames = Object.keys(updates).reduce(
             (acc, key) => ({ ...acc, [`#${key}`]: key }),
@@ -177,17 +174,17 @@ export class RunningStreamWrapper extends DynamoDbWrapper {
         }
     }
 
-  /**
-   * delete an existing stream item from the DynamoDB table
-   * @param instanceArn - The partition key to delete the item by
-   * @returns True if the item was deleted, false otherwise
-   *
-   */
-  async deleteItem(instanceArn: string): Promise<boolean> {
-    const command = new DeleteItemCommand({
-      TableName: this.tableName,
-      Key: marshall({ [this.partitionKey]: instanceArn }),
-    });
+    /**
+     * delete an existing stream item from the DynamoDB table
+     * @param instanceArn - The partition key to delete the item by
+     * @returns True if the item was deleted, false otherwise
+     *
+     */
+    async deleteItem(instanceArn: string): Promise<boolean> {
+        const command = new DeleteItemCommand({
+            TableName: this.tableName,
+            Key: marshall({ [this.partitionKey]: instanceArn }),
+        });
 
         try {
             await this.client.send(command);
@@ -200,16 +197,16 @@ export class RunningStreamWrapper extends DynamoDbWrapper {
         }
     }
 
-  /**
-   * query items from the DynamoDB table
-   * @param params - json object that contains the query parameters
-   * @returns The items matching the query parameters
-   */
-  async queryItems(params: any): Promise<RunningStream[]> {
-    const command = new QueryCommand({
-      TableName: this.tableName,
-      ...params,
-    });
+    /**
+     * query items from the DynamoDB table
+     * @param params - json object that contains the query parameters
+     * @returns The items matching the query parameters
+     */
+    async queryItems(params: any): Promise<RunningStream[]> {
+        const command = new QueryCommand({
+            TableName: this.tableName,
+            ...params,
+        });
 
         try {
             const result = await this.client.send(command);
@@ -238,16 +235,16 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
         super(table);
     }
 
-  /**
-   * create a new running EC2 instance item and save it to the dynamo db table
-   * @param instance - The running EC2 instance to create
-   * @returns The created instance
-   */
-  async createItem(instance: RunningInstance): Promise<RunningInstance> {
-    const command = new PutItemCommand({
-      TableName: this.tableName,
-      Item: marshall(instance),
-    });
+    /**
+     * create a new running EC2 instance item and save it to the dynamo db table
+     * @param instance - The running EC2 instance to create
+     * @returns The created instance
+     */
+    async createItem(instance: RunningInstance): Promise<RunningInstance> {
+        const command = new PutItemCommand({
+            TableName: this.tableName,
+            Item: marshall(instance),
+        });
 
         try {
             await this.client.send(command);
@@ -260,16 +257,16 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
         }
     }
 
-  /**
-   * get an item by its partition key: instanceId
-   * @param instanceId - The partition key to get the item by
-   * @returns The item matching the partition key
-   */
-  async getItem(instanceId: string): Promise<RunningInstance | null> {
-    const command = new GetItemCommand({
-      TableName: this.tableName,
-      Key: marshall({ [this.partitionKey]: instanceId }),
-    });
+    /**
+     * get an item by its partition key: instanceId
+     * @param instanceId - The partition key to get the item by
+     * @returns The item matching the partition key
+     */
+    async getItem(instanceId: string): Promise<RunningInstance | null> {
+        const command = new GetItemCommand({
+            TableName: this.tableName,
+            Key: marshall({ [this.partitionKey]: instanceId }),
+        });
 
         try {
             const result = await this.client.send(command);
@@ -282,19 +279,19 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
         }
     }
 
-  /**
-   * update an existing running EC2 instance item in the DynamoDB table
-   * @param instanceId - The partition key to update the item by
-   * @param updates - json object that contains the fileds to update
-   * @returns The updated instance
-   */
-  async updateItem(
-    instanceId: string,
-    updates: Partial<RunningInstance>
-  ): Promise<RunningInstance> {
-    const updateExpression = Object.keys(updates)
-      .map((key, index) => `#${key} = :val${index}`)
-      .join(", ");
+    /**
+     * update an existing running EC2 instance item in the DynamoDB table
+     * @param instanceId - The partition key to update the item by
+     * @param updates - json object that contains the fileds to update
+     * @returns The updated instance
+     */
+    async updateItem(
+        instanceId: string,
+        updates: Partial<RunningInstance>,
+    ): Promise<RunningInstance> {
+        const updateExpression = Object.keys(updates)
+            .map((key, index) => `#${key} = :val${index}`)
+            .join(", ");
 
         const expressionAttributeNames = Object.keys(updates).reduce(
             (acc, key) => ({ ...acc, [`#${key}`]: key }),
@@ -326,17 +323,17 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
         }
     }
 
-  /**
-   * delete an existing running EC2 instance item from the DynamoDB table
-   * @param instanceId - The partition key to delete the item by
-   * @returns True if the item was deleted, false otherwise
-   *
-   */
-  async deleteItem(instanceId: string): Promise<boolean> {
-    const command = new DeleteItemCommand({
-      TableName: this.tableName,
-      Key: marshall({ [this.partitionKey]: instanceId }),
-    });
+    /**
+     * delete an existing running EC2 instance item from the DynamoDB table
+     * @param instanceId - The partition key to delete the item by
+     * @returns True if the item was deleted, false otherwise
+     *
+     */
+    async deleteItem(instanceId: string): Promise<boolean> {
+        const command = new DeleteItemCommand({
+            TableName: this.tableName,
+            Key: marshall({ [this.partitionKey]: instanceId }),
+        });
 
         try {
             await this.client.send(command);
@@ -349,16 +346,16 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
         }
     }
 
-  /**
-   * query items from the DynamoDB table by parameters
-   * @param params - json object that contains the query parameters
-   * @returns
-   */
-  async queryItems(params: any): Promise<RunningInstance[]> {
-    const command = new QueryCommand({
-      TableName: this.tableName,
-      ...params,
-    });
+    /**
+     * query items from the DynamoDB table by parameters
+     * @param params - json object that contains the query parameters
+     * @returns
+     */
+    async queryItems(params: any): Promise<RunningInstance[]> {
+        const command = new QueryCommand({
+            TableName: this.tableName,
+            ...params,
+        });
 
         try {
             const result = await this.client.send(command);
@@ -371,35 +368,35 @@ export class RunningInstanceWrapper extends DynamoDbWrapper {
         }
     }
 
-  /**
-   * query items by status. The table should have a global secondary index on the status field.
-   * @param status - The status to query by
-   * @returns The items matching the status
-   */
-  async queryItemsByStatus(
-    status: "running" | "stopped" | "terminated"
-  ): Promise<RunningInstance[]> {
-    return this.queryItems({
-      IndexName: "StatusCreationTimeIndex",
-      KeyConditionExpression: "#status = :status",
-      ExpressionAttributeNames: { "#status": "status" },
-      ExpressionAttributeValues: marshall({ ":status": status }),
-    });
-  }
+    /**
+     * query items by status. The table should have a global secondary index on the status field.
+     * @param status - The status to query by
+     * @returns The items matching the status
+     */
+    async queryItemsByStatus(
+        status: "running" | "stopped" | "terminated",
+    ): Promise<RunningInstance[]> {
+        return this.queryItems({
+            IndexName: "StatusCreationTimeIndex",
+            KeyConditionExpression: "#status = :status",
+            ExpressionAttributeNames: { "#status": "status" },
+            ExpressionAttributeValues: marshall({ ":status": status }),
+        });
+    }
 
-  /**
-   * query items by region. The table should have a global secondary index on the region field.
-   * @param region - The region to query by
-   * @returns The items matching the region
-   */
-  async queryItemsByRegion(region: string): Promise<RunningInstance[]> {
-    return this.queryItems({
-      IndexName: "RegionIndex",
-      KeyConditionExpression: "#region = :region",
-      ExpressionAttributeNames: { "#region": "region" },
-      ExpressionAttributeValues: marshall({ ":region": region }),
-    });
-  }
+    /**
+     * query items by region. The table should have a global secondary index on the region field.
+     * @param region - The region to query by
+     * @returns The items matching the region
+     */
+    async queryItemsByRegion(region: string): Promise<RunningInstance[]> {
+        return this.queryItems({
+            IndexName: "RegionIndex",
+            KeyConditionExpression: "#region = :region",
+            ExpressionAttributeNames: { "#region": "region" },
+            ExpressionAttributeValues: marshall({ ":region": region }),
+        });
+    }
 }
 
 /**

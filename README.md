@@ -67,14 +67,11 @@ npm run dev:stop
 
 That's it! Your local environment is ready with:
 
-
-| Service | Port | URL |
-|---------|------|-----|
+| Service                             | Port | URL                   |
+| ----------------------------------- | ---- | --------------------- |
 | **DynamoDB Local (w/ tables init)** | 8000 | http://localhost:8000 |
-| **Lambda Container** | 9000 | http://localhost:9000 | 
-| **Frontend** | 3000 | http://localhost:3000  |
-
-
+| **Lambda Container**                | 9000 | http://localhost:9000 |
+| **Frontend**                        | 3000 | http://localhost:3000 |
 
 ## Lambda Handler Management
 
@@ -84,14 +81,14 @@ The Lambda container only runs **ONE handler at a time** on port 9000 because ea
 
 ### Available Handlers
 
-| Handler | Path |
-|---------|------|
-| **deployInstance** | `handlers/deployInstance.handler`
-| **terminateInstance** | `handlers/terminateInstance.handler` 
-| **streamingLink** | `handlers/streamingLink.handler`
-| **check-running-streams** | `handlers/user-deploy-ec2/check-running-streams.handler` 
-| **deploy-ec2** | `handlers/user-deploy-ec2/deploy-ec2.handler`
-| **update-running-streams** | `handlers/user-deploy-ec2/update-running-streams.handler`
+| Handler                    | Path                                                      |
+| -------------------------- | --------------------------------------------------------- |
+| **deployInstance**         | `handlers/deployInstance.handler`                         |
+| **terminateInstance**      | `handlers/terminateInstance.handler`                      |
+| **streamingLink**          | `handlers/streamingLink.handler`                          |
+| **check-running-streams**  | `handlers/user-deploy-ec2/check-running-streams.handler`  |
+| **deploy-ec2**             | `handlers/user-deploy-ec2/deploy-ec2.handler`             |
+| **update-running-streams** | `handlers/user-deploy-ec2/update-running-streams.handler` |
 
 ### How to Switch Lambda Handlers
 
