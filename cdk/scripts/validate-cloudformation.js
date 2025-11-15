@@ -51,7 +51,7 @@ function validateStepFunctionsResources(template) {
 
     const resources = template.Resources || {};
     const stepFunctionResources = Object.entries(resources).filter(
-        ([key, resource]) => resource.Type === "AWS::StepFunctions::StateMachine",
+        ([_, resource]) => resource.Type === "AWS::StepFunctions::StateMachine",
     );
 
     if (stepFunctionResources.length === 0) {
@@ -91,11 +91,11 @@ function validateLambdaPermissions(template) {
 
     const resources = template.Resources || {};
     const lambdaPermissions = Object.entries(resources).filter(
-        ([key, resource]) => resource.Type === "AWS::Lambda::Permission",
+        ([_, resource]) => resource.Type === "AWS::Lambda::Permission",
     );
 
     const stepFunctionPermissions = lambdaPermissions.filter(
-        ([key, resource]) => resource.Properties.Principal === "states.amazonaws.com",
+        ([_, resource]) => resource.Properties.Principal === "states.amazonaws.com",
     );
 
     console.log(`✓ Found ${stepFunctionPermissions.length} Lambda permissions for Step Functions`);
@@ -116,10 +116,10 @@ function validateIAMResources(template) {
 
     const resources = template.Resources || {};
     const iamRoles = Object.entries(resources).filter(
-        ([key, resource]) => resource.Type === "AWS::IAM::Role",
+        ([_, resource]) => resource.Type === "AWS::IAM::Role",
     );
 
-    const stepFunctionRoles = iamRoles.filter(([key, resource]) =>
+    const stepFunctionRoles = iamRoles.filter(([_, resource]) =>
         resource.Properties.AssumeRolePolicyDocument?.Statement?.some((statement) =>
             statement.Principal?.Service?.includes("states.amazonaws.com"),
         ),

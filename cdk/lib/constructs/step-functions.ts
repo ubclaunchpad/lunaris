@@ -5,12 +5,12 @@ import { WorkflowFactory } from "./workflow-factory";
 import { WorkflowRegistry } from "../workflows";
 
 export interface StepFunctionsProps extends Record<string, Function> {
-    checkRunningStreamsFunction: Function;
-    deployEC2Function: Function;
-    updateRunningStreamsFunction: Function;
-    checkRunningStreamsTerminateFunction: Function;
-    terminateEC2Function: Function;
-    updateRunningStreamsTerminateFunction: Function;
+    readonly checkRunningStreamsFunction: Function;
+    readonly deployEC2Function: Function;
+    readonly updateRunningStreamsFunction: Function;
+    readonly checkRunningStreamsTerminateFunction: Function;
+    readonly terminateEC2Function: Function;
+    readonly updateRunningStreamsTerminateFunction: Function;
 }
 
 export class StepFunctions extends Construct {

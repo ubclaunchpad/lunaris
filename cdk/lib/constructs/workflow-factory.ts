@@ -1,7 +1,11 @@
 import { Construct } from "constructs";
-import { StateMachine, DefinitionBody } from "aws-cdk-lib/aws-stepfunctions";
+import {
+    StateMachine,
+    DefinitionBody,
+    type StateMachineProps,
+} from "aws-cdk-lib/aws-stepfunctions";
 import { Function } from "aws-cdk-lib/aws-lambda";
-import { WorkflowConfig } from "../workflows/types";
+import type { WorkflowConfig, RetryConfig } from "../workflows/types";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -30,17 +34,11 @@ export class WorkflowFactory extends Construct {
         const definitionBody = this.processDefinition(config, lambdaFunctions);
 
         // Create state machine
-        const stateMachineProps: any = {
+        const stateMachineProps: StateMachineProps = {
             definitionBody: DefinitionBody.fromString(definitionBody),
+            comment: config?.description,
+            timeout: config?.timeout,
         };
-
-        if (config.description) {
-            stateMachineProps.comment = config.description;
-        }
-
-        if (config.timeout) {
-            stateMachineProps.timeout = config.timeout;
-        }
 
         const stateMachine = new StateMachine(this, config.name, stateMachineProps);
 
@@ -82,7 +80,7 @@ export class WorkflowFactory extends Construct {
         }
 
         // Validate all required Lambda functions exist
-        Object.entries(config.lambdaFunctions).forEach(([key, ref]) => {
+        Object.entries(config.lambdaFunctions).forEach(([_, ref]) => {
             if (ref.required && !lambdaFunctions[ref.functionName]) {
                 throw new Error(
                     `Required Lambda function '${ref.functionName}' not found for workflow '${config.name}'`,
@@ -102,7 +100,7 @@ export class WorkflowFactory extends Construct {
      * @param retryConfig Retry configuration to validate
      * @throws Error if validation fails
      */
-    private validateRetryConfig(workflowName: string, retryConfig: any): void {
+    private validateRetryConfig(workflowName: string, retryConfig: RetryConfig): void {
         if (retryConfig.maxAttempts <= 0) {
             throw new Error(
                 `Workflow '${workflowName}' retry config maxAttempts must be greater than 0`,
@@ -147,7 +145,7 @@ export class WorkflowFactory extends Construct {
             }
 
             // Apply substitutions
-            Object.entries(config.lambdaFunctions).forEach(([key, ref]) => {
+            Object.entries(config.lambdaFunctions).forEach(([_, ref]) => {
                 const lambdaFunction = lambdaFunctions[ref.functionName];
                 if (lambdaFunction) {
                     template = template.replace(
@@ -179,7 +177,7 @@ export class WorkflowFactory extends Construct {
         config: WorkflowConfig,
         processedTemplate: string,
     ): void {
-        Object.entries(config.lambdaFunctions).forEach(([key, ref]) => {
+        Object.entries(config.lambdaFunctions).forEach(([_, ref]) => {
             if (ref.required && processedTemplate.includes(ref.placeholder)) {
                 throw new Error(
                     `Required placeholder '${ref.placeholder}' was not substituted in workflow '${config.name}'. ` +
@@ -200,7 +198,7 @@ export class WorkflowFactory extends Construct {
         lambdaFunctions: Record<string, Function>,
         stateMachine: StateMachine,
     ): void {
-        Object.entries(config.lambdaFunctions).forEach(([key, ref]) => {
+        Object.entries(config.lambdaFunctions).forEach(([_, ref]) => {
             const lambdaFunction = lambdaFunctions[ref.functionName];
             if (lambdaFunction) {
                 lambdaFunction.grantInvoke(stateMachine);

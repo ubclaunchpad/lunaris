@@ -1,11 +1,11 @@
 import { Construct } from "constructs";
 import { Code, Function, Runtime, FunctionProps } from "aws-cdk-lib/aws-lambda";
 import { Duration } from "aws-cdk-lib";
-import { Table } from "aws-cdk-lib/aws-dynamodb";
+import { type ITable } from "aws-cdk-lib/aws-dynamodb";
 
 export interface LambdaFunctionsProps {
-    runningInstancesTable: Table;
-    runningStreamsTable: Table;
+    readonly runningInstancesTable: ITable;
+    readonly runningStreamsTable: ITable;
 }
 
 export class LambdaFunctions extends Construct {

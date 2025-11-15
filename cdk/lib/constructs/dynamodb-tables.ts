@@ -1,10 +1,16 @@
 import { Construct } from "constructs";
-import { Table, AttributeType, BillingMode, ProjectionType } from "aws-cdk-lib/aws-dynamodb";
+import {
+    type ITable,
+    Table,
+    AttributeType,
+    BillingMode,
+    ProjectionType,
+} from "aws-cdk-lib/aws-dynamodb";
 import { RemovalPolicy } from "aws-cdk-lib";
 
 export class DynamoDbTables extends Construct {
-    private readonly runningStreamsTable: Table;
-    private readonly runningInstancesTable: Table;
+    private readonly runningStreamsTable: ITable;
+    private readonly runningInstancesTable: ITable;
 
     constructor(scope: Construct, id: string) {
         super(scope, id);
@@ -21,7 +27,7 @@ export class DynamoDbTables extends Construct {
      * - createdAt (ISO 8601 formatted date string)
      * - updatedAt (ISO 8601 formatted date string)
      */
-    private setUpRunningStreamsTable(): Table {
+    private setUpRunningStreamsTable(): ITable {
         return new Table(this, "RunningStreams", {
             partitionKey: { name: "instanceArn", type: AttributeType.STRING },
             billingMode: BillingMode.PAY_PER_REQUEST,
@@ -33,7 +39,7 @@ export class DynamoDbTables extends Construct {
      * Schema: instanceId (PK), instanceArn, ebsVolumes (list), creationTime,
      *         status, region, instanceType, lastModifiedTime
      */
-    private setupRunningInstances(): Table {
+    private setupRunningInstances(): ITable {
         const table = new Table(this, "RunningInstances", {
             partitionKey: { name: "instanceId", type: AttributeType.STRING },
             pointInTimeRecoverySpecification: {

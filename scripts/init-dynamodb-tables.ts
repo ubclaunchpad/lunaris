@@ -45,9 +45,9 @@ async function createRunningInstancesTable() {
 
     try {
         await client.send(new CreateTableCommand(tableParams));
-    } catch (error: any) {
+    } catch (error: unknown) {
         // idempotency handling
-        if (error.name === "ResourceInUseException") {
+        if (error instanceof Error && error.name === "ResourceInUseException") {
             console.log("RunningInstances table already exists (skipping)");
         } else {
             throw error;
@@ -69,9 +69,9 @@ async function createRunningStreamsTable() {
 
     try {
         await client.send(new CreateTableCommand(tableParams));
-    } catch (error: any) {
+    } catch (error: unknown) {
         // idempotency handling
-        if (error.name === "ResourceInUseException") {
+        if (error instanceof Error && error.name === "ResourceInUseException") {
             console.log("ℹRunningStreams table already exists (skipping)");
         } else {
             throw error;

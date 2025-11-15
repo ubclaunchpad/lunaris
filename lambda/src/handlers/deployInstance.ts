@@ -15,9 +15,14 @@ interface DeployInstanceRequest {
     amiId?: string;
 }
 
+// TODO: may have to update this if requirements change
+interface DeployInstanceContext {
+    invokedFunctionArn: string;
+}
+
 export const handler = async (
     event: APIGatewayProxyEvent,
-    context: any,
+    context: DeployInstanceContext,
 ): Promise<APIGatewayProxyResult> => {
     try {
         const body: DeployInstanceRequest = JSON.parse(event.body || "{}");

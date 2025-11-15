@@ -66,6 +66,11 @@ export default defineConfig([
         languageOptions: {
             globals: { ...globals.node },
         },
+        rules: {
+            "awscdk/no-construct-stack-suffix": "off",
+            "awscdk/no-variable-construct-id": "off",
+            "awscdk/no-mutable-property-of-props-interface": "off", // seems too noisy for now as it enforces thie rule on all types that end with "Props"
+        },
     },
     // Lambda config
     {
@@ -79,14 +84,14 @@ export default defineConfig([
     {
         files: ["**/*.{js,jsx,mjs,cjs}"],
         rules: {
-            "no-unused-vars": "warn",
+            "no-unused-vars": ["warn", { argsIgnorePattern: "^_$" }],
         },
     },
     {
         files: ["**/*.{ts,tsx,mts,cts}"],
         rules: {
-            "@typescript-eslint/no-unused-vars": "warn",
             "@typescript-eslint/no-require-imports": "off",
+            "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_$" }],
         },
     },
 ]);

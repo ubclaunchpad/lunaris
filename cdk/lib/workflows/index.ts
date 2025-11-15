@@ -125,14 +125,15 @@ export class WorkflowRegistry {
      * @param config The object to validate
      * @returns True if the object is a valid WorkflowConfig
      */
-    private static isValidWorkflowConfig(config: any): config is WorkflowConfig {
+    private static isValidWorkflowConfig(config: unknown): config is WorkflowConfig {
+        if (!config || typeof config !== "object") return false;
+        const c = config as Record<string, unknown>;
         return (
-            config &&
-            typeof config.name === "string" &&
-            typeof config.description === "string" &&
-            typeof config.definitionPath === "string" &&
-            config.lambdaFunctions &&
-            typeof config.lambdaFunctions === "object"
+            typeof c.name === "string" &&
+            typeof c.description === "string" &&
+            typeof c.definitionPath === "string" &&
+            c.lambdaFunctions !== undefined &&
+            typeof c.lambdaFunctions === "object"
         );
     }
 }
