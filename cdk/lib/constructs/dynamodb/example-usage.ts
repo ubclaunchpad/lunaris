@@ -13,11 +13,12 @@ import { Table } from "aws-cdk-lib/aws-dynamodb";
 /**
  * Example function showing how to use the wrappers
  * Note: This is for demonstration only. In actual CDK code, you would use this function
-// within a Stack or Construct class where 'this' refers to the construct scope.
+ * within a Stack or Construct class where 'this' refers to the construct scope.
  * @param scope 
  */
 export async function exampleUsage(scope: Construct) {
     // 1. Create tables (infrastructure)
+    // eslint-disable-next-line awscdk/require-passing-this
     const dynamoDbTables = new DynamoDbTables(scope, "DynamoDbTables");
 
     // 2. Create wrappers using existing tables
