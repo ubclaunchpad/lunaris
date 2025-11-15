@@ -1,7 +1,13 @@
 import { APIGatewayProxyHandler, APIGatewayProxyResult } from "aws-lambda";
 
+interface responseBody {
+    userId?: string;
+    error?: string;
+    message: string;
+}
+
 // Helper function to format responses consistently
-const createResponse = (statusCode: number, body: any): APIGatewayProxyResult => ({
+const createResponse = (statusCode: number, body: responseBody): APIGatewayProxyResult => ({
     statusCode,
     headers: {
         "Content-Type": "application/json",
