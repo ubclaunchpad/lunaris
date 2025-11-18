@@ -129,7 +129,7 @@ class EC2Wrapper {
                 privateIp: instance.PrivateIpAddress,
                 state: instance.State?.Name || "unknown",
                 createdAt: new Date().toISOString(),
-                instanceArn: generateArn(this.region, instanceId),
+                instanceArn: generateArn(this.region, instanceId)
             }
 
         } catch (error: any) {

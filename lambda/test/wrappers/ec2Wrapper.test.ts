@@ -56,6 +56,7 @@ describe('EC2Wrapper', () => {
         jest.clearAllMocks();
     });
 
+    // TODO: test creating with ami
     describe('createInstance', () => {
         it('should create EC2 instance with all required fields', async () => {
             const mockInstanceId = 'i-test123';
@@ -171,4 +172,10 @@ describe('EC2Wrapper', () => {
             expect(waitUntilInstanceRunning).toHaveBeenCalledTimes(1);
         });
     });
+
+    // snapshotinstance
+
+    // getInstance
+
+    //modify instance tag
 });
