@@ -28,8 +28,16 @@ export class CdkStack extends Stack {
             }),
         );
 
+        lambdaFunctions.deploymentStatusFunction.addToRolePolicy(
+            new PolicyStatement({
+                actions: ["states:DescribeExecution"],
+                resources: ['*']
+            })
+        )
+
         // Grant DynamoDB permissions
         dynamoDbTables.runningInstancesTable.grantWriteData(lambdaFunctions.deployInstanceFunction);
+        dynamoDbTables.getRunningInstanceTable().grantReadData(lambdaFunctions.deploymentStatusFunction);
         dynamoDbTables.runningInstancesTable.grantReadWriteData(lambdaFunctions.deployEC2Function);
         dynamoDbTables.runningStreamsTable.grantReadData(
             lambdaFunctions.checkRunningStreamsFunction,
@@ -70,6 +78,7 @@ export class CdkStack extends Stack {
             deployInstanceFunction: lambdaFunctions.deployInstanceFunction,
             terminateInstanceFunction: lambdaFunctions.terminateInstanceFunction,
             streamingLinkFunction: lambdaFunctions.streamingLinkFunction,
+            deploymentStatusFunction: lambdaFunctions.deploymentStatusFunction
         });
     }
 }
