@@ -1,6 +1,19 @@
 // Jest setup file for Lambda package tests
 import { afterEach, beforeEach, jest } from "@jest/globals";
 
+// Suppress expected console.error output from error handling tests
+const originalError = console.error;
+beforeAll(() => {
+    console.error = (...args: any[]) => {
+        if (args[0]?.includes?.("Error querying items by userId")) return;
+        originalError(...args);
+    };
+});
+
+afterAll(() => {
+    console.error = originalError;
+});
+
 // Global test setup
 beforeEach(() => {
     // Reset all AWS SDK mocks before each test
