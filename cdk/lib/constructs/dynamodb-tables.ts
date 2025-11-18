@@ -50,13 +50,17 @@ export class DynamoDbTables extends Construct {
             removalPolicy: RemovalPolicy.DESTROY, // Use RETAIN for production
         });
 
-        // TODO future: add autoscaling group
-        // TODO: or add grantX to specific lambda functions
 
         table.addGlobalSecondaryIndex({
             indexName: "StatusCreationTimeIndex",
             partitionKey: { name: "status", type: AttributeType.STRING },
             sortKey: { name: "creationTime", type: AttributeType.STRING },
+            projectionType: ProjectionType.ALL,
+        });
+
+        table.addGlobalSecondaryIndex({
+            indexName: "UserIdIndex",
+            partitionKey: { name: "userId", type: AttributeType.STRING },
             projectionType: ProjectionType.ALL,
         });
 
