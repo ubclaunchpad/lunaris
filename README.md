@@ -19,7 +19,9 @@ This project consists of:
 - **AWS CLI** (for deployment)
 
 ### Installing Docker Desktop
+
 #### MacOS
+
 ```bash
 # Mac OS (Homebrew)
 brew install --cask docker
@@ -65,14 +67,11 @@ npm run dev:stop
 
 That's it! Your local environment is ready with:
 
-
-| Service | Port | URL |
-|---------|------|-----|
+| Service                             | Port | URL                   |
+| ----------------------------------- | ---- | --------------------- |
 | **DynamoDB Local (w/ tables init)** | 8000 | http://localhost:8000 |
-| **Lambda Container** | 9000 | http://localhost:9000 | 
-| **Frontend** | 3000 | http://localhost:3000  |
-
-
+| **Lambda Container**                | 9000 | http://localhost:9000 |
+| **Frontend**                        | 3000 | http://localhost:3000 |
 
 ## Lambda Handler Management
 
@@ -82,14 +81,14 @@ The Lambda container only runs **ONE handler at a time** on port 9000 because ea
 
 ### Available Handlers
 
-| Handler | Path |
-|---------|------|
-| **deployInstance** | `handlers/deployInstance.handler`
-| **terminateInstance** | `handlers/terminateInstance.handler` 
-| **streamingLink** | `handlers/streamingLink.handler`
-| **check-running-streams** | `handlers/user-deploy-ec2/check-running-streams.handler` 
-| **deploy-ec2** | `handlers/user-deploy-ec2/deploy-ec2.handler`
-| **update-running-streams** | `handlers/user-deploy-ec2/update-running-streams.handler`
+| Handler                    | Path                                                      |
+| -------------------------- | --------------------------------------------------------- |
+| **deployInstance**         | `handlers/deployInstance.handler`                         |
+| **terminateInstance**      | `handlers/terminateInstance.handler`                      |
+| **streamingLink**          | `handlers/streamingLink.handler`                          |
+| **check-running-streams**  | `handlers/user-deploy-ec2/check-running-streams.handler`  |
+| **deploy-ec2**             | `handlers/user-deploy-ec2/deploy-ec2.handler`             |
+| **update-running-streams** | `handlers/user-deploy-ec2/update-running-streams.handler` |
 
 ### How to Switch Lambda Handlers
 
@@ -149,7 +148,6 @@ npm run test:coverage        # generates coverage/ & HTML report
 
 The coverage command writes reports to `lambda/coverage` (HTML view in `coverage/lcov-report/index.html`). Run these scripts from inside the `lambda` workspace or prefix them with `npm --prefix lambda run …` if you prefer staying at the repo root.
 
-
 # Local Development with SAM
 
 SAM Local provides a local API Gateway + Lambda environment:
@@ -162,6 +160,7 @@ sam local start-api
 ```
 
 Then test endpoints:
+
 ```bash
 # Deploy Instance
 curl -X POST http://localhost:3000/deployInstance \
@@ -176,3 +175,63 @@ curl -X POST http://localhost:3000/terminateInstance \
   -H "Content-Type: application/json" \
   -d '{"instanceId":"i-1234567890abcdef0","userId":"user123"}'
 ```
+
+# Formatting and Linting
+
+The CI pipeline enforces formatting and linting checks on all pull requests.
+Before pushing, run the relevant `prettier` and `lint` commands locally to ensure your code passes these checks.
+
+### Prettier (Formatting)
+
+Running Prettier on the entire project:
+
+```bash
+# Checks for prettier formatting issues (no changes applied)
+npm run prettier
+# Fixes formatting issues
+npm run prettier:fix
+```
+
+Run Prettier on specific folders:
+
+```bash
+# Checks
+npm run prettier:frontend
+npm run prettier:cdk
+npm run prettier:lambda
+# Fixes
+npm run prettier:frontend:fix
+npm run prettier:cdk:fix
+npm run prettier:lambda:fix
+```
+
+### ESLint (Linting)
+
+Running ESLint on the entire project:
+
+```bash
+# Checks for lint issues (no changes applied)
+npm run lint
+# Fixes lint issues (if possible)
+npm run lint:fix
+```
+
+Run ESLint for specific folders:
+
+```bash
+# Checks
+npm run lint:frontend
+npm run lint:cdk
+npm run lint:lambda
+# Fixes
+npm run lint:frontend:fix
+npm run lint:cdk:fix
+npm run lint:lambda:fix
+```
+
+### For VS Code users:
+
+It’s recommended to install the following extensions:
+
+- `Prettier - Code Formatter` — enables auto-formatting on save (may have to enable this feature in settings)
+- `ESLint` — integrates lint rules directly in the IDE, showing warnings and errors in real time
