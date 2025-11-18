@@ -131,6 +131,23 @@ aws dynamodb list-tables --endpoint-url http://localhost:8000
 npm run docker:logs
 ```
 
+### Lambda Unit Tests
+
+Control Plane handlers rely on Jest plus `aws-sdk-client-mock` and can be exercised directly from the Lambda workspace.
+
+```bash
+# Install all workspaces once from the repo root
+npm run install:all
+
+# Then run tests inside the lambda package
+cd lambda
+npm test                     # full unit-test suite
+npm run test:watch           # persistent watch mode
+npm run test:coverage        # generates coverage/ & HTML report
+```
+
+The coverage command writes reports to `lambda/coverage` (HTML view in `coverage/lcov-report/index.html`). Run these scripts from inside the `lambda` workspace or prefix them with `npm --prefix lambda run …` if you prefer staying at the repo root.
+
 # Local Development with SAM
 
 SAM Local provides a local API Gateway + Lambda environment:

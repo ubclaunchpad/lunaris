@@ -1,5 +1,5 @@
 // Jest setup file for Lambda package tests
-import { mockClient } from "aws-sdk-client-mock";
+import { afterEach, beforeEach, jest } from "@jest/globals";
 
 // Global test setup
 beforeEach(() => {

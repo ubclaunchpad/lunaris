@@ -7,8 +7,6 @@ const ec2Client = new EC2Client({});
 const dynamoClient = new DynamoDBClient({});
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
-const RUNNING_INSTANCES_TABLE = process.env.RUNNING_INSTANCES_TABLE || "";
-
 interface DeployInstanceRequest {
     userId: string;
     instanceType?: string;
@@ -27,6 +25,11 @@ export const handler = async (
     try {
         const body: DeployInstanceRequest = JSON.parse(event.body || "{}");
         const { userId, instanceType = "t3.micro", amiId } = body;
+
+        const runningInstancesTable = process.env.RUNNING_INSTANCES_TABLE;
+        if (!runningInstancesTable) {
+            throw new Error("MissingRunningInstancesTable");
+        }
 
         if (!userId) {
             return {
@@ -70,7 +73,7 @@ export const handler = async (
 
         // Log to RunningInstances table
         const putCommand = new PutCommand({
-            TableName: RUNNING_INSTANCES_TABLE,
+            TableName: runningInstancesTable,
             Item: {
                 instanceId: instance.InstanceId,
                 instanceArn:
