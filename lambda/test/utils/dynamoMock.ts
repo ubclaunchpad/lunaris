@@ -13,32 +13,31 @@ export const dynamoMock = mockClient(DynamoDBDocumentClient);
  * when tests need to mutate `process.env`.
  */
 export const withEnv = (overrides: EnvOverrides): RestoreEnvFn => {
-  const originals: Record<string, string | undefined> = {};
+    const originals: Record<string, string | undefined> = {};
 
-  Object.entries(overrides).forEach(([key, value]) => {
-    originals[key] = process.env[key];
+    Object.entries(overrides).forEach(([key, value]) => {
+        originals[key] = process.env[key];
 
-    if (value === undefined || value === null) {
-      delete process.env[key];
-    } else {
-      process.env[key] = value;
-    }
-  });
-
-  return () => {
-    Object.entries(originals).forEach(([key, originalValue]) => {
-      if (originalValue === undefined) {
-        delete process.env[key];
-      } else {
-        process.env[key] = originalValue;
-      }
+        if (value === undefined || value === null) {
+            delete process.env[key];
+        } else {
+            process.env[key] = value;
+        }
     });
-  };
+
+    return () => {
+        Object.entries(originals).forEach(([key, originalValue]) => {
+            if (originalValue === undefined) {
+                delete process.env[key];
+            } else {
+                process.env[key] = originalValue;
+            }
+        });
+    };
 };
 
 /**
  * Convenience helper that ensures RUNNING_STREAMS_TABLE_NAME is set for a test.
  */
-export const ensureStreamsTableEnv = (
-  tableName = "test-running-streams"
-): RestoreEnvFn => withEnv({ RUNNING_STREAMS_TABLE_NAME: tableName });
+export const ensureStreamsTableEnv = (tableName = "test-running-streams"): RestoreEnvFn =>
+    withEnv({ RUNNING_STREAMS_TABLE_NAME: tableName });
