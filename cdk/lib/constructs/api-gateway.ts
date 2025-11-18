@@ -6,6 +6,7 @@ export interface ApiGatewayProps {
     readonly deployInstanceFunction: Function;
     readonly terminateInstanceFunction: Function;
     readonly streamingLinkFunction: Function;
+    readonly deploymentStatusFunction: Function;
 }
 
 export class ApiGateway extends Construct {
@@ -24,6 +25,7 @@ export class ApiGateway extends Construct {
         this.createDeployInstanceEndpoint(props.deployInstanceFunction);
         this.createTerminateInstanceEndpoint(props.terminateInstanceFunction);
         this.createStreamingLinkEndpoint(props.streamingLinkFunction);
+        this.createDeploymentStatusEndpoint(props.deploymentStatusFunction);
     }
 
     private createDeployInstanceEndpoint(lambdaFunction: Function): void {
@@ -97,6 +99,43 @@ export class ApiGateway extends Construct {
                         "application/json": { modelId: "Error" },
                     },
                 },
+            ],
+        });
+    }
+
+    private createDeploymentStatusEndpoint(lambdaFunction: Function): void {
+        const integration = new LambdaIntegration(lambdaFunction);
+        const resource = this.restApi.root.addResource("deployment-status");
+
+        resource.addMethod("GET", integration, {
+            requestParameters: {
+                "method.request.querystring.userId": true, // user id is required
+            },
+            methodResponses: [
+                {
+                    statusCode: "200",
+                    responseModels: {
+                        "application/json": { modelId: "Empty" },
+                    },
+                },
+                {
+                    statusCode: "400",
+                    responseModels: {
+                        "application/json": { modelId: "Error" },
+                    },
+                },
+                {
+                    statusCode: "404",
+                    responseModels: {
+                        "application/json": { modelId: "Error" },
+                    },
+                },
+                {
+                    statusCode: "500",
+                    responseModels: {
+                        "application/json": { modelId: "Error" },
+                    },
+                }
             ],
         });
     }
