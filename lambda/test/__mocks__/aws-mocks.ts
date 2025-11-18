@@ -68,14 +68,16 @@ export const mockResponses = {
                 status: "RUNNING",
                 executionArn:
                     "arn:aws:states:us-east-1:123456789012:execution:test-state-machine:test-execution",
-                stateMachineArn: "arn:aws:states:us-east-1:123456789012:stateMachine:test-state-machine",
+                stateMachineArn:
+                    "arn:aws:states:us-east-1:123456789012:stateMachine:test-state-machine",
                 startDate: new Date(),
             },
             succeeded: {
                 status: "SUCCEEDED",
                 executionArn:
                     "arn:aws:states:us-east-1:123456789012:execution:test-state-machine:test-execution",
-                stateMachineArn: "arn:aws:states:us-east-1:123456789012:stateMachine:test-state-machine",
+                stateMachineArn:
+                    "arn:aws:states:us-east-1:123456789012:stateMachine:test-state-machine",
                 startDate: new Date(),
                 stopDate: new Date(),
                 output: JSON.stringify({
@@ -87,7 +89,8 @@ export const mockResponses = {
                 status: "FAILED",
                 executionArn:
                     "arn:aws:states:us-east-1:123456789012:execution:test-state-machine:test-execution",
-                stateMachineArn: "arn:aws:states:us-east-1:123456789012:stateMachine:test-state-machine",
+                stateMachineArn:
+                    "arn:aws:states:us-east-1:123456789012:stateMachine:test-state-machine",
                 startDate: new Date(),
                 stopDate: new Date(),
                 error: "InstanceLimitExceeded",

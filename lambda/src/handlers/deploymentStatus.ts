@@ -1,7 +1,10 @@
-import { DescribeExecutionCommand, SFNClient } from "@aws-sdk/client-sfn";
+import {
+    DescribeExecutionCommand,
+    DescribeExecutionCommandOutput,
+    SFNClient,
+} from "@aws-sdk/client-sfn";
 import { APIGatewayProxyHandler, APIGatewayProxyResult } from "aws-lambda";
 import DynamoDBWrapper from "../utils/dynamoDbWrapper";
-
 
 const sfnClient = new SFNClient({});
 const dbClient = new DynamoDBWrapper(process.env.RUNNING_INSTANCES_TABLE || "RunningInstances");
@@ -12,11 +15,14 @@ const createResponse = (statusCode: number, body: object): APIGatewayProxyResult
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
 });
 
 // Helper to map execution status to API response format
-const mapExecutionToResponse = (exec: any, runningInstance: any): { statusCode: number; body: object } => {
+const mapExecutionToResponse = (
+    exec: DescribeExecutionCommandOutput,
+    runningInstance: Record<string, string>,
+): { statusCode: number; body: object } => {
     const status = exec.status || "UNKNOWN";
 
     switch (status) {
@@ -26,8 +32,8 @@ const mapExecutionToResponse = (exec: any, runningInstance: any): { statusCode: 
                 body: {
                     status: "RUNNING",
                     deploymentStatus: "deploying",
-                    message: "Deployment in progress..."
-                }
+                    message: "Deployment in progress...",
+                },
             };
 
         case "SUCCEEDED":
@@ -39,8 +45,8 @@ const mapExecutionToResponse = (exec: any, runningInstance: any): { statusCode: 
                     deploymentStatus: "running",
                     instanceId: output.instanceId || runningInstance.instanceId,
                     dcvUrl: output.dcvUrl,
-                    message: "Instance is ready for streaming"
-                }
+                    message: "Instance is ready for streaming",
+                },
             };
 
         case "FAILED":
@@ -52,8 +58,8 @@ const mapExecutionToResponse = (exec: any, runningInstance: any): { statusCode: 
                 body: {
                     status: "FAILED",
                     error: errorOutput.error || exec.error || "DeploymentFailed",
-                    message: errorOutput.message || exec.cause || "Deployment failed"
-                }
+                    message: errorOutput.message || exec.cause || "Deployment failed",
+                },
             };
 
         default:
@@ -61,15 +67,14 @@ const mapExecutionToResponse = (exec: any, runningInstance: any): { statusCode: 
                 statusCode: 200,
                 body: {
                     status: "UNKNOWN",
-                    message: `Unknown execution status: ${status}`
-                }
+                    message: `Unknown execution status: ${status}`,
+                },
             };
     }
 };
 
 export const handler: APIGatewayProxyHandler = async (event) => {
     try {
-
         const userId = event.queryStringParameters?.userId;
 
         // invalid userId
@@ -106,13 +111,18 @@ export const handler: APIGatewayProxyHandler = async (event) => {
 
         const { statusCode, body } = mapExecutionToResponse(exec, runningInstance);
         return createResponse(statusCode, body);
-
-    } catch (error: any) {
+    } catch (error: unknown) {
+        if (error instanceof Error) {
+            return createResponse(500, {
+                status: "FAILED",
+                error: error.name,
+                message: error.message,
+            });
+        }
         return createResponse(500, {
             status: "FAILED",
-            error: error.name,
-            message: error.message,
+            error: "UnknownError",
+            message: "An unknown error occurred",
         });
     }
-
-}
+};

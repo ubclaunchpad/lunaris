@@ -29,8 +29,8 @@ class DynamoDBWrapper {
                 IndexName: "UserIdIndex",
                 KeyConditionExpression: "userId = :userId",
                 ExpressionAttributeValues: {
-                    ":userId": userId
-                }
+                    ":userId": userId,
+                },
             });
 
             const res = await this.client.send(command);
@@ -38,7 +38,7 @@ class DynamoDBWrapper {
         } catch (error) {
             console.error("Error querying items by userId:", error);
             throw new Error(
-                `Failed to query items by userId: ${error instanceof Error ? error.message : "Unknown error"}`
+                `Failed to query items by userId: ${error instanceof Error ? error.message : "Unknown error"}`,
             );
         }
     }
