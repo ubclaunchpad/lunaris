@@ -63,5 +63,36 @@ export const mockResponses = {
                 "arn:aws:states:us-east-1:123456789012:execution:test-state-machine:test-execution",
             startDate: new Date(),
         },
+        describeExecution: {
+            running: {
+                status: "RUNNING",
+                executionArn:
+                    "arn:aws:states:us-east-1:123456789012:execution:test-state-machine:test-execution",
+                stateMachineArn: "arn:aws:states:us-east-1:123456789012:stateMachine:test-state-machine",
+                startDate: new Date(),
+            },
+            succeeded: {
+                status: "SUCCEEDED",
+                executionArn:
+                    "arn:aws:states:us-east-1:123456789012:execution:test-state-machine:test-execution",
+                stateMachineArn: "arn:aws:states:us-east-1:123456789012:stateMachine:test-state-machine",
+                startDate: new Date(),
+                stopDate: new Date(),
+                output: JSON.stringify({
+                    instanceId: "i-1234567890abcdef0",
+                    dcvUrl: "https://54.123.45.67:8443",
+                }),
+            },
+            failed: {
+                status: "FAILED",
+                executionArn:
+                    "arn:aws:states:us-east-1:123456789012:execution:test-state-machine:test-execution",
+                stateMachineArn: "arn:aws:states:us-east-1:123456789012:stateMachine:test-state-machine",
+                startDate: new Date(),
+                stopDate: new Date(),
+                error: "InstanceLimitExceeded",
+                cause: "Cannot create instance - account limit reached",
+            },
+        },
     },
 };
