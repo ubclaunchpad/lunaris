@@ -63,6 +63,10 @@ class DynamoDBWrapper {
 
     await this.client.send(new UpdateCommand(inputConfig));
   }
+
+  getTableName(): string {
+    return this.tableName;
+  }
 }
 
 export default DynamoDBWrapper;
