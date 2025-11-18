@@ -34,7 +34,7 @@ class IAMWrapper {
                 throw new Error("Failed to create Role - no name returned")
             }
 
-            return role.Role.RoleName;
+            return role.Role!.RoleName;
 
         } catch (err: any) {
             // only create if role doesn't exist yet

@@ -147,7 +147,7 @@ class SSMWrapper {
 
     private async createDocument(docName: string, docFile: string): Promise<void> {
         try {
-            const yamlPath = join(__dirname, `../documents/${docFile}`);
+            const yamlPath = join(__dirname, `./documents/${docFile}`);
             const yamlContent = readFileSync(yamlPath, "utf-8");
 
             const input: CreateDocumentCommandInput = {

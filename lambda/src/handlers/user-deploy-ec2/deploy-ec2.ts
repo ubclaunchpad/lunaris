@@ -67,7 +67,7 @@ export const handler = async (
         const url = await dcvWrapper.getDCVSession()
 
         // if AMI ID not found, create snapshot and save the AMI ID
-        // in the future i think this should be moved to terminate instance
+        // in the future i think this should be moved to terminate instance?
         if (!amiId) {
              const newAmiId = await ec2Wrapper.snapshotAMIImage(instanceResult.instanceId, userId)
              await ssmWrapper.putParamInParamStore(AMI_ID_KEY, newAmiId)
