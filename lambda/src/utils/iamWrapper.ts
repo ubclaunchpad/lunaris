@@ -25,6 +25,68 @@ class IAMWrapper {
 
     }
 
+     // get profile, calls get, if there isn't one, call getrole, createprofile and add the role
+    async getProfile(): Promise<string> {
+        try {
+            const getProfileCommand = new GetInstanceProfileCommand({
+                InstanceProfileName: EC2_SSM_PROFILE
+            })
+
+            const profile = await this.iamClient.send(getProfileCommand);
+            if (!profile.InstanceProfile?.Arn) {
+                   throw new Error('Failed to create instance profile - no name returned');
+            }
+
+            return profile.InstanceProfile.Arn;
+
+        } catch (err: any) {
+            if (err.name === "NoSuchEntityException") {
+                const roleName = await this.getRole();
+                const profile = await this.createProfile();
+
+                if (!profile?.Arn || !profile?.InstanceProfileName) {
+                   throw new Error('Failed to create instance profile - no name returned');
+                }
+
+                const profileName: string = profile.InstanceProfileName;
+                await this.attachRoletoProfile(profileName, roleName);
+                return profile.Arn;
+            }
+            throw err;
+
+        }
+    }
+
+
+    // createProfile
+    async createProfile(): Promise<InstanceProfile | undefined> {
+        try {
+            const input: CreateInstanceProfileCommandInput = {
+                InstanceProfileName: EC2_SSM_PROFILE,
+                Tags: [
+                    { Key: "Application", Value: "Lunaris" },
+                    { Key: "ManagedBy", Value: "Lambda" }
+                ]
+            }
+
+            const command = new CreateInstanceProfileCommand(input)
+            const response = await this.iamClient.send(command)
+            return response.InstanceProfile
+
+        } catch (err: any) {
+            if (err.name === 'EntityAlreadyExistsException') {
+                // Profile was created by another process, fetch it
+                const getCommand = new GetInstanceProfileCommand({
+                    InstanceProfileName: EC2_SSM_PROFILE,
+                });
+                const existing = await this.iamClient.send(getCommand);
+                return existing.InstanceProfile;
+            }
+            throw err;
+        }
+
+    }
+
     // get EC2role calls get, if there isn't one, call create and attach policy
     async getRole(): Promise<string> {
         try {
@@ -111,69 +173,6 @@ class IAMWrapper {
             }
             throw err
 
-        }
-
-    }
-
-
-    // get profile, calls get, if there isn't one, call getrole, createprofile and add the role
-    async getProfile(): Promise<string> {
-        try {
-            const getProfileCommand = new GetInstanceProfileCommand({
-                InstanceProfileName: EC2_SSM_PROFILE
-            })
-
-            const profile = await this.iamClient.send(getProfileCommand);
-            if (!profile.InstanceProfile?.Arn) {
-                   throw new Error('Failed to create instance profile - no name returned');
-            }
-
-            return profile.InstanceProfile.Arn;
-
-        } catch (err: any) {
-            if (err.name === "NoSuchEntityException") {
-                const roleName = await this.getRole();
-                const profile = await this.createProfile();
-
-                if (!profile?.Arn || !profile?.InstanceProfileName) {
-                   throw new Error('Failed to create instance profile - no name returned');
-                }
-
-                const profileName: string = profile.InstanceProfileName;
-                await this.attachRoletoProfile(profileName, roleName);
-                return profile.Arn;
-            }
-            throw err;
-
-        }
-    }
-
-
-    // createProfile
-    async createProfile(): Promise<InstanceProfile | undefined> {
-        try {
-            const input: CreateInstanceProfileCommandInput = {
-                InstanceProfileName: EC2_SSM_PROFILE,
-                Tags: [
-                    { Key: "Application", Value: "Lunaris" },
-                    { Key: "ManagedBy", Value: "Lambda" }
-                ]
-            }
-
-            const command = new CreateInstanceProfileCommand(input)
-            const response = await this.iamClient.send(command)
-            return response.InstanceProfile
-
-        } catch (err: any) {
-            if (err.name === 'EntityAlreadyExistsException') {
-                // Profile was created by another process, fetch it
-                const getCommand = new GetInstanceProfileCommand({
-                    InstanceProfileName: EC2_SSM_PROFILE,
-                });
-                const existing = await this.iamClient.send(getCommand);
-                return existing.InstanceProfile;
-            }
-            throw err;
         }
 
     }

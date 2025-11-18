@@ -80,7 +80,7 @@ class EC2Wrapper {
                     },
                     {
                         Key: "dcvConfigured",
-                        Value: 'false'
+                        Value: amiId ? "true": "false"
                     },
                     ...Object.entries(tags).map(([key, value]) => ({ Key: key, Value: value }))
                 ],
