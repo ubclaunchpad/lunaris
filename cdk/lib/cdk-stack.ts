@@ -16,8 +16,8 @@ export class CdkStack extends Stack {
 
         // Create API Lambda functions
         const lambdaFunctions = new LambdaFunctions(this, "LambdaFunctions", {
-            runningInstancesTable: dynamoDbTables.runningInstancesTable,
-            runningStreamsTable: dynamoDbTables.runningStreamsTable,
+            runningInstancesTable: dynamoDbTables.getRunningInstanceTable(),
+            runningStreamsTable: dynamoDbTables.getRunningStreamsTable(),
         });
 
         // Grant EC2 permissions to deployInstance Lambda
@@ -36,24 +36,24 @@ export class CdkStack extends Stack {
         )
 
         // Grant DynamoDB permissions
-        dynamoDbTables.runningInstancesTable.grantWriteData(lambdaFunctions.deployInstanceFunction);
+        dynamoDbTables.getRunningInstanceTable().grantWriteData(lambdaFunctions.deployInstanceFunction);
         dynamoDbTables.getRunningInstanceTable().grantReadData(lambdaFunctions.deploymentStatusFunction);
-        dynamoDbTables.runningInstancesTable.grantReadWriteData(lambdaFunctions.deployEC2Function);
-        dynamoDbTables.runningStreamsTable.grantReadData(
+        dynamoDbTables.getRunningInstanceTable().grantReadWriteData(lambdaFunctions.deployEC2Function);
+        dynamoDbTables.getRunningStreamsTable().grantReadData(
             lambdaFunctions.checkRunningStreamsFunction,
         );
-        dynamoDbTables.runningStreamsTable.grantWriteData(
+        dynamoDbTables.getRunningStreamsTable().grantWriteData(
             lambdaFunctions.updateRunningStreamsFunction,
         );
 
         // Grant DynamoDB permissions for UserTerminateEC2 workflow
-        dynamoDbTables.runningStreamsTable.grantReadData(
+        dynamoDbTables.getRunningStreamsTable().grantReadData(
             lambdaFunctions.checkRunningStreamsTerminateFunction,
         );
-        dynamoDbTables.runningInstancesTable.grantReadWriteData(
+        dynamoDbTables.getRunningInstanceTable().grantReadWriteData(
             lambdaFunctions.terminateEC2Function,
         );
-        dynamoDbTables.runningStreamsTable.grantWriteData(
+        dynamoDbTables.getRunningStreamsTable().grantWriteData(
             lambdaFunctions.updateRunningStreamsTerminateFunction,
         );
 
