@@ -13,6 +13,7 @@ export class LambdaFunctions extends Construct {
     public readonly deployInstanceFunction: Function;
     public readonly terminateInstanceFunction: Function;
     public readonly streamingLinkFunction: Function;
+    public readonly deploymentStatusFunction: Function;
 
     // User Deploy EC2 Workflow Lambda Functions
     public readonly checkRunningStreamsFunction: Function;
@@ -31,6 +32,7 @@ export class LambdaFunctions extends Construct {
         this.deployInstanceFunction = this.createDeployInstanceFunction(props);
         this.terminateInstanceFunction = this.createTerminateInstanceFunction(props);
         this.streamingLinkFunction = this.createStreamingLinkFunction(props);
+        this.deploymentStatusFunction = this.createDeploymentStatusFunction(props);
 
         // Create User Deploy EC2 Workflow Lambda functions
         this.checkRunningStreamsFunction = this.createCheckRunningStreamsFunction(props);
@@ -81,6 +83,20 @@ export class LambdaFunctions extends Construct {
                 RUNNING_STREAMS_TABLE: props.runningStreamsTable.tableName,
             },
         });
+    }
+
+    // Creates the Lambda function for checking deployment status
+    private createDeploymentStatusFunction(props: LambdaFunctionsProps): Function {
+        return new Function(this, "DeploymentStatusHandler", {
+            ...this.getBaseLambdaConfig(),
+            handler: "handlers/deploymentStatus.handler",
+            description: "Returns deployment status for a user",
+            timeout: Duration.seconds(30),
+            environment: {
+                RUNNING_INSTANCES_TABLE: props.runningInstancesTable.tableName,
+            },
+        }
+        )
     }
 
     // Creates the Lambda function for checking running streams
