@@ -50,7 +50,6 @@ export class DynamoDbTables extends Construct {
             removalPolicy: RemovalPolicy.DESTROY, // Use RETAIN for production
         });
 
-
         table.addGlobalSecondaryIndex({
             indexName: "StatusCreationTimeIndex",
             partitionKey: { name: "status", type: AttributeType.STRING },

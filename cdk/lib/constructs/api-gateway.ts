@@ -135,7 +135,7 @@ export class ApiGateway extends Construct {
                     responseModels: {
                         "application/json": { modelId: "Error" },
                     },
-                }
+                },
             ],
         });
     }

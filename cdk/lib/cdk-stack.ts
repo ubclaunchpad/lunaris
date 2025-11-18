@@ -31,31 +31,37 @@ export class CdkStack extends Stack {
         lambdaFunctions.deploymentStatusFunction.addToRolePolicy(
             new PolicyStatement({
                 actions: ["states:DescribeExecution"],
-                resources: ['*']
-            })
-        )
+                resources: ["*"],
+            }),
+        );
 
         // Grant DynamoDB permissions
-        dynamoDbTables.getRunningInstanceTable().grantWriteData(lambdaFunctions.deployInstanceFunction);
-        dynamoDbTables.getRunningInstanceTable().grantReadData(lambdaFunctions.deploymentStatusFunction);
-        dynamoDbTables.getRunningInstanceTable().grantReadWriteData(lambdaFunctions.deployEC2Function);
-        dynamoDbTables.getRunningStreamsTable().grantReadData(
-            lambdaFunctions.checkRunningStreamsFunction,
-        );
-        dynamoDbTables.getRunningStreamsTable().grantWriteData(
-            lambdaFunctions.updateRunningStreamsFunction,
-        );
+        dynamoDbTables
+            .getRunningInstanceTable()
+            .grantWriteData(lambdaFunctions.deployInstanceFunction);
+        dynamoDbTables
+            .getRunningInstanceTable()
+            .grantReadData(lambdaFunctions.deploymentStatusFunction);
+        dynamoDbTables
+            .getRunningInstanceTable()
+            .grantReadWriteData(lambdaFunctions.deployEC2Function);
+        dynamoDbTables
+            .getRunningStreamsTable()
+            .grantReadData(lambdaFunctions.checkRunningStreamsFunction);
+        dynamoDbTables
+            .getRunningStreamsTable()
+            .grantWriteData(lambdaFunctions.updateRunningStreamsFunction);
 
         // Grant DynamoDB permissions for UserTerminateEC2 workflow
-        dynamoDbTables.getRunningStreamsTable().grantReadData(
-            lambdaFunctions.checkRunningStreamsTerminateFunction,
-        );
-        dynamoDbTables.getRunningInstanceTable().grantReadWriteData(
-            lambdaFunctions.terminateEC2Function,
-        );
-        dynamoDbTables.getRunningStreamsTable().grantWriteData(
-            lambdaFunctions.updateRunningStreamsTerminateFunction,
-        );
+        dynamoDbTables
+            .getRunningStreamsTable()
+            .grantReadData(lambdaFunctions.checkRunningStreamsTerminateFunction);
+        dynamoDbTables
+            .getRunningInstanceTable()
+            .grantReadWriteData(lambdaFunctions.terminateEC2Function);
+        dynamoDbTables
+            .getRunningStreamsTable()
+            .grantWriteData(lambdaFunctions.updateRunningStreamsTerminateFunction);
 
         // Create Step Functions with consistent naming and tagging
         const stepFunctions = new StepFunctions(this, "StepFunctions", {
@@ -78,7 +84,7 @@ export class CdkStack extends Stack {
             deployInstanceFunction: lambdaFunctions.deployInstanceFunction,
             terminateInstanceFunction: lambdaFunctions.terminateInstanceFunction,
             streamingLinkFunction: lambdaFunctions.streamingLinkFunction,
-            deploymentStatusFunction: lambdaFunctions.deploymentStatusFunction
+            deploymentStatusFunction: lambdaFunctions.deploymentStatusFunction,
         });
     }
 }

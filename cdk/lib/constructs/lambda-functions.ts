@@ -95,8 +95,7 @@ export class LambdaFunctions extends Construct {
             environment: {
                 RUNNING_INSTANCES_TABLE: props.runningInstancesTable.tableName,
             },
-        }
-        )
+        });
     }
 
     // Creates the Lambda function for checking running streams

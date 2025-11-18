@@ -40,9 +40,7 @@ async function createRunningInstancesTable() {
             },
             {
                 IndexName: "UserIdIndex",
-                KeySchema: [
-                    { AttributeName: "userId", KeyType: "HASH" },
-                ],
+                KeySchema: [{ AttributeName: "userId", KeyType: "HASH" }],
                 Projection: {
                     ProjectionType: "ALL",
                 },
