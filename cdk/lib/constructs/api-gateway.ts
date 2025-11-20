@@ -1,5 +1,10 @@
 import { Construct } from "constructs";
-import { type IRestApi, LambdaRestApi, LambdaIntegration, MethodResponse } from "aws-cdk-lib/aws-apigateway";
+import {
+    type IRestApi,
+    LambdaRestApi,
+    LambdaIntegration,
+    MethodResponse,
+} from "aws-cdk-lib/aws-apigateway";
 import { Function } from "aws-cdk-lib/aws-lambda";
 
 export interface ApiGatewayProps {
@@ -96,6 +101,6 @@ export class ApiGateway extends Construct {
                     "application/json": { modelId: "Error" },
                 },
             },
-        ]
+        ];
     }
 }
