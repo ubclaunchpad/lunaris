@@ -4,6 +4,7 @@ import {
     GetCommand,
     PutCommand,
     UpdateCommand,
+    QueryCommand,
     type TranslateConfig,
     type GetCommandInput,
     type PutCommandInput,
@@ -19,6 +20,27 @@ class DynamoDBWrapper {
         // DynamoDBDocumentClient allows use of native JS types rather than aws AttributeValue types
         this.client = DynamoDBDocumentClient.from(new DynamoDBClient({}), translateConfig);
         this.tableName = tableName;
+    }
+
+    async queryItemsByUserId(userId: string) {
+        try {
+            const command = new QueryCommand({
+                TableName: this.tableName,
+                IndexName: "UserIdIndex",
+                KeyConditionExpression: "userId = :userId",
+                ExpressionAttributeValues: {
+                    ":userId": userId,
+                },
+            });
+
+            const res = await this.client.send(command);
+            return res.Items || [];
+        } catch (error) {
+            console.error("Error querying items by userId:", error);
+            throw new Error(
+                `Failed to query items by userId: ${error instanceof Error ? error.message : "Unknown error"}`,
+            );
+        }
     }
 
     async getItem(

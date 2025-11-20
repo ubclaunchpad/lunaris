@@ -24,6 +24,7 @@ async function createRunningInstancesTable() {
             { AttributeName: "instanceId", AttributeType: "S" },
             { AttributeName: "status", AttributeType: "S" },
             { AttributeName: "creationTime", AttributeType: "S" },
+            { AttributeName: "userId", AttributeType: "S" },
         ],
 
         GlobalSecondaryIndexes: [
@@ -33,6 +34,13 @@ async function createRunningInstancesTable() {
                     { AttributeName: "status", KeyType: "HASH" },
                     { AttributeName: "creationTime", KeyType: "RANGE" },
                 ],
+                Projection: {
+                    ProjectionType: "ALL",
+                },
+            },
+            {
+                IndexName: "UserIdIndex",
+                KeySchema: [{ AttributeName: "userId", KeyType: "HASH" }],
                 Projection: {
                     ProjectionType: "ALL",
                 },

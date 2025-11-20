@@ -24,8 +24,7 @@
         "skipLibCheck": true,
         "esModuleInterop": true,
         "allowSyntheticDefaultImports": true,
-        "forceConsistentCasingInFileNames": true,
-        "typeRoots": ["./node_modules/@types"]
+        "forceConsistentCasingInFileNames": true
     },
     "include": ["bin/**/*", "lib/**/*", "stepfunctions/**/*.ts", "scripts/**/*"],
     "exclude": ["node_modules", "cdk.out", "test", "dist"]

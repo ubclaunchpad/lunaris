@@ -29,6 +29,7 @@ export interface RunningInstance {
     instanceId: string;
     instanceArn: string;
     userId: string;
+    executionArn: string;
     status?: "running" | "stopped" | "terminated";
     ebsVolumes: string[];
     creationTime: string;
@@ -110,7 +111,7 @@ export class RunningStreamWrapper extends DynamoDbWrapper<RunningStream> {
             await this.client.send(command);
             return stream;
         } catch (error) {
-            console.error("Error creating stream:", error);
+            // console.error("Error creating stream:", error);
             throw new Error(
                 `Failed to create stream: ${error instanceof Error ? error.message : "Unknown error"}`,
             );
@@ -132,7 +133,6 @@ export class RunningStreamWrapper extends DynamoDbWrapper<RunningStream> {
             const result = await this.client.send(command);
             return result.Item ? (unmarshall(result.Item) as RunningStream) : null;
         } catch (error) {
-            console.error("Error getting stream:", error);
             throw new Error(
                 `Failed to get stream: ${error instanceof Error ? error.message : "Unknown error"}`,
             );
@@ -173,7 +173,6 @@ export class RunningStreamWrapper extends DynamoDbWrapper<RunningStream> {
             const result = await this.client.send(command);
             return unmarshall(result.Attributes!) as RunningStream;
         } catch (error) {
-            console.error("Error updating stream:", error);
             throw new Error(
                 `Failed to update stream: ${error instanceof Error ? error.message : "Unknown error"}`,
             );
@@ -196,7 +195,6 @@ export class RunningStreamWrapper extends DynamoDbWrapper<RunningStream> {
             await this.client.send(command);
             return true;
         } catch (error) {
-            console.error("Error deleting stream:", error);
             throw new Error(
                 `Failed to delete stream: ${error instanceof Error ? error.message : "Unknown error"}`,
             );
@@ -220,7 +218,6 @@ export class RunningStreamWrapper extends DynamoDbWrapper<RunningStream> {
             const result = await this.client.send(command);
             return result.Items?.map((item) => unmarshall(item) as RunningStream) || [];
         } catch (error) {
-            console.error("Error querying streams:", error);
             throw new Error(
                 `Failed to query streams: ${error instanceof Error ? error.message : "Unknown error"}`,
             );
@@ -258,7 +255,6 @@ export class RunningInstanceWrapper extends DynamoDbWrapper<RunningInstance> {
             await this.client.send(command);
             return instance;
         } catch (error) {
-            console.error("Error creating instance:", error);
             throw new Error(
                 `Failed to create instance: ${error instanceof Error ? error.message : "Unknown error"}`,
             );
@@ -324,7 +320,6 @@ export class RunningInstanceWrapper extends DynamoDbWrapper<RunningInstance> {
             const result = await this.client.send(command);
             return unmarshall(result.Attributes!) as RunningInstance;
         } catch (error) {
-            console.error("Error updating instance:", error);
             throw new Error(
                 `Failed to update instance: ${error instanceof Error ? error.message : "Unknown error"}`,
             );
@@ -347,7 +342,6 @@ export class RunningInstanceWrapper extends DynamoDbWrapper<RunningInstance> {
             await this.client.send(command);
             return true;
         } catch (error) {
-            console.error("Error deleting instance:", error);
             throw new Error(
                 `Failed to delete instance: ${error instanceof Error ? error.message : "Unknown error"}`,
             );
@@ -371,7 +365,6 @@ export class RunningInstanceWrapper extends DynamoDbWrapper<RunningInstance> {
             const result = await this.client.send(command);
             return result.Items?.map((item) => unmarshall(item) as RunningInstance) || [];
         } catch (error) {
-            console.error("Error querying instances:", error);
             throw new Error(
                 `Failed to query instances: ${error instanceof Error ? error.message : "Unknown error"}`,
             );
