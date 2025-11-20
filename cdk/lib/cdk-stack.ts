@@ -65,11 +65,33 @@ export class CdkStack extends Stack {
         cdk.Tags.of(stepFunctions).add("Component", "StepFunctions");
         cdk.Tags.of(stepFunctions).add("ManagedBy", "CDK");
 
+        // Get UserTerminateEC2Workflow
+        const terminateWorkflow = stepFunctions.getWorkflow("UserTerminateEC2Workflow");
+        if (!terminateWorkflow) {
+            throw new Error("UserTerminateEC2Workflow not found");
+        }
+
+        // Grant step functions permissions to terminateInstanceFunction
+        lambdaFunctions.terminateInstanceFunction.addToRolePolicy(
+            new PolicyStatement({
+                actions: ["stepfunctions:StartExecution"],
+                resources: [terminateWorkflow.stateMachineArn],
+            }),
+        );
+
+        // Grant EC2 termination permissions to terminateEC2Function
+        lambdaFunctions.terminateEC2Function.addToRolePolicy(
+            new PolicyStatement({
+                actions: ["ec2:TerminateInstances", "ec2:DescribeInstances"],
+                resources: ["*"],
+            }),
+        );
+
         // Create API Gateway
         const apiGateway = new ApiGateway(this, "ApiGateway", {
             deployInstanceFunction: lambdaFunctions.deployInstanceFunction,
-            terminateInstanceFunction: lambdaFunctions.terminateInstanceFunction,
+            terminateInstanceStateMachine: terminateWorkflow,
             streamingLinkFunction: lambdaFunctions.streamingLinkFunction,
         });
-    }
+  }
 }

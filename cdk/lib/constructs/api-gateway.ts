@@ -1,10 +1,16 @@
 import { Construct } from "constructs";
-import { type IRestApi, LambdaRestApi, LambdaIntegration } from "aws-cdk-lib/aws-apigateway";
+import {
+    LambdaRestApi,
+    LambdaIntegration,
+    StepFunctionsIntegration,
+    type IRestApi,
+} from "aws-cdk-lib/aws-apigateway";
 import { Function } from "aws-cdk-lib/aws-lambda";
+import { StateMachine } from "aws-cdk-lib/aws-stepfunctions";
 
 export interface ApiGatewayProps {
     readonly deployInstanceFunction: Function;
-    readonly terminateInstanceFunction: Function;
+    readonly terminateInstanceStateMachine: StateMachine;
     readonly streamingLinkFunction: Function;
 }
 
@@ -22,7 +28,7 @@ export class ApiGateway extends Construct {
 
         // Add API endpoints to LunarisApi here
         this.createDeployInstanceEndpoint(props.deployInstanceFunction);
-        this.createTerminateInstanceEndpoint(props.terminateInstanceFunction);
+        this.createTerminateInstanceEndpoint(props.terminateInstanceStateMachine);
         this.createStreamingLinkEndpoint(props.streamingLinkFunction);
     }
 
@@ -48,8 +54,9 @@ export class ApiGateway extends Construct {
         });
     }
 
-    private createTerminateInstanceEndpoint(lambdaFunction: Function): void {
-        const integration = new LambdaIntegration(lambdaFunction);
+    private createTerminateInstanceEndpoint(stateMachine: StateMachine): void {
+        // Change from lambda integration to step functions integration
+        const integration = StepFunctionsIntegration.startExecution(stateMachine);
         const resource = this.restApi.root.addResource("terminateInstance");
 
         resource.addMethod("POST", integration, {
