@@ -27,32 +27,34 @@ type DeployEc2Result = {
     error?: string;
 };
 
-const AMI_ID_KEY = 'ami_id'
+const AMI_ID_KEY = "ami_id";
 
 export const handler = async (
-    event: DeployEc2Event
+    event: DeployEc2Event,
 ): Promise<DeployEc2Result | Pick<DeployEc2Result, "success" | "error">> => {
     try {
         const { userId, instanceType } = event;
 
         // check param store for AMI ID
         // if found, pass it in to ec2Instance config
-        const ssmWrapper = new SSMWrapper()
-        const amiId = await ssmWrapper.getParamFromParamStore(AMI_ID_KEY)
+        const ssmWrapper = new SSMWrapper();
+        const amiId = await ssmWrapper.getParamFromParamStore(AMI_ID_KEY);
 
         const iamWrapper = new IAMWrapper();
         const iamProfileArn = await iamWrapper.getProfile();
 
         // Small delay to allow IAM profile to propagate
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 2000));
 
         const ec2Wrapper = new EC2Wrapper();
-        const db = new DynamoDBWrapper(process.env.RUNNING_INSTANCES_TABLE || 'RunningStreams');
+        const db = new DynamoDBWrapper(process.env.RUNNING_INSTANCES_TABLE || "RunningStreams");
 
         const instanceConfig: EC2InstanceConfig = {
             userId: userId,
             instanceType: instanceType,
-            securityGroupIds: process.env.SECURITY_GROUP_ID ? [process.env.SECURITY_GROUP_ID] : undefined,
+            securityGroupIds: process.env.SECURITY_GROUP_ID
+                ? [process.env.SECURITY_GROUP_ID]
+                : undefined,
             iamInstanceProfile: iamProfileArn,
             amiId: amiId,
             subnetId: process.env.SUBNET_ID,
@@ -69,13 +71,16 @@ export const handler = async (
 
         // dcv wrapper is written so if the dcv is already configured, it will skip over creation
         const dcvWrapper = new DCVWrapper(instanceResult.instanceId, userId);
-        const url = await dcvWrapper.getDCVSession()
+        const url = await dcvWrapper.getDCVSession();
 
         // if AMI ID not found, create snapshot and save the AMI ID
         // in the future i think this should be moved to terminate instance?
         if (!amiId) {
-            const newAmiId = await ec2Wrapper.snapshotAMIImage(instanceResult.instanceId, userId)
-            await ssmWrapper.putParamInParamStore(AMI_ID_KEY, newAmiId)
+            const newAmiId = await ec2Wrapper.snapshotAMIImage(
+                instanceResult.instanceId,
+                userId,
+            );
+            await ssmWrapper.putParamInParamStore(AMI_ID_KEY, newAmiId);
         }
 
         const putCommand = new PutCommand({
@@ -97,10 +102,7 @@ export const handler = async (
         // TODO: handle update error
         await db.putItem(putCommand);
 
-        return { success: true, streamingUrl: url, ...instanceResult }
-
-
-
+        return { success: true, streamingUrl: url, ...instanceResult };
     } catch (error: any) {
         // TODO: add rollbacks
         // If EBS attachment fails → terminate instance
@@ -109,6 +111,6 @@ export const handler = async (
             // default: Cleans up partial resources
             success: false,
             error: error.message || "Unknown error during instance creation",
-        }
+        };
     }
 };
