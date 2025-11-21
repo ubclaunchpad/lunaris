@@ -3,8 +3,12 @@ import {
     RunInstancesCommand,
     DescribeInstancesCommand,
     waitUntilInstanceRunning,
+    CreateImageCommand,
+    type CreateImageCommandInput,
     type RunInstancesCommandInput,
+    type Instance,
     type _InstanceType,
+    CreateTagsCommand,
 } from "@aws-sdk/client-ec2";
 import { generateArn } from "./generateArn";
 
@@ -16,6 +20,8 @@ export interface EC2InstanceConfig {
     keyName?: string;
     securityGroupIds?: string[];
     subnetId?: string;
+    iamInstanceProfile?: string
+    amiId?: string
 
     tags?: Record<string, string>;
 }
@@ -31,6 +37,7 @@ export interface EC2InstanceResult {
 
 const DEFAULT_INSTANCE_TYPE = "t3.medium";
 
+// EC2 Instances need custom IAM permissions
 class EC2Wrapper {
     private client: EC2Client;
     private region: string;
@@ -47,6 +54,7 @@ class EC2Wrapper {
             keyName,
             securityGroupIds,
             subnetId,
+            amiId,
             tags = {},
         } = config;
 
@@ -70,6 +78,10 @@ class EC2Wrapper {
                         Key: "purpose",
                         Value: "cloud-gaming"
                     },
+                    {
+                        Key: "dcvConfigured",
+                        Value: amiId ? "true": "false"
+                    },
                     ...Object.entries(tags).map(([key, value]) => ({ Key: key, Value: value }))
                 ],
             },
@@ -83,6 +95,7 @@ class EC2Wrapper {
             MinCount: 1,
             MaxCount: 1,
             TagSpecifications: tagSpecifications,
+            ImageId: amiId
         };
 
         if (keyName) input.KeyName = keyName;
@@ -116,7 +129,7 @@ class EC2Wrapper {
                 privateIp: instance.PrivateIpAddress,
                 state: instance.State?.Name || "unknown",
                 createdAt: new Date().toISOString(),
-                instanceArn: generateArn(this.region, instanceId),
+                instanceArn: generateArn(this.region, instanceId)
             }
 
         } catch (error: any) {
@@ -193,6 +206,7 @@ class EC2Wrapper {
             if (waitForRunning) {
                 return await this.waitForInstanceRunning(instanceResult.instanceId);
             }
+
             return instanceResult;
 
         } catch (error: any) {
@@ -200,6 +214,92 @@ class EC2Wrapper {
             throw new Error(`Failed to create and wait for instance: ${errorMessage}`, { cause: error });
         }
     }
+
+    async snapshotAMIImage(instanceId: string, userId: string): Promise<string> {
+        try {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+            const imageName = userId ? `Lunaris-DCV-${userId}-${timestamp}` : `Lunaris-DCV-${instanceId}-${timestamp}`
+            const input: CreateImageCommandInput = {
+                InstanceId: instanceId,
+                Name: imageName,
+
+                Description: `DCV gaming snapshot for ${userId || instanceId} - Created ${new Date().toISOString()}`,
+
+                NoReboot: true,
+
+                TagSpecifications: [
+                    {
+                        ResourceType: 'image',
+                        Tags: [
+                            { Key: 'Name', Value: imageName },
+                            { Key: 'CreatedBy', Value: 'Lunaris' },
+                            { Key: 'CreatedAt', Value: new Date().toISOString() },
+                            { Key: 'SourceInstance', Value: instanceId },
+                            { Key: 'Purpose', Value: 'cloud-gaming' },
+                            { Key: 'HasDCV', Value: 'true' },
+                            ...(userId ? [{ Key: 'UserId', Value: userId }] : [])
+                        ]
+                    },
+                    {
+                        ResourceType: 'snapshot',
+                        Tags: [
+                            { Key: 'Name', Value: `${imageName}-snapshot` },
+                            { Key: 'CreatedBy', Value: 'Lunaris' },
+                            { Key: 'SourceInstance', Value: instanceId }
+                        ]
+                    }
+                ]
+            }
+
+            const command = new CreateImageCommand(input)
+            const response = await this.client.send(command)
+
+            if (!response.ImageId) {
+                throw new Error(`AMI ID is undefined for this instance ${instanceId}`)
+            }
+            console.log(`Ami created: ${response.ImageId}`)
+            return response.ImageId
+
+        } catch (error) {
+            console.error("Unable to snapshot image:", instanceId, error)
+            throw error;
+        }
+
+    }
+
+    async getInstance(instanceId: string): Promise<Instance> {
+        try {
+            const command = new DescribeInstancesCommand({
+                InstanceIds: [instanceId]
+            })
+
+            const response = await this.client.send(command);
+
+            return response.Reservations![0].Instances![0]
+
+        } catch (err: any) {
+            throw err
+        }
+    }
+
+    async modifyInstanceTag(instanceId: string, key: string, value: string): Promise<void> {
+        try {
+            const command = new CreateTagsCommand({
+                Resources: [instanceId],
+                Tags: [
+                    {
+                        Key: key,
+                        Value: value
+                    }
+                ]
+            })
+            await this.client.send(command)
+
+        } catch (err: any) {
+            throw err
+        }
+    }
+
 }
 
 export default EC2Wrapper;
