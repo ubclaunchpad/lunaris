@@ -1,5 +1,10 @@
 import { Construct } from "constructs";
-import { type IRestApi, LambdaRestApi, LambdaIntegration } from "aws-cdk-lib/aws-apigateway";
+import {
+    type IRestApi,
+    LambdaRestApi,
+    LambdaIntegration,
+    MethodResponse,
+} from "aws-cdk-lib/aws-apigateway";
 import { Function } from "aws-cdk-lib/aws-lambda";
 
 export interface ApiGatewayProps {
@@ -33,20 +38,7 @@ export class ApiGateway extends Construct {
         const resource = this.restApi.root.addResource("deployInstance");
 
         resource.addMethod("POST", integration, {
-            methodResponses: [
-                {
-                    statusCode: "200",
-                    responseModels: {
-                        "application/json": { modelId: "Empty" },
-                    },
-                },
-                {
-                    statusCode: "400",
-                    responseModels: {
-                        "application/json": { modelId: "Error" },
-                    },
-                },
-            ],
+            methodResponses: this.populateMethodResponses(),
         });
     }
 
@@ -55,20 +47,7 @@ export class ApiGateway extends Construct {
         const resource = this.restApi.root.addResource("terminateInstance");
 
         resource.addMethod("POST", integration, {
-            methodResponses: [
-                {
-                    statusCode: "200",
-                    responseModels: {
-                        "application/json": { modelId: "Empty" },
-                    },
-                },
-                {
-                    statusCode: "400",
-                    responseModels: {
-                        "application/json": { modelId: "Error" },
-                    },
-                },
-            ],
+            methodResponses: this.populateMethodResponses(),
         });
     }
 
@@ -80,26 +59,7 @@ export class ApiGateway extends Construct {
             requestParameters: {
                 "method.request.querystring.userId": true,
             },
-            methodResponses: [
-                {
-                    statusCode: "200",
-                    responseModels: {
-                        "application/json": { modelId: "Empty" },
-                    },
-                },
-                {
-                    statusCode: "400",
-                    responseModels: {
-                        "application/json": { modelId: "Error" },
-                    },
-                },
-                {
-                    statusCode: "404",
-                    responseModels: {
-                        "application/json": { modelId: "Error" },
-                    },
-                },
-            ],
+            methodResponses: this.populateMethodResponses(),
         });
     }
 
@@ -111,32 +71,36 @@ export class ApiGateway extends Construct {
             requestParameters: {
                 "method.request.querystring.userId": true, // user id is required
             },
-            methodResponses: [
-                {
-                    statusCode: "200",
-                    responseModels: {
-                        "application/json": { modelId: "Empty" },
-                    },
-                },
-                {
-                    statusCode: "400",
-                    responseModels: {
-                        "application/json": { modelId: "Error" },
-                    },
-                },
-                {
-                    statusCode: "404",
-                    responseModels: {
-                        "application/json": { modelId: "Error" },
-                    },
-                },
-                {
-                    statusCode: "500",
-                    responseModels: {
-                        "application/json": { modelId: "Error" },
-                    },
-                },
-            ],
+            methodResponses: this.populateMethodResponses(),
         });
+    }
+
+    private populateMethodResponses(): MethodResponse[] {
+        return [
+            {
+                statusCode: "200",
+                responseModels: {
+                    "application/json": { modelId: "Empty" },
+                },
+            },
+            {
+                statusCode: "400",
+                responseModels: {
+                    "application/json": { modelId: "Error" },
+                },
+            },
+            {
+                statusCode: "404",
+                responseModels: {
+                    "application/json": { modelId: "Error" },
+                },
+            },
+            {
+                statusCode: "500",
+                responseModels: {
+                    "application/json": { modelId: "Error" },
+                },
+            },
+        ];
     }
 }
