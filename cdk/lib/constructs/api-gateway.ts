@@ -1,5 +1,10 @@
 import { Construct } from "constructs";
-import { LambdaRestApi, LambdaIntegration, IRestApi, MethodResponse } from "aws-cdk-lib/aws-apigateway";
+import {
+    LambdaRestApi,
+    LambdaIntegration,
+    IRestApi,
+    MethodResponse,
+} from "aws-cdk-lib/aws-apigateway";
 import { Function } from "aws-cdk-lib/aws-lambda";
 
 export interface ApiGatewayProps {

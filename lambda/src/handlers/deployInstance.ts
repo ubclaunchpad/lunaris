@@ -31,9 +31,7 @@ interface DeployInstanceRequest {
     amiId?: string;
 }
 
-export const handler = async (
-    event: APIGatewayProxyEvent,
-): Promise<APIGatewayProxyResult> => {
+export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
         const body: DeployInstanceRequest = JSON.parse(event.body || "{}");
         const { userId, instanceType = "t3.micro", amiId } = body;
