@@ -1,4 +1,3 @@
-
 export interface DynamoDbWrapperProps {
     tableName: string;
     partitionKey: string;

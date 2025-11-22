@@ -27,13 +27,13 @@ export const handler = async (
         streamingLink: "streaming-link-placeholder", // TODO: should generate a real streaming link
     };
 
-  const stateMachineName = 'UserDeployEC2Workflow';
-  const region = process.env.AWS_REGION || 'us-east-1';
-  const accountId = process.env.AWS_ACCOUNT_ID || context.invokedFunctionArn.split(':')[4];
-  
-  const executionArn = event.executionName
-    ? `arn:aws:states:${region}:${accountId}:execution:${stateMachineName}:${event.executionName}`
-    : undefined;
+    const stateMachineName = "UserDeployEC2Workflow";
+    const region = process.env.AWS_REGION || "us-east-1";
+    const accountId = process.env.AWS_ACCOUNT_ID || context.invokedFunctionArn.split(":")[4];
+
+    const executionArn = event.executionName
+        ? `arn:aws:states:${region}:${accountId}:execution:${stateMachineName}:${event.executionName}`
+        : undefined;
 
     const updateConfig = {
         UpdateExpression: `
@@ -46,7 +46,7 @@ export const handler = async (
     `,
         ExpressionAttributeValues: {
             ":instanceArn": payload.instanceArn,
-      ":executionArn": executionArn,
+            ":executionArn": executionArn,
             ":streamingLink": payload.streamingLink,
             ":updatedAt": payload.updatedAt,
             ":createdAt": new Date().toISOString(),
