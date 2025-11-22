@@ -17,11 +17,13 @@ export const handler = async (
     try {
         console.log(`Deleting stream record for instance: ${instanceArn}`);
 
+        // DELETE the stream record (session is over)
         await db.deleteItem({ instanceArn });
 
         console.log(`Successfully deleted stream record for ${instanceArn}`);
         return { success: true };
     } catch (error) {
+        console.error("Error deleting stream record:", error);
         throw new Error(
             `DatabaseError: ${error instanceof Error ? error.message : "Unknown error"}`,
         );

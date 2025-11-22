@@ -38,6 +38,7 @@ export const handler = async (event: TerminateEc2Event): Promise<TerminateEc2Res
             currentState: terminatingInstance.CurrentState?.Name || "shutting-down",
         } as TerminateEc2Result;
     } catch (error) {
+        console.error("Error terminating EC2 instance:", error);
         throw new Error(
             `TerminationFailedError: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
