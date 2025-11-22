@@ -1,192 +1,113 @@
 import { Construct } from "constructs";
-import {
-  RestApi,
-  LambdaIntegration,
-  StepFunctionsIntegration,
-  JsonSchemaType,
-  Model,
-  RequestValidator,
-} from "aws-cdk-lib/aws-apigateway";
+import { LambdaRestApi, LambdaIntegration, Resource } from "aws-cdk-lib/aws-apigateway";
 import { Function } from "aws-cdk-lib/aws-lambda";
 import { StateMachine } from "aws-cdk-lib/aws-stepfunctions";
 
 export interface ApiGatewayProps {
-  userDeployEC2Workflow: StateMachine;
-  terminateInstanceFunction: Function;
-  streamingLinkFunction: Function;
+    deployInstanceFunction: Function;
+    terminateInstanceFunction: Function;
+    streamingLinkFunction: Function;
 }
 
 export class ApiGateway extends Construct {
-  public readonly restApi: RestApi;
+    public readonly restApi: LambdaRestApi;
 
-  constructor(scope: Construct, id: string, props: ApiGatewayProps) {
-    super(scope, id);
+    constructor(scope: Construct, id: string, props: ApiGatewayProps) {
+        super(scope, id);
 
-    this.restApi = new RestApi(this, "LunarisApi", {
-      description: "LunarisAPI",
-      restApiName: "LunarisAPI",
-    });
+        this.restApi = new LambdaRestApi(this, "LunarisApi", {
+            handler: props.deployInstanceFunction,
+            proxy: false,
+            description: "LunarisAPI",
+        });
 
-    // Add API endpoints to LunarisApi here
-    this.createDeployInstanceEndpoint(props.userDeployEC2Workflow);
-    this.createTerminateInstanceEndpoint(props.terminateInstanceFunction);
-    this.createStreamingLinkEndpoint(props.streamingLinkFunction);
-  }
+        // Add API endpoints to LunarisApi here
+        this.createDeployInstanceEndpoint(props.deployInstanceFunction);
+        this.createTerminateInstanceEndpoint(props.terminateInstanceFunction);
+        this.createStreamingLinkEndpoint(props.streamingLinkFunction);
+    }
 
-  private createDeployInstanceEndpoint(stateMachine: StateMachine): void {
-    const resource = this.restApi.root.addResource("deployInstance");
+    private createDeployInstanceEndpoint(lambdaFunction: Function): void {
+        const integration = new LambdaIntegration(lambdaFunction);
+        const resource = this.restApi.root.addResource("deployInstance");
 
-    const requestModel = new Model(this, "DeployInstanceRequestModel", {
-      restApi: this.restApi,
-      contentType: "application/json",
-      modelName: "DeployInstanceRequest",
-      schema: {
-        type: JsonSchemaType.OBJECT,
-        required: ["userId", "amiId"],
-        properties: {
-          userId: {
-            type: JsonSchemaType.STRING,
-            description: "User ID for the deployment",
-          },
-          instanceType: {
-            type: JsonSchemaType.STRING,
-            description: "EC2 instance type (optional, defaults to t3.micro)",
-          },
-          amiId: {
-            type: JsonSchemaType.STRING,
-            description: "AMI ID for the EC2 instance",
-          },
-        },
-      },
-    });
+        resource.addMethod("POST", integration, {
+            methodResponses: [
+                {
+                    statusCode: "200",
+                    responseModels: {
+                        "application/json": { modelId: "Empty" },
+                    },
+                },
+                {
+                    statusCode: "400",
+                    responseModels: {
+                        "application/json": { modelId: "Error" },
+                    },
+                },
+            ],
+        });
+    }
 
-    const requestValidator = new RequestValidator(this, "DeployInstanceRequestValidator", {
-      restApi: this.restApi,
-      requestValidatorName: "DeployInstanceRequestValidator",
-      validateRequestBody: true,
-      validateRequestParameters: false,
-    });
+    private createTerminateInstanceEndpoint(lambdaFunction: Function): void {
+        const integration = new LambdaIntegration(lambdaFunction);
+        const resource = this.restApi.root.addResource("terminateInstance");
 
-    const integration = StepFunctionsIntegration.startExecution(stateMachine, {
-      requestTemplates: {
-        "application/json": `{
-          "input": "$util.escapeJavaScript($input.json('$'))"
-        }`,
-      },
-      integrationResponses: [
-        {
-          statusCode: "200",
-          responseTemplates: {
-            "application/json": `{
-              "status": "success",
-              "message": "Deployment workflow started successfully",
-              "statusCode": 200
-            }`,
-          },
-        },
-        {
-          statusCode: "400",
-          selectionPattern: "4\\d{2}",
-          responseTemplates: {
-            "application/json": `{
-              "error": "BadRequest",
-              "message": "Bad Request",
-              "statusCode": 400
-            }`,
-          },
-        },
-        {
-          statusCode: "500",
-          selectionPattern: "5\\d{2}",
-          responseTemplates: {
-            "application/json": `{
-              "error": "InternalError",
-              "message": "Internal Server Error",
-              "statusCode": 500
-            }`,
-          },
-        },
-      ],
-    });
+        resource.addMethod("POST", integration, {
+            methodResponses: this.populateMethodResponses(),
+        });
+    }
 
-    resource.addMethod("POST", integration, {
-      requestModels: {
-        "application/json": requestModel,
-      },
-      requestValidator: requestValidator,
-      methodResponses: [
-        {
-          statusCode: "200",
-          responseModels: {
-            "application/json": { modelId: "Empty" },
-          },
-        },
-        {
-          statusCode: "400",
-          responseModels: {
-            "application/json": { modelId: "Error" },
-          },
-        },
-        {
-          statusCode: "500",
-          responseModels: {
-            "application/json": { modelId: "Error" },
-          },
-        },
-      ],
-    });
-  }
+    private createStreamingLinkEndpoint(lambdaFunction: Function): void {
+        const integration = new LambdaIntegration(lambdaFunction);
+        const resource = this.restApi.root.addResource("streamingLink");
 
-  private createTerminateInstanceEndpoint(lambdaFunction: Function): void {
-    const integration = new LambdaIntegration(lambdaFunction);
-    const resource = this.restApi.root.addResource("terminateInstance");
+        resource.addMethod("GET", integration, {
+            requestParameters: {
+                "method.request.querystring.userId": true,
+            },
+            methodResponses: this.populateMethodResponses(),
+        });
+    }
 
-    resource.addMethod("POST", integration, {
-      methodResponses: [
-        {
-          statusCode: "200",
-          responseModels: {
-            "application/json": { modelId: "Empty" },
-          },
-        },
-        {
-          statusCode: "400",
-          responseModels: {
-            "application/json": { modelId: "Error" },
-          },
-        },
-      ],
-    });
-  }
+    private createDeploymentStatusEndpoint(lambdaFunction: Function): void {
+        const integration = new LambdaIntegration(lambdaFunction);
+        const resource = this.restApi.root.addResource("deployment-status");
 
-  private createStreamingLinkEndpoint(lambdaFunction: Function): void {
-    const integration = new LambdaIntegration(lambdaFunction);
-    const resource = this.restApi.root.addResource("streamingLink");
+        resource.addMethod("GET", integration, {
+            requestParameters: {
+                "method.request.querystring.userId": true, // user id is required
+            },
+            methodResponses: this.populateMethodResponses(),
+        });
+    }
 
-    resource.addMethod("GET", integration, {
-      requestParameters: {
-        "method.request.querystring.userId": true,
-      },
-      methodResponses: [
-        {
-          statusCode: "200",
-          responseModels: {
-            "application/json": { modelId: "Empty" },
-          },
-        },
-        {
-          statusCode: "400",
-          responseModels: {
-            "application/json": { modelId: "Error" },
-          },
-        },
-        {
-          statusCode: "404",
-          responseModels: {
-            "application/json": { modelId: "Error" },
-          },
-        },
-      ],
-    });
-  }
+    private populateMethodResponses(): MethodResponse[] {
+        return [
+            {
+                statusCode: "200",
+                responseModels: {
+                    "application/json": { modelId: "Empty" },
+                },
+            },
+            {
+                statusCode: "400",
+                responseModels: {
+                    "application/json": { modelId: "Error" },
+                },
+            },
+            {
+                statusCode: "404",
+                responseModels: {
+                    "application/json": { modelId: "Error" },
+                },
+            },
+            {
+                statusCode: "500",
+                responseModels: {
+                    "application/json": { modelId: "Error" },
+                },
+            },
+        ];
+    }
 }

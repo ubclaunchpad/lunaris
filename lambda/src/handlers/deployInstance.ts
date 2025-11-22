@@ -1,28 +1,28 @@
-import { APIGatewayProxyEvent, APIGatewayProxyResult } from 'aws-lambda';
+import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
+import { EC2Client, RunInstancesCommand, _InstanceType } from "@aws-sdk/client-ec2";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 
-import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
-
-import { SFNClient, StartExecutionCommand } from '@aws-sdk/client-sfn';
+import { SFNClient, StartExecutionCommand } from "@aws-sdk/client-sfn";
 
 // Configure clients to use local endpoints when available (for local testing)
 const sfnClientConfig: any = {};
 const dynamoClientConfig: any = {};
 
 if (process.env.STEPFUNCTIONS_ENDPOINT) {
-  sfnClientConfig.endpoint = process.env.STEPFUNCTIONS_ENDPOINT;
+    sfnClientConfig.endpoint = process.env.STEPFUNCTIONS_ENDPOINT;
 }
 
 if (process.env.DYNAMODB_ENDPOINT) {
-  dynamoClientConfig.endpoint = process.env.DYNAMODB_ENDPOINT;
+    dynamoClientConfig.endpoint = process.env.DYNAMODB_ENDPOINT;
 }
 
 const sfnClient = new SFNClient(sfnClientConfig);
 const dynamoClient = new DynamoDBClient(dynamoClientConfig);
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
-const RUNNING_INSTANCES_TABLE = process.env.RUNNING_INSTANCES_TABLE || '';
-const STEP_FUNCTION_ARN = process.env.USER_DEPLOY_EC2_WORKFLOW_ARN || ''; 
+const RUNNING_INSTANCES_TABLE = process.env.RUNNING_INSTANCES_TABLE || "";
+const STEP_FUNCTION_ARN = process.env.USER_DEPLOY_EC2_WORKFLOW_ARN || "";
 
 interface DeployInstanceRequest {
     userId: string;
@@ -30,22 +30,35 @@ interface DeployInstanceRequest {
     amiId?: string;
 }
 
-export const handler = async (event: APIGatewayProxyEvent, context: any): Promise<APIGatewayProxyResult> => {
+// TODO: may have to update this if requirements change
+interface DeployInstanceContext {
+    invokedFunctionArn: string;
+}
+
+export const handler = async (
+    event: APIGatewayProxyEvent,
+    context: DeployInstanceContext,
+): Promise<APIGatewayProxyResult> => {
     try {
-        const body: DeployInstanceRequest = JSON.parse(event.body || '{}');
-        const { userId, instanceType = 't3.micro', amiId } = body;
+        const body: DeployInstanceRequest = JSON.parse(event.body || "{}");
+        const { userId, instanceType = "t3.micro", amiId } = body;
+
+        const runningInstancesTable = process.env.RUNNING_INSTANCES_TABLE;
+        if (!runningInstancesTable) {
+            throw new Error("MissingRunningInstancesTable");
+        }
 
         if (!userId) {
             return {
                 statusCode: 400,
-                body: JSON.stringify({ message: 'User ID is required' })
+                body: JSON.stringify({ message: "User ID is required" }),
             };
         }
 
         if (!amiId) {
             return {
                 statusCode: 400,
-                body: JSON.stringify({ message: 'AMI ID is required' })
+                body: JSON.stringify({ message: "AMI ID is required" }),
             };
         }
 
@@ -53,19 +66,20 @@ export const handler = async (event: APIGatewayProxyEvent, context: any): Promis
         if (!STEP_FUNCTION_ARN) {
             return {
                 statusCode: 500,
-                body: JSON.stringify({ message: 'UserDeployEC2 Step Function ARN is not set' })
+                body: JSON.stringify({ message: "UserDeployEC2 Step Function ARN is not set" }),
             };
         }
-        
+
         const stepFunctionInput = {
             userId: userId,
             instanceType: instanceType,
-            amiId: amiId
+            amiId: amiId,
         };
 
         const executionName = `${userId}-${Date.now()}`;
 
-        const isLocalTesting = process.env.NODE_ENV === 'local' || process.env.STEPFUNCTIONS_ENDPOINT;
+        const isLocalTesting =
+            process.env.NODE_ENV === "local" || process.env.STEPFUNCTIONS_ENDPOINT;
         let executionResponse: any;
 
         if (isLocalTesting && process.env.STEPFUNCTIONS_ENDPOINT) {
@@ -73,29 +87,31 @@ export const handler = async (event: APIGatewayProxyEvent, context: any): Promis
                 const startExecutionCommand = new StartExecutionCommand({
                     stateMachineArn: STEP_FUNCTION_ARN,
                     input: JSON.stringify(stepFunctionInput),
-                    name: executionName
+                    name: executionName,
                 });
                 executionResponse = await sfnClient.send(startExecutionCommand);
-                console.log('Step Function execution started via local endpoint');
+                console.log("Step Function execution started via local endpoint");
             } catch (error) {
-                console.log('Local Step Functions endpoint not available, using mock execution ARN');
+                console.log(
+                    "Local Step Functions endpoint not available, using mock execution ARN",
+                );
                 const mockExecutionArn = `arn:aws:states:us-east-1:123456789012:execution:UserDeployEC2Workflow:${executionName}`;
                 executionResponse = {
                     executionArn: mockExecutionArn,
-                    startDate: new Date()
+                    startDate: new Date(),
                 };
             }
         } else {
             const startExecutionCommand = new StartExecutionCommand({
                 stateMachineArn: STEP_FUNCTION_ARN,
                 input: JSON.stringify(stepFunctionInput),
-                name: executionName
+                name: executionName,
             });
             executionResponse = await sfnClient.send(startExecutionCommand);
         }
 
         if (!executionResponse.executionArn) {
-            throw new Error('Failed to start UserDeployEC2 Step Function');
+            throw new Error("Failed to start UserDeployEC2 Step Function");
         }
 
         const now = new Date().toISOString();
@@ -108,43 +124,47 @@ export const handler = async (event: APIGatewayProxyEvent, context: any): Promis
                     Item: {
                         userId: userId,
                         executionArn: executionResponse.executionArn,
-                        status: 'RUNNING',
+                        status: "RUNNING",
                         createdAt: now,
                         instanceType: instanceType,
-                        amiId: amiId
-                    }
+                        amiId: amiId,
+                    },
                 });
 
                 await docClient.send(putCommand);
                 console.log(`Stored execution ARN in DynamoDB: ${executionResponse.executionArn}`);
             } catch (dbError) {
                 if (isLocalTesting) {
-                    console.warn('DynamoDB not available in local testing, skipping storage:', dbError);
+                    console.warn(
+                        "DynamoDB not available in local testing, skipping storage:",
+                        dbError,
+                    );
                 } else {
                     throw dbError;
                 }
             }
         }
 
-        console.log(`Started Step Function execution ${executionResponse.executionArn} for user ${userId}`);
+        console.log(
+            `Started Step Function execution ${executionResponse.executionArn} for user ${userId}`,
+        );
 
         return {
             statusCode: 200,
             body: JSON.stringify({
-                status: 'success',
-                message: 'Deployment workflow started successfully',
-                statusCode: 200
-            })
+                status: "success",
+                message: "Deployment workflow started successfully",
+                statusCode: 200,
+            }),
         };
-
     } catch (error) {
-        console.error('Error deploying instance:', error);
+        console.error("Error deploying instance:", error);
         return {
             statusCode: 500,
             body: JSON.stringify({
-                message: 'Failed to deploy instance',
-                error: error instanceof Error ? error.message : 'Unknown error'
-            })
+                message: "Failed to deploy instance",
+                error: error instanceof Error ? error.message : "Unknown error",
+            }),
         };
     }
 };

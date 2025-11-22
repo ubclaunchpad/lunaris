@@ -2,19 +2,19 @@ import DynamoDBWrapper from "../../utils/dynamoDbWrapper";
 import { Context } from "aws-lambda";
 
 export const handler = async (
-  event: UpdateRunningStreamsEvent,
-  context: Context,
+    event: UpdateRunningStreamsEvent,
+  context: Context,,
 ): Promise<UpdateRunningStreamsResult> => {
-  if (!process.env.RUNNING_STREAMS_TABLE_NAME) {
-    throw new Error("MissingTableNameEnv");
-  }
+    if (!process.env.RUNNING_STREAMS_TABLE_NAME) {
+        throw new Error("MissingTableNameEnv");
+    }
 
-  const db = new DynamoDBWrapper(process.env.RUNNING_STREAMS_TABLE_NAME);
-  const payload = {
-    ...event,
-    updatedAt: new Date().toISOString(),
-    streamingLink: "streaming-link-placeholder", // TODO: should generate a real streaming link
-  };
+    const db = new DynamoDBWrapper(process.env.RUNNING_STREAMS_TABLE_NAME);
+    const payload = {
+        ...event,
+        updatedAt: new Date().toISOString(),
+        streamingLink: "streaming-link-placeholder", // TODO: should generate a real streaming link
+    };
 
   const stateMachineName = 'UserDeployEC2Workflow';
   const region = process.env.AWS_REGION || 'us-east-1';
@@ -24,8 +24,8 @@ export const handler = async (
     ? `arn:aws:states:${region}:${accountId}:execution:${stateMachineName}:${event.executionName}`
     : undefined;
 
-  const updateConfig = {
-    UpdateExpression: `
+    const updateConfig = {
+        UpdateExpression: `
       SET
         instanceArn = :instanceArn, 
         executionArn = :executionArn,
@@ -33,27 +33,27 @@ export const handler = async (
         updatedAt = :updatedAt,
         createdAt = if_not_exists(createdAt, :createdAt)
     `,
-    ExpressionAttributeValues: {
-      ":instanceArn": payload.instanceArn,
+        ExpressionAttributeValues: {
+            ":instanceArn": payload.instanceArn,
       ":executionArn": executionArn,
-      ":streamingLink": payload.streamingLink,
-      ":updatedAt": payload.updatedAt,
-      ":createdAt": new Date().toISOString(),
-    },
-  };
+            ":streamingLink": payload.streamingLink,
+            ":updatedAt": payload.updatedAt,
+            ":createdAt": new Date().toISOString(),
+        },
+    };
 
-  await db.updateItem({ instanceArn: event.instanceArn }, updateConfig);
+    await db.updateItem({ instanceArn: event.instanceArn }, updateConfig);
 
-  return { success: true };
+    return { success: true };
 };
 
 type UpdateRunningStreamsEvent = {
-  userId: string;
-  instanceArn: string;
+    userId: string;
+    instanceArn: string;
   executionName?: string;
-  running: boolean;
+    running: boolean;
 };
 
 type UpdateRunningStreamsResult = {
-  success: boolean;
+    success: boolean;
 };

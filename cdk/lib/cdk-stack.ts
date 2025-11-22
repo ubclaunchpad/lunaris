@@ -8,81 +8,88 @@ import { ApiGateway } from "./constructs/api-gateway";
 import { DynamoDbTables } from "./constructs/dynamodb-tables";
 
 export class CdkStack extends Stack {
-  constructor(scope: Construct, id: string, props?: StackProps) {
-    super(scope, id, props);
+    constructor(scope: Construct, id: string, props?: StackProps) {
+        super(scope, id, props);
 
-    // Create DynamoDB tables
-    const dynamoDbTables = new DynamoDbTables(this, "DynamoDbTables");
+        // Create DynamoDB tables
+        const dynamoDbTables = new DynamoDbTables(this, "DynamoDbTables");
 
-    // Create API Lambda functions
-    const lambdaFunctions = new LambdaFunctions(this, "LambdaFunctions", {
-      runningInstancesTable: dynamoDbTables.runningInstancesTable,
-      runningStreamsTable: dynamoDbTables.runningStreamsTable,
-    });
+        // Create API Lambda functions
+        const lambdaFunctions = new LambdaFunctions(this, "LambdaFunctions", {
+            runningInstancesTable: dynamoDbTables.getRunningInstanceTable(),
+            runningStreamsTable: dynamoDbTables.getRunningStreamsTable(),
+        });
 
-    // Grant EC2 permissions to deployInstance Lambda
-    lambdaFunctions.deployInstanceFunction.addToRolePolicy(
-      new PolicyStatement({
-        actions: [
-          "ec2:RunInstances",
-          "ec2:CreateTags",
-          "ec2:DescribeInstances",
-        ],
-        resources: [
-          `arn:aws:ec2:${this.region}:${this.account}:subnet/subnet-12345678`,
-        ],
-      })
-    );
+        // Grant EC2 permissions to deployInstance Lambda
+        lambdaFunctions.deployInstanceFunction.addToRolePolicy(
+            new PolicyStatement({
+                actions: ["ec2:RunInstances", "ec2:CreateTags", "ec2:DescribeInstances"],
+                resources: [`arn:aws:ec2:${this.region}:${this.account}:subnet/subnet-12345678`],
+            }),
+        );
 
-    // Grant DynamoDB permissions
-    dynamoDbTables.runningInstancesTable.grantWriteData(
-      lambdaFunctions.deployInstanceFunction
-    );
-    dynamoDbTables.runningInstancesTable.grantReadWriteData(
-      lambdaFunctions.deployEC2Function
-    );
-    dynamoDbTables.runningStreamsTable.grantReadData(
-      lambdaFunctions.checkRunningStreamsFunction
-    );
-    dynamoDbTables.runningStreamsTable.grantWriteData(
-      lambdaFunctions.updateRunningStreamsFunction
-    );
+        lambdaFunctions.deploymentStatusFunction.addToRolePolicy(
+            new PolicyStatement({
+                actions: ["states:DescribeExecution"],
+                resources: ["*"],
+            }),
+        );
 
-    // Grant DynamoDB permissions for UserTerminateEC2 workflow
-    dynamoDbTables.runningStreamsTable.grantReadData(
-      lambdaFunctions.checkRunningStreamsTerminateFunction
-    );
-    dynamoDbTables.runningInstancesTable.grantReadWriteData(
-      lambdaFunctions.terminateEC2Function
-    );
-    dynamoDbTables.runningStreamsTable.grantWriteData(
-      lambdaFunctions.updateRunningStreamsTerminateFunction
-    );
+        // Grant DynamoDB permissions
+        dynamoDbTables
+            .getRunningInstanceTable()
+            .grantWriteData(lambdaFunctions.deployInstanceFunction);
+        dynamoDbTables
+            .getRunningInstanceTable()
+            .grantReadData(lambdaFunctions.deploymentStatusFunction);
+        dynamoDbTables
+            .getRunningInstanceTable()
+            .grantReadWriteData(lambdaFunctions.deployEC2Function);
+        dynamoDbTables
+            .getRunningStreamsTable()
+            .grantReadData(lambdaFunctions.checkRunningStreamsFunction);
+        dynamoDbTables
+            .getRunningStreamsTable()
+            .grantWriteData(lambdaFunctions.updateRunningStreamsFunction);
 
-    // Create Step Functions with consistent naming and tagging
-    const stepFunctions = new StepFunctions(this, "StepFunctions", {
-      checkRunningStreamsFunction: lambdaFunctions.checkRunningStreamsFunction,
-      deployEC2Function: lambdaFunctions.deployEC2Function,
-      updateRunningStreamsFunction: lambdaFunctions.updateRunningStreamsFunction,
-      checkRunningStreamsTerminateFunction: lambdaFunctions.checkRunningStreamsTerminateFunction,
-      terminateEC2Function: lambdaFunctions.terminateEC2Function,
-      updateRunningStreamsTerminateFunction: lambdaFunctions.updateRunningStreamsTerminateFunction,
-    });
+        // Grant DynamoDB permissions for UserTerminateEC2 workflow
+        dynamoDbTables
+            .getRunningStreamsTable()
+            .grantReadData(lambdaFunctions.checkRunningStreamsTerminateFunction);
+        dynamoDbTables
+            .getRunningInstanceTable()
+            .grantReadWriteData(lambdaFunctions.terminateEC2Function);
+        dynamoDbTables
+            .getRunningStreamsTable()
+            .grantWriteData(lambdaFunctions.updateRunningStreamsTerminateFunction);
 
-    // Apply consistent tags to Step Functions resources
-    cdk.Tags.of(stepFunctions).add("Component", "StepFunctions");
-    cdk.Tags.of(stepFunctions).add("ManagedBy", "CDK");
+        // Create Step Functions with consistent naming and tagging
+        const stepFunctions = new StepFunctions(this, "StepFunctions", {
+            checkRunningStreamsFunction: lambdaFunctions.checkRunningStreamsFunction,
+            deployEC2Function: lambdaFunctions.deployEC2Function,
+            updateRunningStreamsFunction: lambdaFunctions.updateRunningStreamsFunction,
+            checkRunningStreamsTerminateFunction:
+                lambdaFunctions.checkRunningStreamsTerminateFunction,
+            terminateEC2Function: lambdaFunctions.terminateEC2Function,
+            updateRunningStreamsTerminateFunction:
+                lambdaFunctions.updateRunningStreamsTerminateFunction,
+        });
 
-    const userDeployEC2Workflow = stepFunctions.getWorkflow('UserDeployEC2Workflow');
-    if (!userDeployEC2Workflow) {
-      throw new Error('UserDeployEC2Workflow not found');
+        // Apply consistent tags to Step Functions resources
+        cdk.Tags.of(stepFunctions).add("Component", "StepFunctions");
+        cdk.Tags.of(stepFunctions).add("ManagedBy", "CDK");
+
+        const userDeployEC2Workflow = stepFunctions.getWorkflow("UserDeployEC2Workflow");
+        if (!userDeployEC2Workflow) {
+            throw new Error("UserDeployEC2Workflow not found");
+        }
+
+        // Create API Gateway
+        const apiGateway = new ApiGateway(this, "ApiGateway", {
+            userDeployEC2Workflow: userDeployEC2Workflow,
+            terminateInstanceFunction: lambdaFunctions.terminateInstanceFunction,
+            streamingLinkFunction: lambdaFunctions.streamingLinkFunction,
+            deploymentStatusFunction: lambdaFunctions.deploymentStatusFunction,
+        });
     }
-
-    // Create API Gateway
-    const apiGateway = new ApiGateway(this, "ApiGateway", {
-      userDeployEC2Workflow: userDeployEC2Workflow,
-      terminateInstanceFunction: lambdaFunctions.terminateInstanceFunction,
-      streamingLinkFunction: lambdaFunctions.streamingLinkFunction,
-    });
-  }
 }
