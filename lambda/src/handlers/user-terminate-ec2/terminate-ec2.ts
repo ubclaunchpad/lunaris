@@ -7,60 +7,52 @@ const ec2Client = new EC2Client({});
  * @param event containing the instanceId, userId, and instanceArn
  * @returns
  */
-export const handler = async (
-  event: TerminateEc2Event
-): Promise<TerminateEc2Result> => {
-  const { instanceId } = event;
+export const handler = async (event: TerminateEc2Event): Promise<TerminateEc2Result> => {
+    const { instanceId } = event;
 
-  if (!instanceId) {
-    throw new Error("Instance ID is required");
-  }
-
-  try {
-    console.log(`Terminating EC2 instance: ${instanceId}`);
-
-    const command = new TerminateInstancesCommand({
-      InstanceIds: [instanceId],
-    });
-
-    const response = await ec2Client.send(command);
-
-    if (
-      !response.TerminatingInstances ||
-      response.TerminatingInstances.length === 0
-    ) {
-      throw new Error("Failed to terminate EC2 instance");
+    if (!instanceId) {
+        throw new Error("Instance ID is required");
     }
 
-    const terminatingInstance = response.TerminatingInstances[0];
+    try {
+        console.log(`Terminating EC2 instance: ${instanceId}`);
 
-    console.log(`Successfully terminated instance ${instanceId}`);
+        const command = new TerminateInstancesCommand({
+            InstanceIds: [instanceId],
+        });
 
-    return {
-      success: true,
-      instanceId: instanceId,
-      previousState: terminatingInstance.PreviousState?.Name || "unknown",
-      currentState: terminatingInstance.CurrentState?.Name || "shutting-down",
-    } as TerminateEc2Result;
-  } catch (error) {
-    console.error("Error terminating EC2 instance:", error);
-    throw new Error(
-      `TerminationFailedError: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`
-    );
-  }
+        const response = await ec2Client.send(command);
+
+        if (!response.TerminatingInstances || response.TerminatingInstances.length === 0) {
+            throw new Error("Failed to terminate EC2 instance");
+        }
+
+        const terminatingInstance = response.TerminatingInstances[0];
+
+        console.log(`Successfully terminated instance ${instanceId}`);
+
+        return {
+            success: true,
+            instanceId: instanceId,
+            previousState: terminatingInstance.PreviousState?.Name || "unknown",
+            currentState: terminatingInstance.CurrentState?.Name || "shutting-down",
+        } as TerminateEc2Result;
+    } catch (error) {
+        throw new Error(
+            `TerminationFailedError: ${error instanceof Error ? error.message : "Unknown error"}`,
+        );
+    }
 };
 
 type TerminateEc2Event = {
-  userId?: string;
-  instanceId: string;
-  instanceArn: string;
+    userId?: string;
+    instanceId: string;
+    instanceArn: string;
 };
 
 type TerminateEc2Result = {
-  success: boolean;
-  instanceId: string;
-  previousState: string;
-  currentState: string;
+    success: boolean;
+    instanceId: string;
+    previousState: string;
+    currentState: string;
 };
