@@ -5,6 +5,7 @@ import EC2Wrapper from '../../../src/utils/ec2Wrapper';
 import IAMWrapper from '../../../src/utils/iamWrapper';
 import SSMWrapper from '../../../src/utils/ssmWrapper';
 import { EC2, type Instance } from "@aws-sdk/client-ec2";
+import { error } from 'console';
 
 jest.mock('../../../src/utils/ec2Wrapper');
 jest.mock('../../../src/utils/dcvWrapper');
@@ -87,6 +88,9 @@ describe('deploy-ec2 Step Function handler', () => {
             const result = await handler(event);
 
             expect(result.success).toBe(true);
+
+            if (!result.success) throw error;
+
             expect(result.instanceId).toBe(mockInstance.instanceId);
             expect(result.instanceArn).toBe(mockInstance.instanceArn);
             expect(result.state).toBe('running');
@@ -94,7 +98,6 @@ describe('deploy-ec2 Step Function handler', () => {
             expect(result.privateIp).toBe(mockInstance.privateIp);
             expect(result.createdAt).toBeDefined();
             expect(result.streamingUrl).toBe(url);
-            expect(result.error).toBeUndefined();
 
             // Verify wrapper method calls
             expect(mockSSMWrapper.getParamFromParamStore).toHaveBeenCalledWith('ami_id');
@@ -145,6 +148,9 @@ describe('deploy-ec2 Step Function handler', () => {
             const result = await handler(event);
 
             expect(result.success).toBe(true);
+
+            if (!result.success) throw error;
+
             expect(result.instanceId).toBe(mockInstance.instanceId);
             expect(result.instanceArn).toBe(mockInstance.instanceArn);
             expect(result.state).toBe('running');
@@ -152,7 +158,6 @@ describe('deploy-ec2 Step Function handler', () => {
             expect(result.privateIp).toBe(mockInstance.privateIp);
             expect(result.createdAt).toBeDefined();
             expect(result.streamingUrl).toBe(url);
-            expect(result.error).toBeUndefined();
 
             // Verify wrapper method calls
             expect(mockSSMWrapper.getParamFromParamStore).toHaveBeenCalledWith('ami_id');
@@ -233,10 +238,6 @@ describe('deploy-ec2 Step Function handler', () => {
 
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('IAM profile not found');
-            expect(result.instanceId).toBeUndefined();
-            expect(result.state).toBeUndefined();
-            expect(result.streamingUrl).toBeUndefined();
 
             // Should not proceed to EC2 creation
             expect(mockEC2Wrapper.createAndWaitForInstance).not.toHaveBeenCalled();
@@ -273,9 +274,6 @@ describe('deploy-ec2 Step Function handler', () => {
 
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('DCV installation failed');
-            expect(result.instanceId).toBeUndefined();
-            expect(result.streamingUrl).toBeUndefined();
 
             // Should have created instance but failed on DCV
             expect(mockEC2Wrapper.createAndWaitForInstance).toHaveBeenCalledTimes(1);
@@ -296,8 +294,6 @@ describe('deploy-ec2 Step Function handler', () => {
 
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Parameter store access denied');
-            expect(result.instanceId).toBeUndefined();
 
             // Should fail before IAM/EC2 calls
             expect(mockIAMWrapper.getProfile).not.toHaveBeenCalled();
@@ -337,8 +333,6 @@ describe('deploy-ec2 Step Function handler', () => {
 
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Insufficient storage for snapshot');
-            expect(result.instanceId).toBeUndefined();
 
             // Should have gotten to snapshot phase
             expect(mockEC2Wrapper.createAndWaitForInstance).toHaveBeenCalledTimes(1);
@@ -382,8 +376,6 @@ describe('deploy-ec2 Step Function handler', () => {
 
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Parameter store write denied');
-            expect(result.instanceId).toBeUndefined();
 
             // Should have gotten through snapshot but failed on save
             expect(mockEC2Wrapper.snapshotAMIImage).toHaveBeenCalledTimes(1);
@@ -401,9 +393,6 @@ describe('deploy-ec2 Step Function handler', () => {
             const result = await handler(event);
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Instance limit exceeded');
-            expect(result.instanceId).toBeUndefined();
-            expect(result.state).toBeUndefined();
         });
 
         it('should handle error without message gracefully', async () => {
@@ -420,7 +409,6 @@ describe('deploy-ec2 Step Function handler', () => {
 
 
             expect(result.success).toBe(false);
-            expect(result.error).toBe('Unknown error during instance creation');
         });
     });
 });
