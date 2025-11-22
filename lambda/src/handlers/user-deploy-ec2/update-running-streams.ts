@@ -1,9 +1,20 @@
 import DynamoDBWrapper from "../../utils/dynamoDbWrapper";
 import { Context } from "aws-lambda";
 
+type UpdateRunningStreamsEvent = {
+    userId: string;
+    instanceArn: string;
+    executionName?: string;
+    running: boolean;
+};
+
+type UpdateRunningStreamsResult = {
+    success: boolean;
+};
+
 export const handler = async (
     event: UpdateRunningStreamsEvent,
-  context: Context,,
+    context: Context,
 ): Promise<UpdateRunningStreamsResult> => {
     if (!process.env.RUNNING_STREAMS_TABLE_NAME) {
         throw new Error("MissingTableNameEnv");
@@ -45,15 +56,4 @@ export const handler = async (
     await db.updateItem({ instanceArn: event.instanceArn }, updateConfig);
 
     return { success: true };
-};
-
-type UpdateRunningStreamsEvent = {
-    userId: string;
-    instanceArn: string;
-  executionName?: string;
-    running: boolean;
-};
-
-type UpdateRunningStreamsResult = {
-    success: boolean;
 };
