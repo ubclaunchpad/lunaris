@@ -1,13 +1,14 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { EC2Client, RunInstancesCommand, _InstanceType } from "@aws-sdk/client-ec2";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 
-import { SFNClient, StartExecutionCommand } from "@aws-sdk/client-sfn";
+import { SFNClient, StartExecutionCommand, StartExecutionCommandOutput } from "@aws-sdk/client-sfn";
+import { SFNClientConfig } from "@aws-sdk/client-sfn";
+import { DynamoDBClientConfig } from "@aws-sdk/client-dynamodb";
 
 // Configure clients to use local endpoints when available (for local testing)
-const sfnClientConfig: any = {};
-const dynamoClientConfig: any = {};
+const sfnClientConfig: Partial<SFNClientConfig> = {};
+const dynamoClientConfig: Partial<DynamoDBClientConfig> = {};
 
 if (process.env.STEPFUNCTIONS_ENDPOINT) {
     sfnClientConfig.endpoint = process.env.STEPFUNCTIONS_ENDPOINT;
@@ -30,14 +31,8 @@ interface DeployInstanceRequest {
     amiId?: string;
 }
 
-// TODO: may have to update this if requirements change
-interface DeployInstanceContext {
-    invokedFunctionArn: string;
-}
-
 export const handler = async (
     event: APIGatewayProxyEvent,
-    context: DeployInstanceContext,
 ): Promise<APIGatewayProxyResult> => {
     try {
         const body: DeployInstanceRequest = JSON.parse(event.body || "{}");
@@ -80,7 +75,7 @@ export const handler = async (
 
         const isLocalTesting =
             process.env.NODE_ENV === "local" || process.env.STEPFUNCTIONS_ENDPOINT;
-        let executionResponse: any;
+        let executionResponse: StartExecutionCommandOutput;
 
         if (isLocalTesting && process.env.STEPFUNCTIONS_ENDPOINT) {
             try {
@@ -99,7 +94,8 @@ export const handler = async (
                 executionResponse = {
                     executionArn: mockExecutionArn,
                     startDate: new Date(),
-                };
+                    $metadata: {},
+                } as StartExecutionCommandOutput;
             }
         } else {
             const startExecutionCommand = new StartExecutionCommand({

@@ -85,11 +85,10 @@ export class CdkStack extends Stack {
         }
 
         // Create API Gateway
-        const apiGateway = new ApiGateway(this, "ApiGateway", {
-            userDeployEC2Workflow: userDeployEC2Workflow,
+        new ApiGateway(this, "ApiGateway", {
+            deployInstanceFunction: lambdaFunctions.deployInstanceFunction,
             terminateInstanceFunction: lambdaFunctions.terminateInstanceFunction,
             streamingLinkFunction: lambdaFunctions.streamingLinkFunction,
-            deploymentStatusFunction: lambdaFunctions.deploymentStatusFunction,
         });
     }
 }

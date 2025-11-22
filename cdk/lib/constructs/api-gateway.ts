@@ -1,7 +1,6 @@
 import { Construct } from "constructs";
-import { LambdaRestApi, LambdaIntegration, Resource } from "aws-cdk-lib/aws-apigateway";
+import { LambdaRestApi, LambdaIntegration, IRestApi, MethodResponse } from "aws-cdk-lib/aws-apigateway";
 import { Function } from "aws-cdk-lib/aws-lambda";
-import { StateMachine } from "aws-cdk-lib/aws-stepfunctions";
 
 export interface ApiGatewayProps {
     deployInstanceFunction: Function;
@@ -10,7 +9,7 @@ export interface ApiGatewayProps {
 }
 
 export class ApiGateway extends Construct {
-    public readonly restApi: LambdaRestApi;
+    public readonly restApi: IRestApi;
 
     constructor(scope: Construct, id: string, props: ApiGatewayProps) {
         super(scope, id);
