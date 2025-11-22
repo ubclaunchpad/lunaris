@@ -1,9 +1,9 @@
 FROM public.ecr.aws/lambda/nodejs:22 AS deps
 WORKDIR ${LAMBDA_TASK_ROOT}
 
-COPY package.json package-lock.json tsconfig.json ./
+COPY package.json tsconfig.json ./
 
-RUN npm ci --ignore-scripts
+RUN npm install --ignore-scripts
 
 FROM public.ecr.aws/lambda/nodejs:22 AS builder
 WORKDIR ${LAMBDA_TASK_ROOT}
