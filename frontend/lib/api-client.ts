@@ -54,7 +54,10 @@ export class ApiError extends Error {
 }
 
 export class NetworkError extends Error {
-    constructor(message: string, public originalError?: unknown) {
+    constructor(
+        message: string,
+        public originalError?: unknown,
+    ) {
         super(message);
         this.name = "NetworkError";
     }
@@ -66,9 +69,7 @@ class ApiClient {
 
     constructor() {
         this.baseUrl =
-            process.env.NEXT_PUBLIC_API_GATEWAY_URL ||
-            process.env.NEXT_PUBLIC_API_URL ||
-            "";
+            process.env.NEXT_PUBLIC_API_GATEWAY_URL || process.env.NEXT_PUBLIC_API_URL || "";
         this.isDevelopment = process.env.NODE_ENV === "development";
 
         if (!this.baseUrl) {
@@ -78,10 +79,7 @@ class ApiClient {
         }
     }
 
-    private async request<T>(
-        endpoint: string,
-        options: RequestInit = {},
-    ): Promise<T> {
+    private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
         const url = `${this.baseUrl}${endpoint}`;
         const requestOptions: RequestInit = {
             ...options,
@@ -112,11 +110,7 @@ class ApiClient {
             if (!response.ok) {
                 const errorMessage =
                     data.message || data.error || `HTTP ${response.status}: ${response.statusText}`;
-                throw new ApiError(
-                    response.status,
-                    errorMessage,
-                    data.error,
-                );
+                throw new ApiError(response.status, errorMessage, data.error);
             }
 
             if (this.isDevelopment) {
@@ -143,34 +137,25 @@ class ApiClient {
         }
     }
 
-    async deployInstance(
-        request: DeployInstanceRequest,
-    ): Promise<DeployInstanceResponse> {
+    async deployInstance(request: DeployInstanceRequest): Promise<DeployInstanceResponse> {
         return this.request<DeployInstanceResponse>("/deployInstance", {
             method: "POST",
             body: JSON.stringify(request),
         });
     }
 
-    async terminateInstance(
-        request: TerminateInstanceRequest,
-    ): Promise<TerminateInstanceResponse> {
+    async terminateInstance(request: TerminateInstanceRequest): Promise<TerminateInstanceResponse> {
         return this.request<TerminateInstanceResponse>("/terminateInstance", {
             method: "POST",
             body: JSON.stringify(request),
         });
     }
 
-    async getStreamingLink(
-        request: GetStreamingLinkRequest,
-    ): Promise<GetStreamingLinkResponse> {
+    async getStreamingLink(request: GetStreamingLinkRequest): Promise<GetStreamingLinkResponse> {
         const params = new URLSearchParams({ userId: request.userId });
-        return this.request<GetStreamingLinkResponse>(
-            `/streamingLink?${params.toString()}`,
-            {
-                method: "GET",
-            },
-        );
+        return this.request<GetStreamingLinkResponse>(`/streamingLink?${params.toString()}`, {
+            method: "GET",
+        });
     }
 
     async getDeploymentStatus(
@@ -189,4 +174,3 @@ class ApiClient {
 export const apiClient = new ApiClient();
 
 export default apiClient;
-

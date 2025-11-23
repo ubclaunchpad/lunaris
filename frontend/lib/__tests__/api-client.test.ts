@@ -47,16 +47,13 @@ describe("ApiClient", () => {
             const result = await apiClient.deployInstance(request);
 
             expect(result).toEqual(mockResponse);
-            expect(mockFetch).toHaveBeenCalledWith(
-                "https://test-api.example.com/deployInstance",
-                {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(request),
+            expect(mockFetch).toHaveBeenCalledWith("https://test-api.example.com/deployInstance", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
                 },
-            );
+                body: JSON.stringify(request),
+            });
         });
 
         it("should handle API errors", async () => {
@@ -87,9 +84,7 @@ describe("ApiClient", () => {
 
             mockFetch.mockRejectedValueOnce(new TypeError("Network error"));
 
-            await expect(apiClient.deployInstance(request)).rejects.toThrow(
-                NetworkError,
-            );
+            await expect(apiClient.deployInstance(request)).rejects.toThrow(NetworkError);
         });
     });
 
@@ -139,9 +134,7 @@ describe("ApiClient", () => {
                 }),
             });
 
-            await expect(apiClient.terminateInstance(request)).rejects.toThrow(
-                ApiError,
-            );
+            await expect(apiClient.terminateInstance(request)).rejects.toThrow(ApiError);
         });
     });
 
@@ -192,9 +185,7 @@ describe("ApiClient", () => {
                 }),
             });
 
-            await expect(apiClient.getStreamingLink(request)).rejects.toThrow(
-                ApiError,
-            );
+            await expect(apiClient.getStreamingLink(request)).rejects.toThrow(ApiError);
         });
 
         it("should handle 500 errors", async () => {
@@ -212,9 +203,7 @@ describe("ApiClient", () => {
                 }),
             });
 
-            await expect(apiClient.getStreamingLink(request)).rejects.toThrow(
-                ApiError,
-            );
+            await expect(apiClient.getStreamingLink(request)).rejects.toThrow(ApiError);
         });
     });
 
@@ -293,9 +282,7 @@ describe("ApiClient", () => {
                 }),
             });
 
-            await expect(
-                apiClient.getDeploymentStatus(request),
-            ).rejects.toThrow(ApiError);
+            await expect(apiClient.getDeploymentStatus(request)).rejects.toThrow(ApiError);
         });
 
         it("should handle 400 errors for missing userId", async () => {
@@ -313,9 +300,7 @@ describe("ApiClient", () => {
                 }),
             });
 
-            await expect(
-                apiClient.getDeploymentStatus(request),
-            ).rejects.toThrow(ApiError);
+            await expect(apiClient.getDeploymentStatus(request)).rejects.toThrow(ApiError);
         });
     });
 
@@ -335,9 +320,7 @@ describe("ApiClient", () => {
                 },
             });
 
-            await expect(apiClient.deployInstance(request)).rejects.toThrow(
-                ApiError,
-            );
+            await expect(apiClient.deployInstance(request)).rejects.toThrow(ApiError);
         });
 
         it("should handle fetch TypeError", async () => {
@@ -346,13 +329,9 @@ describe("ApiClient", () => {
                 amiId: "ami-123456",
             };
 
-            mockFetch.mockRejectedValueOnce(
-                new TypeError("Failed to fetch"),
-            );
+            mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
 
-            await expect(apiClient.deployInstance(request)).rejects.toThrow(
-                NetworkError,
-            );
+            await expect(apiClient.deployInstance(request)).rejects.toThrow(NetworkError);
         });
 
         it("should handle unknown errors", async () => {
@@ -363,9 +342,7 @@ describe("ApiClient", () => {
 
             mockFetch.mockRejectedValueOnce("Unknown error");
 
-            await expect(apiClient.deployInstance(request)).rejects.toThrow(
-                NetworkError,
-            );
+            await expect(apiClient.deployInstance(request)).rejects.toThrow(NetworkError);
         });
     });
 
@@ -399,4 +376,3 @@ describe("ApiClient", () => {
         });
     });
 });
-
