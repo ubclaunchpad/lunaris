@@ -1,0 +1,22 @@
+{
+  "name": "lunaris-telemetry-agent",
+  "version": "0.1.0",
+  "description": "EC2 usage telemetry agent - emits SessionActiveMinute metrics to CloudWatch",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "run": "npm run build && npm run start",
+    "tick": "npm run build && node dist/index.js --once"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cloudwatch": "^3.917.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.9",
+    "typescript": "~5.6.3"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
