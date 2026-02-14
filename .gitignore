@@ -6,6 +6,7 @@ node_modules
 **/package-lock.json/**
 
 # Environment files (if using .env approach instead of samconfig.toml)
+.env
 .env.local
 .env.sam.json
 
@@ -14,3 +15,5 @@ node_modules
 
 # Event test files (auto-generated)
 events/
+docs/
+CLAUDE.md
