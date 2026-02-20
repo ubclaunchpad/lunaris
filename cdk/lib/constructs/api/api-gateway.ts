@@ -20,6 +20,7 @@ interface EndpointDefinition {
     method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
     statusCodes: string[];
     queryParams?: string[];
+    queryParamsRequiredWithAuth?: boolean;
 }
 
 const ENDPOINTS: EndpointDefinition[] = [
@@ -44,6 +45,18 @@ const ENDPOINTS: EndpointDefinition[] = [
         method: "GET",
         statusCodes: ["200", "400", "404"],
         queryParams: ["method.request.querystring.userId"],
+    },
+    {
+        path: "create-checkout-session",
+        method: "POST",
+        statusCodes: ["200", "400"],
+    },
+    {
+        path: "session-status",
+        method: "GET",
+        statusCodes: ["200", "400"],
+        queryParams: ["method.request.querystring.session_id"],
+        queryParamsRequiredWithAuth: true,
     },
 ];
 
@@ -102,7 +115,12 @@ export class ApiGateway extends Construct {
 
         // With authorizer, userId comes from the token so query params are optional
         const requestParameters = endpoint.queryParams?.length
-            ? Object.fromEntries(endpoint.queryParams.map((param) => [param, !this.authorizer]))
+            ? Object.fromEntries(
+                  endpoint.queryParams.map((param) => [
+                      param,
+                      !this.authorizer || endpoint.queryParamsRequiredWithAuth === true,
+                  ]),
+              )
             : undefined;
 
         const methodOptions: MethodOptions = {

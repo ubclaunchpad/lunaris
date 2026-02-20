@@ -23,6 +23,8 @@ interface EventDetails {
 import { SFNClientConfig } from "@aws-sdk/client-sfn";
 import { DynamoDBClientConfig } from "@aws-sdk/client-dynamodb";
 import DynamoDBWrapper from "../utils/dynamoDbWrapper";
+import { createCheckoutSession, getCheckoutSession } from "../utils/stripeWrapper";
+import { getPaymentPlanById, validatePlanId } from "../shared/payment-plans";
 
 // Configure clients to use local endpoints when available (for local testing)
 const sfnClientConfig: Partial<SFNClientConfig> = {};
@@ -53,6 +55,11 @@ interface DeployInstanceRequest {
 interface TerminateInstanceRequest {
     userId: string;
     // instanceId: string;
+}
+
+interface CreateCheckoutRequest {
+    planId: string;
+    userId?: string;
 }
 
 interface ResponseBody {
@@ -701,6 +708,88 @@ const handleDeploymentStatus = async (
     }
 };
 
+// POST /create-checkout-session
+// creates stripe checkout session in embedded mode and returns the client_secret
+const handleCreateCheckoutSession = async (
+    event: APIGatewayProxyEvent,
+): Promise<APIGatewayProxyResult> => {
+    try {
+        const body: CreateCheckoutRequest = JSON.parse(event.body || "{}");
+        const { planId, userId } = body;
+
+        if (!planId || !validatePlanId(planId)) {
+            return createResponse(400, { message: "A valid planId is required" });
+        }
+
+        const plan = getPaymentPlanById(planId);
+        if (!plan) {
+            return createResponse(400, { message: `Unknown plan: ${planId}` });
+        }
+
+        // if (plan.priceCents === 0) {
+        //     return createResponse(400, {
+        //         message: "This plan is free and does not require checkout",
+        //     });
+        // }
+
+        if (!plan.stripePriceId) {
+            return createResponse(500, {
+                message: `Stripe Price ID not configured for plan ${planId}. Set STRIPE_PRICE_${planId} env var.`,
+            });
+        }
+
+        const URL = "http://localhost:3000"; // TODO: this should be changed, do we have an env var for the local vs prod url?
+        const returnUrl = `${URL}/topup/return?session_id={CHECKOUT_SESSION_ID}`;
+
+        const { clientSecret, sessionId } = await createCheckoutSession({
+            priceId: plan.stripePriceId,
+            returnUrl,
+            metadata: {
+                planId,
+                ...(userId ? { userId } : {}),
+            },
+        });
+
+        return createResponse(200, {
+            message: "Checkout session created",
+            clientSecret,
+            sessionId,
+        });
+    } catch (error) {
+        console.error("Error creating checkout session:", error);
+        return createResponse(500, {
+            message: "Failed to create checkout session",
+            error: error instanceof Error ? error.message : "Unknown error",
+        });
+    }
+};
+
+// GET /session-status?session_id=xxxxx
+// retrieves status of stripe checkout session so the return page can show success / failure
+const handleCheckoutSessionStatus = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+        const sessionId = event.queryStringParameters?.session_id;
+        if (!sessionId) {
+            return createResponse(400, { message: "session_id query parameter is required" });
+        }
+        const session = await getCheckoutSession(sessionId);
+
+        return createResponse(200, {
+            message: "Session retrieved",
+            status: session.status,
+            paymentStatus: session.paymentStatus,
+            customerEmail: session.customerEmail,
+            amountTotal: session.amountTotal,
+        } as unknown as ResponseBody);
+    } catch (error) {
+        console.error("Error retrieving session status:", error);
+        return createResponse(500, {
+            message: "Failed to retrieve session status",
+            error: error instanceof Error ? error.message : "Unknown error",
+        });
+    }
+};
+
 // Main handler that routes to the appropriate function
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     console.log("Event:", JSON.stringify(event, null, 2));
@@ -718,6 +807,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             return await handleStreamingLink(event);
         } else if (path === "/deployment-status" && method === "GET") {
             return await handleDeploymentStatus(event);
+        } else if (path === "/create-checkout-session" && method === "POST") {
+            return await handleCreateCheckoutSession(event);
+        } else if (path === "/session-status" && method === "GET") {
+            return await handleCheckoutSessionStatus(event);
         } else {
             return createResponse(404, {
                 error: "Not Found",

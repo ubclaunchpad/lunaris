@@ -55,16 +55,3 @@ export const getPaymentPlanById = (planId: string): PaymentPlan | undefined =>
     PAYMENT_PLANS[planId as PlanId];
 
 export const validatePlanId = (planId: string): planId is PlanId => planId in PAYMENT_PLANS;
-
-/**
- * Returns the plan with its Stripe Price ID resolved from environment variables.
- * Env var format: STRIPE_PRICE_<PLAN_ID>, e.g. STRIPE_PRICE_BASIC_120
- */
-// export const getPlanWithStripePrice = (planId: string): PaymentPlan | undefined => {
-//     const plan = getPaymentPlanById(planId);
-//     if (!plan) return undefined;
-//     return {
-//         ...plan,
-//         stripePriceId: process.env[`STRIPE_PRICE_${plan.id}`] || plan.stripePriceId,
-//     };
-// };
