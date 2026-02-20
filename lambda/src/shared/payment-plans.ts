@@ -5,50 +5,47 @@ export interface PaymentPlan {
     priceCents: number;
     description: string;
     durationMinutes: number;
+    stripePriceId: string | undefined; // TODO: maybe should throw error if undefined env
 }
 
-// TODO: Link stripe priceID to each plan to fetch during checkout -> not crucial for MVP and adds complexity
 
+// TODO: fix this payment plan to match the actual stripe plan
 export const PAYMENT_PLANS = {
-    STARTER: {
-        id: "STARTER",
-        name: "Starter Pack",
-        coins: 100,
-        priceCents: 299,
-        description: "Perfect for a quick gaming session",
-        durationMinutes: 10,
-    },
-    BASIC: {
-        id: "BASIC",
-        name: "Basic Pack",
-        coins: 300,
-        priceCents: 699,
-        description: "A solid half-hour session",
-        durationMinutes: 30,
-    },
-    STANDARD: {
-        id: "STANDARD",
-        name: "Standard Pack",
-        coins: 600,
-        priceCents: 999,
-        description: "A full hour of gaming",
+    FREE_60: {
+        id: "FREE_60",
+        name: "New Player Award",
+        coins: 0,
+        priceCents: 0,
+        description: "60 free minutes for new players",
         durationMinutes: 60,
+        stripePriceId: process.env.STRIPE_PRICE_FREE_60,
     },
-    PREMIUM: {
-        id: "PREMIUM",
-        name: "Premium Pack",
+    BASIC_120: {
+        id: "BASIC_120",
+        name: "120 + 20 Minutes",
+        coins: 300,
+        priceCents: 1200,
+        description: "120 minutes plus 20 bonus minutes",
+        durationMinutes: 140,
+        stripePriceId: process.env.STRIPE_PRICE_BASIC_120,
+    },
+    STANDARD_240: {
+        id: "STANDARD_240",
+        name: "240 + 50 Minutes",
+        coins: 600,
+        priceCents: 1200,
+        description: "240 minutes plus 50 bonus minutes",
+        durationMinutes: 290,
+        stripePriceId: process.env.STRIPE_PRICE_STANDARD_240,
+    },
+    PREMIUM_480: {
+        id: "PREMIUM_480",
+        name: "480 + 100 Minutes",
         coins: 1500,
-        priceCents: 2199,
-        description: "Extended gaming session",
-        durationMinutes: 150,
-    },
-    PRO: {
-        id: "PRO",
-        name: "Pro Pack",
-        coins: 3600,
-        priceCents: 4299,
-        description: "The ultimate gaming marathon",
-        durationMinutes: 360,
+        priceCents: 1200,
+        description: "480 minutes plus 100 bonus minutes",
+        durationMinutes: 580,
+        stripePriceId: process.env.STRIPE_PRICE_PREMIUM_480,
     },
 } as const satisfies Record<string, PaymentPlan>;
 
@@ -58,3 +55,16 @@ export const getPaymentPlanById = (planId: string): PaymentPlan | undefined =>
     PAYMENT_PLANS[planId as PlanId];
 
 export const validatePlanId = (planId: string): planId is PlanId => planId in PAYMENT_PLANS;
+
+/**
+ * Returns the plan with its Stripe Price ID resolved from environment variables.
+ * Env var format: STRIPE_PRICE_<PLAN_ID>, e.g. STRIPE_PRICE_BASIC_120
+ */
+// export const getPlanWithStripePrice = (planId: string): PaymentPlan | undefined => {
+//     const plan = getPaymentPlanById(planId);
+//     if (!plan) return undefined;
+//     return {
+//         ...plan,
+//         stripePriceId: process.env[`STRIPE_PRICE_${plan.id}`] || plan.stripePriceId,
+//     };
+// };
