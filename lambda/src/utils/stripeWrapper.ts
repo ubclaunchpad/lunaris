@@ -20,3 +20,61 @@ export const getStripe = (): Stripe => {
 export const resetStripeInstance = (): void => {
     stripeInstance = null;
 };
+
+// creates a stripe checkout session (in embedded mode)
+export const createCheckoutSession = async (
+    options: CreateCheckoutSessionProps,
+): Promise<{ clientSecret: string; sessionId: string }> => {
+    const stripe = getStripe();
+
+    const session = await stripe.checkout.sessions.create({
+        ui_mode: "embedded",
+        line_items: [
+            {
+                price: options.priceId,
+                quantity: options.quantity ?? 1,
+            },
+        ],
+        mode: "payment",
+        return_url: options.returnUrl,
+        metadata: options.metadata,
+    });
+
+    if (!session.client_secret) {
+        throw new Error("Stripe did not return a client_secret");
+    }
+
+    return {
+        clientSecret: session.client_secret,
+        sessionId: session.id,
+    };
+};
+
+export const getCheckoutSession = async (
+    sessionId: string,
+): Promise<CheckoutSessionStatusProps> => {
+    const stripe = getStripe();
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    return {
+        status: session.status,
+        customerEmail: (session.customer_details && session.customer_details.email) ?? null,
+        paymentStatus: session.payment_status,
+        amountTotal: session.amount_total,
+    };
+};
+
+interface CreateCheckoutSessionProps {
+    priceId: string;
+    quantity?: number;
+    returnUrl: string;
+    metadata?: Record<string, string>;
+}
+
+interface CheckoutSessionStatusProps {
+    status: string | null;
+    customerEmail: string | null;
+    paymentStatus: string;
+    amountTotal: number | null;
+}
