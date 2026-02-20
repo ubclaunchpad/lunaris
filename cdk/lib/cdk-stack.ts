@@ -39,6 +39,7 @@ export class CdkStack extends Stack {
             ec2InstanceProfileArn: ec2InstanceRole.instanceProfileArn,
             ec2InstanceProfileName: ec2InstanceRole.instanceProfileName,
             dcvSecurityGroupId: dcvSecurityGroup.securityGroupId,
+            stripeSecretKey: process.env.STRIPE_SECRET_KEY,
         });
 
         // Grant EC2 permissions to unified API Lambda

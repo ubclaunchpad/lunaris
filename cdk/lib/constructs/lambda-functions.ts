@@ -10,6 +10,7 @@ export interface LambdaFunctionsProps {
     readonly ec2InstanceProfileArn?: string;
     readonly ec2InstanceProfileName?: string;
     readonly dcvSecurityGroupId?: string;
+    readonly stripeSecretKey?: string;
 }
 
 export class LambdaFunctions extends Construct {
@@ -49,15 +50,21 @@ export class LambdaFunctions extends Construct {
 
     // Creates the unified API Lambda function that handles all API endpoints
     private createApiFunction(props: LambdaFunctionsProps): Function {
+        const environment: Record<string, string> = {
+            RUNNING_INSTANCES_TABLE: props.runningInstancesTable.tableName,
+            RUNNING_STREAMS_TABLE_NAME: props.runningStreamsTable.tableName,
+        };
+
+        if (props.stripeSecretKey) {
+            environment.STRIPE_SECRET_KEY = props.stripeSecretKey;
+        }
+
         return new Function(this, "LunarisApiHandler", {
             ...this.getBaseLambdaConfig(),
             handler: "handlers/api.handler",
             description: "Unified API handler for all Lunaris API endpoints",
             timeout: Duration.seconds(60),
-            environment: {
-                RUNNING_INSTANCES_TABLE: props.runningInstancesTable.tableName,
-                RUNNING_STREAMS_TABLE_NAME: props.runningStreamsTable.tableName,
-            },
+            environment,
         });
     }
 
