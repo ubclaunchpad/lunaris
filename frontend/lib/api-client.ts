@@ -33,6 +33,29 @@ export interface GetDeploymentStatusRequest {
     userId: string;
 }
 
+export interface CreateCheckoutSessionRequest {
+    planId: string;
+    userId?: string;
+}
+
+export interface CreateCheckoutSessionResponse {
+    message: string;
+    clientSecret: string;
+    sessionId: string;
+}
+
+export interface GetCheckoutSessionStatusRequest{
+    sessionId: string;
+}
+
+export interface GetCheckoutSessionStatusResponse {
+    message: string;
+    status: string | null;
+    paymentStatus: string;
+    customerEmail: string | null;
+    amountTotal: number | null;
+}
+
 export type DeploymentStatus = "RUNNING" | "SUCCEEDED" | "FAILED" | "NOT_FOUND" | "UNKNOWN";
 
 export interface GetDeploymentStatusResponse {
@@ -213,6 +236,22 @@ class ApiClient {
                 method: "GET",
             },
         );
+    }
+
+    async createCheckoutSession(
+        request: CreateCheckoutSessionRequest,
+    ): Promise<CreateCheckoutSessionResponse> {
+        return this.request<CreateCheckoutSessionResponse>("/create-checkout-session", {
+            method: "POST",
+            body: JSON.stringify(request),
+        });
+    }
+
+    async getCheckoutSessionStatus(request: GetCheckoutSessionStatusRequest): Promise<GetCheckoutSessionStatusResponse> {
+        const params = new URLSearchParams({ session_id: request.sessionId });
+        return this.request<GetCheckoutSessionStatusResponse>(`/checkout-session-status?${params.toString()}`, {
+            method: "GET",
+        });
     }
 }
 

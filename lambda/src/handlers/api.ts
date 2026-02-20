@@ -764,7 +764,7 @@ const handleCreateCheckoutSession = async (
     }
 };
 
-// GET /session-status?session_id=xxxxx
+// GET /checkout-session-status?session_id=xxxxx
 // retrieves status of stripe checkout session so the return page can show success / failure
 const handleCheckoutSessionStatus = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
@@ -809,7 +809,7 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             return await handleDeploymentStatus(event);
         } else if (path === "/create-checkout-session" && method === "POST") {
             return await handleCreateCheckoutSession(event);
-        } else if (path === "/session-status" && method === "GET") {
+        } else if (path === "/checkout-session-status" && method === "GET") {
             return await handleCheckoutSessionStatus(event);
         } else {
             return createResponse(404, {
