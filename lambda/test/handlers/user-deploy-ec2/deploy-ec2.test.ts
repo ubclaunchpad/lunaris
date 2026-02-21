@@ -1,25 +1,20 @@
-import { IAM } from "@aws-sdk/client-iam";
 import { handler } from "../../../src/handlers/user-deploy-ec2/deploy-ec2";
 import DCVWrapper from "../../../src/utils/dcvWrapper";
 import EC2Wrapper from "../../../src/utils/ec2Wrapper";
-import IAMWrapper from "../../../src/utils/iamWrapper";
 import SSMWrapper from "../../../src/utils/ssmWrapper";
 import EBSWrapper from "../../../src/utils/ebsWrapper";
 import DynamoDBWrapper from "../../../src/utils/dynamoDbWrapper";
-import { EC2, type Instance } from "@aws-sdk/client-ec2";
 import { error } from "console";
 import { EBSStatusEnum } from "../../../src/utils/ebsWrapper";
 
 jest.mock("../../../src/utils/ec2Wrapper");
 jest.mock("../../../src/utils/dcvWrapper");
 jest.mock("../../../src/utils/ssmWrapper");
-jest.mock("../../../src/utils/iamWrapper");
 jest.mock("../../../src/utils/ebsWrapper");
 jest.mock("../../../src/utils/dynamoDbWrapper");
 describe("deploy-ec2 Step Function handler", () => {
     let mockDCVWrapper: jest.Mocked<DCVWrapper>;
     let mockSSMWrapper: jest.Mocked<SSMWrapper>;
-    let mockIAMWrapper: jest.Mocked<IAMWrapper>;
     let mockEC2Wrapper: jest.Mocked<EC2Wrapper>;
     let mockEBSWrapper: jest.Mocked<EBSWrapper>;
     let mockDynamoDBWrapper: jest.Mocked<DynamoDBWrapper>;
@@ -30,13 +25,13 @@ describe("deploy-ec2 Step Function handler", () => {
     const mockPublicIp = "54.123.45.67";
     const mockVolumeId = "vol-1234567890abcdef0";
     const mockSessionName = `user-${mockUserId}-session`;
+    const mockProfileArn = "arn:aws:iam::123456789012:instance-profile/Lunaris-EC2-SSM-Profile";
 
     beforeEach(() => {
         jest.clearAllMocks();
 
         mockDCVWrapper = new DCVWrapper(mockInstanceId, mockUserId) as jest.Mocked<DCVWrapper>;
         mockSSMWrapper = new SSMWrapper() as jest.Mocked<SSMWrapper>;
-        mockIAMWrapper = new IAMWrapper() as jest.Mocked<IAMWrapper>;
         mockEC2Wrapper = new EC2Wrapper() as jest.Mocked<EC2Wrapper>;
         mockEBSWrapper = new EBSWrapper() as jest.Mocked<EBSWrapper>;
         mockDynamoDBWrapper = new DynamoDBWrapper("RunningStreams") as jest.Mocked<DynamoDBWrapper>;
@@ -46,9 +41,6 @@ describe("deploy-ec2 Step Function handler", () => {
         );
         (SSMWrapper as jest.MockedClass<typeof SSMWrapper>).mockImplementation(
             () => mockSSMWrapper,
-        );
-        (IAMWrapper as jest.MockedClass<typeof IAMWrapper>).mockImplementation(
-            () => mockIAMWrapper,
         );
         (EC2Wrapper as jest.MockedClass<typeof EC2Wrapper>).mockImplementation(
             () => mockEC2Wrapper,
@@ -67,6 +59,7 @@ describe("deploy-ec2 Step Function handler", () => {
         process.env.SUBNET_ID = "subnet-test456";
         process.env.KEY_PAIR_NAME = "test-keypair";
         process.env.RUNNING_INSTANCES_TABLE = "RunningStreams";
+        process.env.EC2_INSTANCE_PROFILE_NAME = mockProfileArn;
     });
 
     afterEach(() => {
@@ -87,10 +80,6 @@ describe("deploy-ec2 Step Function handler", () => {
     describe("successful deployment", () => {
         it("should create EC2 instance, attach EBS, install DCV, save to DB, and return success", async () => {
             mockSSMWrapper.getParamFromParamStore.mockResolvedValue("");
-
-            const iamProfileArn =
-                "arn:aws:iam::123456789012:instance-profile/Lunaris-EC2-SSM-Profile";
-            mockIAMWrapper.getProfile.mockResolvedValue(iamProfileArn);
 
             const mockInstance = {
                 instanceId: mockInstanceId,
@@ -131,7 +120,6 @@ describe("deploy-ec2 Step Function handler", () => {
             expect(result.streamingUrl).toBe(url);
 
             expect(mockSSMWrapper.getParamFromParamStore).toHaveBeenCalledWith("ami_id");
-            expect(mockIAMWrapper.getProfile).toHaveBeenCalledTimes(1);
             expect(mockEC2Wrapper.createAndWaitForInstance).toHaveBeenCalledTimes(1);
             expect(mockEBSWrapper.attachOrReuseVolume).toHaveBeenCalledWith(
                 { userId: "test-user-123" },
@@ -155,17 +143,13 @@ describe("deploy-ec2 Step Function handler", () => {
             expect(calledConfig.securityGroupIds).toEqual(["sg-test123"]);
             expect(calledConfig.subnetId).toBe("subnet-test456");
             expect(calledConfig.keyName).toBe("test-keypair");
-            expect(calledConfig.iamInstanceProfile).toBe(iamProfileArn);
+            expect(calledConfig.iamInstanceProfile).toBe(mockProfileArn);
             expect(calledConfig.amiId).toBe("");
         });
 
         it("should skip AMI snapshot when AMI already exists in parameter store", async () => {
             const amiId = "ami-1234567890abcdef0";
             mockSSMWrapper.getParamFromParamStore.mockResolvedValue(amiId);
-
-            const iamProfileArn =
-                "arn:aws:iam::123456789012:instance-profile/Lunaris-EC2-SSM-Profile";
-            mockIAMWrapper.getProfile.mockResolvedValue(iamProfileArn);
 
             const mockInstance = {
                 instanceId: mockInstanceId,
@@ -205,7 +189,6 @@ describe("deploy-ec2 Step Function handler", () => {
             expect(result.streamingUrl).toBe(url);
 
             expect(mockSSMWrapper.getParamFromParamStore).toHaveBeenCalledWith("ami_id");
-            expect(mockIAMWrapper.getProfile).toHaveBeenCalledTimes(1);
             expect(mockEC2Wrapper.createAndWaitForInstance).toHaveBeenCalledTimes(1);
             expect(mockEBSWrapper.attachOrReuseVolume).toHaveBeenCalledTimes(1);
             expect(mockDCVWrapper.getDCVSession).toHaveBeenCalledTimes(1);
@@ -220,7 +203,7 @@ describe("deploy-ec2 Step Function handler", () => {
             expect(calledConfig.securityGroupIds).toEqual(["sg-test123"]);
             expect(calledConfig.subnetId).toBe("subnet-test456");
             expect(calledConfig.keyName).toBe("test-keypair");
-            expect(calledConfig.iamInstanceProfile).toBe(iamProfileArn);
+            expect(calledConfig.iamInstanceProfile).toBe(mockProfileArn);
             expect(calledConfig.amiId).toBe(amiId);
         });
 
@@ -231,10 +214,6 @@ describe("deploy-ec2 Step Function handler", () => {
 
             const amiId = "ami-1234567890abcdef0";
             mockSSMWrapper.getParamFromParamStore.mockResolvedValue(amiId);
-
-            const iamProfileArn =
-                "arn:aws:iam::123456789012:instance-profile/Lunaris-EC2-SSM-Profile";
-            mockIAMWrapper.getProfile.mockResolvedValue(iamProfileArn);
 
             const mockInstance = {
                 instanceId: mockInstanceId,
@@ -275,30 +254,8 @@ describe("deploy-ec2 Step Function handler", () => {
     });
 
     describe("error handling", () => {
-        it("should return error response when IAM profile retrieval fails", async () => {
-            mockSSMWrapper.getParamFromParamStore.mockResolvedValue("");
-            mockIAMWrapper.getProfile.mockRejectedValue(new Error("IAM profile not found"));
-
-            const event = {
-                userId: "test-user-123",
-                instanceType: "t3.micro" as const,
-            };
-
-            const result = await handler(event);
-
-            expect(result.success).toBe(false);
-
-            // Should not proceed to EC2 creation
-            expect(mockEC2Wrapper.createAndWaitForInstance).not.toHaveBeenCalled();
-            expect(mockDCVWrapper.getDCVSession).not.toHaveBeenCalled();
-        });
-
         it("should return error response when DCV session creation fails", async () => {
             mockSSMWrapper.getParamFromParamStore.mockResolvedValue("ami-existing123");
-
-            const iamProfileArn =
-                "arn:aws:iam::123456789012:instance-profile/Lunaris-EC2-SSM-Profile";
-            mockIAMWrapper.getProfile.mockResolvedValue(iamProfileArn);
 
             const mockInstance = {
                 instanceId: mockInstanceId,
@@ -341,17 +298,12 @@ describe("deploy-ec2 Step Function handler", () => {
 
             expect(result.success).toBe(false);
 
-            // Should fail before IAM/EC2 calls
-            expect(mockIAMWrapper.getProfile).not.toHaveBeenCalled();
+            // Should fail before EC2 calls
             expect(mockEC2Wrapper.createAndWaitForInstance).not.toHaveBeenCalled();
         });
 
         it("should return error response when AMI snapshot creation fails", async () => {
             mockSSMWrapper.getParamFromParamStore.mockResolvedValue(""); // No existing AMI
-
-            const iamProfileArn =
-                "arn:aws:iam::123456789012:instance-profile/Lunaris-EC2-SSM-Profile";
-            mockIAMWrapper.getProfile.mockResolvedValue(iamProfileArn);
 
             const mockInstance = {
                 instanceId: mockInstanceId,
@@ -389,10 +341,6 @@ describe("deploy-ec2 Step Function handler", () => {
 
         it("should return error response when saving AMI to parameter store fails", async () => {
             mockSSMWrapper.getParamFromParamStore.mockResolvedValue(""); // No existing AMI
-
-            const iamProfileArn =
-                "arn:aws:iam::123456789012:instance-profile/Lunaris-EC2-SSM-Profile";
-            mockIAMWrapper.getProfile.mockResolvedValue(iamProfileArn);
 
             const mockInstance = {
                 instanceId: mockInstanceId,
@@ -460,10 +408,6 @@ describe("deploy-ec2 Step Function handler", () => {
         it("should return error response when EBS volume attachment fails", async () => {
             mockSSMWrapper.getParamFromParamStore.mockResolvedValue("ami-existing123");
 
-            const iamProfileArn =
-                "arn:aws:iam::123456789012:instance-profile/Lunaris-EC2-SSM-Profile";
-            mockIAMWrapper.getProfile.mockResolvedValue(iamProfileArn);
-
             const mockInstance = {
                 instanceId: mockInstanceId,
                 instanceArn: `arn:aws:ec2:us-east-1:123456789012:instance/${mockInstanceId}`,
@@ -493,10 +437,6 @@ describe("deploy-ec2 Step Function handler", () => {
 
         it("should return error response when DynamoDB save fails", async () => {
             mockSSMWrapper.getParamFromParamStore.mockResolvedValue("ami-existing123");
-
-            const iamProfileArn =
-                "arn:aws:iam::123456789012:instance-profile/Lunaris-EC2-SSM-Profile";
-            mockIAMWrapper.getProfile.mockResolvedValue(iamProfileArn);
 
             const mockInstance = {
                 instanceId: mockInstanceId,

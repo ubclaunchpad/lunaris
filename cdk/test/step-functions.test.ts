@@ -2,7 +2,7 @@ import * as cdk from "aws-cdk-lib";
 import { Template } from "aws-cdk-lib/assertions";
 import { Function, Runtime, Code } from "aws-cdk-lib/aws-lambda";
 import { Duration } from "aws-cdk-lib";
-import { StepFunctions, StepFunctionsProps } from "../lib/constructs/step-functions";
+import { StepFunctions, StepFunctionsProps } from "../lib/constructs/compute/step-functions";
 import { WorkflowRegistry, WorkflowConfig } from "../lib/workflows";
 import * as fs from "fs";
 import * as path from "path";
