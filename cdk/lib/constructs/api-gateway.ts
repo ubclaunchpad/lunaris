@@ -5,6 +5,7 @@ import {
     CognitoUserPoolsAuthorizer,
     AuthorizationType,
     Cors,
+    MethodOptions,
 } from "aws-cdk-lib/aws-apigateway";
 import { Function } from "aws-cdk-lib/aws-lambda";
 import * as cognito from "aws-cdk-lib/aws-cognito";
@@ -13,6 +14,47 @@ export interface ApiGatewayProps {
     apiFunction: Function;
     userPool?: cognito.UserPool;
 }
+
+interface EndpointDefinition {
+    path: string;
+    method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
+    /** Status codes to include in methodResponses (401 is auto-added when authorizer is present) */
+    statusCodes: string[];
+    /** Query params declared as required (true) when no authorizer, optional (false) when authorizer is present */
+    queryParams?: string[];
+}
+
+const ENDPOINTS: EndpointDefinition[] = [
+    {
+        path: "deployInstance",
+        method: "POST",
+        statusCodes: ["200", "400"],
+    },
+    {
+        path: "terminateInstance",
+        method: "POST",
+        statusCodes: ["200", "400"],
+    },
+    {
+        path: "streamingLink",
+        method: "GET",
+        statusCodes: ["200", "400", "404"],
+        queryParams: ["method.request.querystring.userId"],
+    },
+    {
+        path: "deployment-status",
+        method: "GET",
+        statusCodes: ["200", "400", "404"],
+        queryParams: ["method.request.querystring.userId"],
+    },
+];
+
+const RESPONSE_MODELS: Record<string, Record<string, { modelId: string }>> = {
+    "200": { "application/json": { modelId: "Empty" } },
+    "400": { "application/json": { modelId: "Error" } },
+    "401": { "application/json": { modelId: "Error" } },
+    "404": { "application/json": { modelId: "Error" } },
+};
 
 export class ApiGateway extends Construct {
     public readonly restApi: LambdaRestApi;
@@ -39,7 +81,6 @@ export class ApiGateway extends Construct {
             },
         });
 
-        // Create Cognito Authorizer if User Pool is provided
         if (props.userPool) {
             this.authorizer = new CognitoUserPoolsAuthorizer(this, "LunarisApiAuthorizer", {
                 cognitoUserPools: [props.userPool],
@@ -48,239 +89,39 @@ export class ApiGateway extends Construct {
             });
         }
 
-        // Add API endpoints to LunarisApi here
         const integration = new LambdaIntegration(props.apiFunction);
-        this.createDeployInstanceEndpoint(integration);
-        this.createTerminateInstanceEndpoint(integration);
-        this.createStreamingLinkEndpoint(integration);
-        this.createDeploymentStatusEndpoint(integration);
+        for (const endpoint of ENDPOINTS) {
+            this.addEndpoint(integration, endpoint);
+        }
     }
 
-    private createDeployInstanceEndpoint(integration: LambdaIntegration): void {
-        const resource = this.restApi.root.addResource("deployInstance");
+    private addEndpoint(integration: LambdaIntegration, endpoint: EndpointDefinition): void {
+        const resource = this.restApi.root.addResource(endpoint.path);
 
-        const methodOptions = this.authorizer
-            ? {
-                  authorizer: this.authorizer,
-                  authorizationType: AuthorizationType.COGNITO,
-                  methodResponses: [
-                      {
-                          statusCode: "200",
-                          responseModels: {
-                              "application/json": { modelId: "Empty" },
-                          },
-                      },
-                      {
-                          statusCode: "400",
-                          responseModels: {
-                              "application/json": { modelId: "Error" },
-                          },
-                      },
-                      {
-                          statusCode: "401",
-                          responseModels: {
-                              "application/json": { modelId: "Error" },
-                          },
-                      },
-                  ],
-              }
-            : {
-                  methodResponses: [
-                      {
-                          statusCode: "200",
-                          responseModels: {
-                              "application/json": { modelId: "Empty" },
-                          },
-                      },
-                      {
-                          statusCode: "400",
-                          responseModels: {
-                              "application/json": { modelId: "Error" },
-                          },
-                      },
-                  ],
-              };
+        const statusCodes = this.authorizer
+            ? [...endpoint.statusCodes, "401"]
+            : endpoint.statusCodes;
 
-        resource.addMethod("POST", integration, methodOptions);
-    }
+        const methodOptions: MethodOptions = {
+            methodResponses: statusCodes.map((code) => ({
+                statusCode: code,
+                responseModels: RESPONSE_MODELS[code],
+            })),
+        };
 
-    private createTerminateInstanceEndpoint(integration: LambdaIntegration): void {
-        const resource = this.restApi.root.addResource("terminateInstance");
+        if (endpoint.queryParams?.length) {
+            // With authorizer, userId comes from the token so query params are optional
+            const required = !this.authorizer;
+            methodOptions.requestParameters = Object.fromEntries(
+                endpoint.queryParams.map((param) => [param, required])
+            );
+        }
 
-        const methodOptions = this.authorizer
-            ? {
-                  authorizer: this.authorizer,
-                  authorizationType: AuthorizationType.COGNITO,
-                  methodResponses: [
-                      {
-                          statusCode: "200",
-                          responseModels: {
-                              "application/json": { modelId: "Empty" },
-                          },
-                      },
-                      {
-                          statusCode: "400",
-                          responseModels: {
-                              "application/json": { modelId: "Error" },
-                          },
-                      },
-                      {
-                          statusCode: "401",
-                          responseModels: {
-                              "application/json": { modelId: "Error" },
-                          },
-                      },
-                  ],
-              }
-            : {
-                  methodResponses: [
-                      {
-                          statusCode: "200",
-                          responseModels: {
-                              "application/json": { modelId: "Empty" },
-                          },
-                      },
-                      {
-                          statusCode: "400",
-                          responseModels: {
-                              "application/json": { modelId: "Error" },
-                          },
-                      },
-                  ],
-              };
+        if (this.authorizer) {
+            methodOptions.authorizer = this.authorizer;
+            methodOptions.authorizationType = AuthorizationType.COGNITO;
+        }
 
-        resource.addMethod("POST", integration, methodOptions);
-    }
-
-    private createStreamingLinkEndpoint(integration: LambdaIntegration): void {
-        const resource = this.restApi.root.addResource("streamingLink");
-
-        const methodOptions = this.authorizer
-            ? {
-                  authorizer: this.authorizer,
-                  authorizationType: AuthorizationType.COGNITO,
-                  requestParameters: {
-                      "method.request.querystring.userId": false, // Optional since we get it from token
-                  },
-                  methodResponses: [
-                      {
-                          statusCode: "200",
-                          responseModels: {
-                              "application/json": { modelId: "Empty" },
-                          },
-                      },
-                      {
-                          statusCode: "400",
-                          responseModels: {
-                              "application/json": { modelId: "Error" },
-                          },
-                      },
-                      {
-                          statusCode: "401",
-                          responseModels: {
-                              "application/json": { modelId: "Error" },
-                          },
-                      },
-                      {
-                          statusCode: "404",
-                          responseModels: {
-                              "application/json": { modelId: "Error" },
-                          },
-                      },
-                  ],
-              }
-            : {
-                  requestParameters: {
-                      "method.request.querystring.userId": true,
-                  },
-                  methodResponses: [
-                      {
-                          statusCode: "200",
-                          responseModels: {
-                              "application/json": { modelId: "Empty" },
-                          },
-                      },
-                      {
-                          statusCode: "400",
-                          responseModels: {
-                              "application/json": { modelId: "Error" },
-                          },
-                      },
-                      {
-                          statusCode: "404",
-                          responseModels: {
-                              "application/json": { modelId: "Error" },
-                          },
-                      },
-                  ],
-              };
-
-        resource.addMethod("GET", integration, methodOptions);
-    }
-
-    private createDeploymentStatusEndpoint(integration: LambdaIntegration): void {
-        const resource = this.restApi.root.addResource("deployment-status");
-
-        const methodOptions = this.authorizer
-            ? {
-                  authorizer: this.authorizer,
-                  authorizationType: AuthorizationType.COGNITO,
-                  requestParameters: {
-                      "method.request.querystring.userId": false, // Optional since we get it from token
-                  },
-                  methodResponses: [
-                      {
-                          statusCode: "200",
-                          responseModels: {
-                              "application/json": { modelId: "Empty" },
-                          },
-                      },
-                      {
-                          statusCode: "400",
-                          responseModels: {
-                              "application/json": { modelId: "Error" },
-                          },
-                      },
-                      {
-                          statusCode: "401",
-                          responseModels: {
-                              "application/json": { modelId: "Error" },
-                          },
-                      },
-                      {
-                          statusCode: "404",
-                          responseModels: {
-                              "application/json": { modelId: "Error" },
-                          },
-                      },
-                  ],
-              }
-            : {
-                  requestParameters: {
-                      "method.request.querystring.userId": true,
-                  },
-                  methodResponses: [
-                      {
-                          statusCode: "200",
-                          responseModels: {
-                              "application/json": { modelId: "Empty" },
-                          },
-                      },
-                      {
-                          statusCode: "400",
-                          responseModels: {
-                              "application/json": { modelId: "Error" },
-                          },
-                      },
-                      {
-                          statusCode: "404",
-                          responseModels: {
-                              "application/json": { modelId: "Error" },
-                          },
-                      },
-                  ],
-              };
-
-        resource.addMethod("GET", integration, methodOptions);
+        resource.addMethod(endpoint.method, integration, methodOptions);
     }
 }
