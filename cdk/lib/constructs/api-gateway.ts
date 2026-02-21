@@ -102,25 +102,22 @@ export class ApiGateway extends Construct {
             ? [...endpoint.statusCodes, "401"]
             : endpoint.statusCodes;
 
+        // With authorizer, userId comes from the token so query params are optional
+        const requestParameters = endpoint.queryParams?.length
+            ? Object.fromEntries(endpoint.queryParams.map((param) => [param, !this.authorizer]))
+            : undefined;
+
         const methodOptions: MethodOptions = {
             methodResponses: statusCodes.map((code) => ({
                 statusCode: code,
                 responseModels: RESPONSE_MODELS[code],
             })),
+            ...(requestParameters && { requestParameters }),
+            ...(this.authorizer && {
+                authorizer: this.authorizer,
+                authorizationType: AuthorizationType.COGNITO,
+            }),
         };
-
-        if (endpoint.queryParams?.length) {
-            // With authorizer, userId comes from the token so query params are optional
-            const required = !this.authorizer;
-            methodOptions.requestParameters = Object.fromEntries(
-                endpoint.queryParams.map((param) => [param, required])
-            );
-        }
-
-        if (this.authorizer) {
-            methodOptions.authorizer = this.authorizer;
-            methodOptions.authorizationType = AuthorizationType.COGNITO;
-        }
 
         resource.addMethod(endpoint.method, integration, methodOptions);
     }
