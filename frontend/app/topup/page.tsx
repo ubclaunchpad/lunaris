@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { PageHeader, PricingCard, SubscriptionCard } from "./components";
+import { PAYMENT_PLANS } from "../../../lambda/src/shared/payment-plans";
 
 export default function TopUpPage() {
     const router = useRouter();
@@ -11,52 +12,23 @@ export default function TopUpPage() {
     };
 
     return (
-        <main className="pt-40 px-8">
-            <div className="max-w-7xl mx-auto">
+        <main>
+            <div className="max-w-8xl mx-auto">
                 <PageHeader />
 
                 <div className="flex gap-14 justify-center items-start">
-                    <div className="grid grid-cols-2 gap-6 w-[660px]">
-                        <PricingCard
-                            planId="FREE_60"
-                            minutes="60"
-                            price="$0"
-                            badge="New Player Award"
-                            buttonText="Free Claim"
-                            onClaim={handleClaim}
-                        />
-
-                        <PricingCard
-                            planId="BASIC_120"
-                            minutes="120"
-                            minorMinutes="20"
-                            price="$12"
-                            originalPrice="$18"
-                            badge="Bonus 25 minutes"
-                            isHighlight
-                            buttonText="Claim"
-                            onClaim={handleClaim}
-                        />
-
-                        <PricingCard
-                            planId="STANDARD_240"
-                            minutes="240"
-                            minorMinutes="50"
-                            price="$12"
-                            badge="Bonus 25 minutes"
-                            buttonText="Claim"
-                            onClaim={handleClaim}
-                        />
-
-                        <PricingCard
-                            planId="PREMIUM_480"
-                            minutes="480"
-                            minorMinutes="100"
-                            price="$12"
-                            badge="Bonus 25 minutes"
-                            buttonText="Claim"
-                            onClaim={handleClaim}
-                        />
+                    <div className="grid grid-cols-3 gap-3 w-full">
+                        {Object.values(PAYMENT_PLANS).map((plan) => (
+                            <PricingCard
+                                key={plan.id}
+                                planId={plan.id}
+                                minutes={plan.durationMinutes.toString()}
+                                price={`$${(plan.priceCents / 100).toFixed(2)}`}
+                                badge={plan.name}
+                                buttonText="Claim"
+                                onClaim={handleClaim}
+                            />
+                        ))}
                     </div>
 
                     <div className="w-80">

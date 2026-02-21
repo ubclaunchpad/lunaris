@@ -44,7 +44,6 @@ export const PAYMENT_PLANS = {
         priceCents: 2199,
         description: "Extended gaming session",
         durationMinutes: 150,
-
         stripePriceId: process.env.STRIPE_PRICE_PREMIUM,
     },
     PRO: {
