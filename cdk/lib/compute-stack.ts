@@ -29,10 +29,8 @@ export class ComputeStack extends Stack {
 
         const { runningInstancesTable, runningStreamsTable } = props;
 
-        // Create Security Group for DCV instances (ports 8443, 80, 3389)
         const dcvSecurityGroup = new DCVSecurityGroup(this, "DCVSecurityGroup");
 
-        // Create all Lambda functions
         const lambdaFunctions = new LambdaFunctions(this, "LambdaFunctions", {
             runningInstancesTable,
             runningStreamsTable,
@@ -42,6 +40,54 @@ export class ComputeStack extends Stack {
             stripeSecretKey: process.env.STRIPE_SECRET_KEY,
         });
 
+        this.grantDynamoDbPermissions(lambdaFunctions, runningInstancesTable, runningStreamsTable);
+
+        const stepFunctions = new StepFunctions(this, "StepFunctions", {
+            functions: lambdaFunctions.functions,
+        });
+
+        cdk.Tags.of(stepFunctions).add("Component", "StepFunctions");
+        cdk.Tags.of(stepFunctions).add("ManagedBy", "CDK");
+
+        const deployWorkflow = stepFunctions.getWorkflow("UserDeployEC2Workflow");
+        if (!deployWorkflow) {
+            throw new Error("UserDeployEC2Workflow not found");
+        }
+
+        const terminateWorkflow = stepFunctions.getWorkflow("UserTerminateEC2Workflow");
+        if (!terminateWorkflow) {
+            throw new Error("UserTerminateEC2Workflow not found");
+        }
+
+        // Grant API Lambda permission to start and inspect Step Function executions
+        lambdaFunctions.apiFunction.addToRolePolicy(
+            new PolicyStatement({
+                effect: Effect.ALLOW,
+                actions: ["states:StartExecution"],
+                resources: [deployWorkflow.stateMachineArn, terminateWorkflow.stateMachineArn],
+            }),
+        );
+
+        lambdaFunctions.apiFunction.addToRolePolicy(
+            new PolicyStatement({
+                effect: Effect.ALLOW,
+                actions: ["states:DescribeExecution", "states:GetExecutionHistory"],
+                resources: [
+                    `arn:aws:states:${this.region}:${this.account}:execution:${deployWorkflow.stateMachineName}:*`,
+                    `arn:aws:states:${this.region}:${this.account}:execution:${terminateWorkflow.stateMachineName}:*`,
+                ],
+            }),
+        );
+
+        lambdaFunctions.apiFunction.addEnvironment(
+            "USER_DEPLOY_EC2_WORKFLOW_ARN",
+            deployWorkflow.stateMachineArn,
+        );
+        lambdaFunctions.apiFunction.addEnvironment(
+            "TERMINATE_WORKFLOW_ARN",
+            terminateWorkflow.stateMachineArn,
+        );
+
         // Grant EC2 permissions to unified API Lambda
         lambdaFunctions.apiFunction.addToRolePolicy(
             new PolicyStatement({
@@ -50,96 +96,36 @@ export class ComputeStack extends Stack {
             }),
         );
 
-        // Grant DynamoDB permissions to unified API Lambda
+        this.apiFunction = lambdaFunctions.apiFunction;
+    }
+
+    private grantDynamoDbPermissions(
+        lambdaFunctions: LambdaFunctions,
+        runningInstancesTable: ITable,
+        runningStreamsTable: ITable,
+    ): void {
+        // API Lambda
         runningInstancesTable.grantReadWriteData(lambdaFunctions.apiFunction);
         runningStreamsTable.grantReadData(lambdaFunctions.apiFunction);
 
-        // Grant DynamoDB permissions for workflow Lambda functions
-        runningInstancesTable.grantReadWriteData(lambdaFunctions.deployEC2Function);
+        // Deploy workflow
+        runningInstancesTable.grantReadWriteData(lambdaFunctions.getFunction("deployEC2Function"));
         runningStreamsTable.grantReadData(
-            lambdaFunctions.checkRunningStreamsFunction,
+            lambdaFunctions.getFunction("checkRunningStreamsFunction"),
         );
         runningStreamsTable.grantWriteData(
-            lambdaFunctions.updateRunningStreamsFunction,
+            lambdaFunctions.getFunction("updateRunningStreamsFunction"),
         );
 
-        // Grant DynamoDB permissions for UserTerminateEC2 workflow
+        // Terminate workflow
         runningStreamsTable.grantReadData(
-            lambdaFunctions.checkRunningStreamsTerminateFunction,
+            lambdaFunctions.getFunction("checkRunningStreamsTerminateFunction"),
         );
         runningInstancesTable.grantReadWriteData(
-            lambdaFunctions.terminateEC2Function,
+            lambdaFunctions.getFunction("terminateEC2Function"),
         );
         runningStreamsTable.grantWriteData(
-            lambdaFunctions.updateRunningStreamsTerminateFunction,
+            lambdaFunctions.getFunction("updateRunningStreamsTerminateFunction"),
         );
-
-        // Create Step Functions with consistent naming and tagging
-        const stepFunctions = new StepFunctions(this, "StepFunctions", {
-            checkRunningStreamsFunction: lambdaFunctions.checkRunningStreamsFunction,
-            deployEC2Function: lambdaFunctions.deployEC2Function,
-            configureDcvInstanceFunction: lambdaFunctions.configureDcvInstanceFunction,
-            updateRunningStreamsFunction: lambdaFunctions.updateRunningStreamsFunction,
-            checkRunningStreamsTerminateFunction:
-                lambdaFunctions.checkRunningStreamsTerminateFunction,
-            terminateEC2Function: lambdaFunctions.terminateEC2Function,
-            updateRunningStreamsTerminateFunction:
-                lambdaFunctions.updateRunningStreamsTerminateFunction,
-        });
-
-        // Apply consistent tags to Step Functions resources
-        cdk.Tags.of(stepFunctions).add("Component", "StepFunctions");
-        cdk.Tags.of(stepFunctions).add("ManagedBy", "CDK");
-
-        const terminateWorkflow = stepFunctions.getWorkflow("UserTerminateEC2Workflow");
-        if (!terminateWorkflow) {
-            throw new Error("UserTerminateEC2Workflow not found");
-        }
-
-        const deployWorkflow = stepFunctions.getWorkflow("UserDeployEC2Workflow");
-        if (!deployWorkflow) {
-            throw new Error("UserDeployEC2Workflow not found");
-        }
-
-        // Grant step functions permissions to unified API Lambda
-        lambdaFunctions.apiFunction.addToRolePolicy(
-            new PolicyStatement({
-                effect: Effect.ALLOW,
-                actions: ["states:StartExecution"],
-                resources: [terminateWorkflow.stateMachineArn, deployWorkflow.stateMachineArn],
-            }),
-        );
-
-        // Grant permissions to check step function execution status
-        lambdaFunctions.apiFunction.addToRolePolicy(
-            new PolicyStatement({
-                effect: Effect.ALLOW,
-                actions: ["states:DescribeExecution", "states:GetExecutionHistory"],
-                resources: [
-                    `arn:aws:states:${this.region}:${this.account}:execution:${terminateWorkflow.stateMachineName}:*`,
-                    `arn:aws:states:${this.region}:${this.account}:execution:${deployWorkflow.stateMachineName}:*`,
-                ],
-            }),
-        );
-
-        // Add Step Function ARNs as environment variables to unified API Lambda
-        lambdaFunctions.apiFunction.addEnvironment(
-            "TERMINATE_WORKFLOW_ARN",
-            terminateWorkflow.stateMachineArn,
-        );
-        lambdaFunctions.apiFunction.addEnvironment(
-            "USER_DEPLOY_EC2_WORKFLOW_ARN",
-            deployWorkflow.stateMachineArn,
-        );
-
-        // Grant EC2 termination permissions to terminateEC2Function
-        lambdaFunctions.terminateEC2Function.addToRolePolicy(
-            new PolicyStatement({
-                actions: ["ec2:TerminateInstances", "ec2:DescribeInstances"],
-                resources: ["*"],
-            }),
-        );
-
-        this.apiFunction = lambdaFunctions.apiFunction;
     }
 }

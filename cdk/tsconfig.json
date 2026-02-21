@@ -26,6 +26,6 @@
         "allowSyntheticDefaultImports": true,
         "forceConsistentCasingInFileNames": true
     },
-    "include": ["bin/**/*", "lib/**/*", "stepfunctions/**/*.ts", "scripts/**/*"],
+    "include": ["bin/**/*", "lib/**/*", "lambdas/**/*", "stepfunctions/**/*.ts", "scripts/**/*"],
     "exclude": ["node_modules", "cdk.out", "test", "dist"]
 }

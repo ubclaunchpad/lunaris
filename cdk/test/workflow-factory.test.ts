@@ -41,9 +41,7 @@ describe("WorkflowFactory", () => {
                 },
             };
 
-            const lambdaFunctions = {
-                testLambdaFunction: testLambdaFunction,
-            };
+            const lambdaFunctions = new Map([["testLambdaFunction", testLambdaFunction]]);
 
             const workflow = workflowFactory.createWorkflow(config, lambdaFunctions);
             const template = Template.fromStack(stack);
@@ -69,9 +67,7 @@ describe("WorkflowFactory", () => {
                 },
             };
 
-            const lambdaFunctions = {
-                testLambdaFunction: testLambdaFunction,
-            };
+            const lambdaFunctions = new Map([["testLambdaFunction", testLambdaFunction]]);
 
             const workflow = workflowFactory.createWorkflow(config, lambdaFunctions);
             const template = Template.fromStack(stack);
@@ -96,7 +92,7 @@ describe("WorkflowFactory", () => {
                 },
             };
 
-            const lambdaFunctions = {}; // Missing required function
+            const lambdaFunctions = new Map<string, Function>(); // Missing required function
 
             expect(() => {
                 workflowFactory.createWorkflow(config, lambdaFunctions);
@@ -113,7 +109,7 @@ describe("WorkflowFactory", () => {
                 lambdaFunctions: {},
             };
 
-            const lambdaFunctions = {};
+            const lambdaFunctions = new Map<string, Function>();
 
             expect(() => {
                 workflowFactory.createWorkflow(config, lambdaFunctions);
@@ -128,7 +124,7 @@ describe("WorkflowFactory", () => {
                 lambdaFunctions: {},
             };
 
-            const lambdaFunctions = {};
+            const lambdaFunctions = new Map<string, Function>();
 
             expect(() => {
                 workflowFactory.createWorkflow(config, lambdaFunctions);
@@ -143,7 +139,7 @@ describe("WorkflowFactory", () => {
                 lambdaFunctions: {},
             };
 
-            const lambdaFunctions = {};
+            const lambdaFunctions = new Map<string, Function>();
 
             expect(() => {
                 workflowFactory.createWorkflow(config, lambdaFunctions);
@@ -158,7 +154,7 @@ describe("WorkflowFactory", () => {
                 lambdaFunctions: {},
             };
 
-            const lambdaFunctions = {};
+            const lambdaFunctions = new Map<string, Function>();
 
             expect(() => {
                 workflowFactory.createWorkflow(config, lambdaFunctions);
@@ -184,9 +180,7 @@ describe("WorkflowFactory", () => {
                 },
             };
 
-            const lambdaFunctions = {
-                testLambdaFunction: testLambdaFunction,
-            };
+            const lambdaFunctions = new Map([["testLambdaFunction", testLambdaFunction]]);
 
             expect(() => {
                 workflowFactory.createWorkflow(config, lambdaFunctions);
@@ -209,9 +203,7 @@ describe("WorkflowFactory", () => {
                 },
             };
 
-            const lambdaFunctions = {
-                testLambdaFunction: testLambdaFunction,
-            };
+            const lambdaFunctions = new Map([["testLambdaFunction", testLambdaFunction]]);
 
             const workflow = workflowFactory.createWorkflow(config, lambdaFunctions);
             const template = Template.fromStack(stack);
@@ -274,10 +266,10 @@ describe("WorkflowFactory", () => {
                 },
             };
 
-            const lambdaFunctions = {
-                testLambdaFunction: testLambdaFunction,
-                secondLambdaFunction: secondLambdaFunction,
-            };
+            const lambdaFunctions = new Map([
+                ["testLambdaFunction", testLambdaFunction],
+                ["secondLambdaFunction", secondLambdaFunction],
+            ]);
 
             const workflow = workflowFactory.createWorkflow(config, lambdaFunctions);
             expect(workflow).toBeDefined();

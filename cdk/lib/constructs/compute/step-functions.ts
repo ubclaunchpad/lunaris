@@ -1,44 +1,28 @@
 import { Construct } from "constructs";
 import { StateMachine } from "aws-cdk-lib/aws-stepfunctions";
 import { Function } from "aws-cdk-lib/aws-lambda";
-import { WorkflowFactory } from "../workflow-factory";
+import { WorkflowFactory } from "./workflow-factory";
 import { WorkflowRegistry } from "../../workflows";
 
-export interface StepFunctionsProps extends Record<string, Function> {
-    readonly checkRunningStreamsFunction: Function;
-    readonly deployEC2Function: Function;
-    readonly configureDcvInstanceFunction: Function;
-    readonly updateRunningStreamsFunction: Function;
-    readonly checkRunningStreamsTerminateFunction: Function;
-    readonly terminateEC2Function: Function;
-    readonly updateRunningStreamsTerminateFunction: Function;
+export interface StepFunctionsProps {
+    readonly functions: Map<string, Function>;
 }
 
 export class StepFunctions extends Construct {
-    private workflows: Map<string, StateMachine> = new Map();
-    private workflowFactory: WorkflowFactory;
+    private readonly workflows: Map<string, StateMachine> = new Map();
+    private readonly workflowFactory: WorkflowFactory;
 
     constructor(scope: Construct, id: string, props: StepFunctionsProps) {
         super(scope, id);
 
         this.workflowFactory = new WorkflowFactory(this, "WorkflowFactory");
-
-        // Discover and register all workflows
-        WorkflowRegistry.discoverWorkflows();
-
-        // Create all registered workflows with Lambda function mappings
-        this.createWorkflows(props);
+        this.createWorkflows(props.functions);
     }
 
-    /**
-     * Creates all registered workflows using the WorkflowFactory
-     */
-    private createWorkflows(props: StepFunctionsProps): void {
-        const allWorkflows = WorkflowRegistry.getAllWorkflows();
-
-        allWorkflows.forEach((config) => {
+    private createWorkflows(functions: Map<string, Function>): void {
+        WorkflowRegistry.getAllWorkflows().forEach((config) => {
             try {
-                const workflow = this.workflowFactory.createWorkflow(config, props);
+                const workflow = this.workflowFactory.createWorkflow(config, functions);
                 this.workflows.set(config.name, workflow);
             } catch (error) {
                 console.warn(`Failed to create workflow '${config.name}':`, error);
@@ -48,7 +32,6 @@ export class StepFunctions extends Construct {
 
     /**
      * Get a workflow by name
-     * @param name The name of the workflow to retrieve
      * @returns The StateMachine instance or undefined if not found
      */
     public getWorkflow(name: string): StateMachine | undefined {
@@ -57,7 +40,6 @@ export class StepFunctions extends Construct {
 
     /**
      * Get all created workflows
-     * @returns Array of all created StateMachine instances
      */
     public getAllWorkflows(): StateMachine[] {
         return Array.from(this.workflows.values());
@@ -65,10 +47,8 @@ export class StepFunctions extends Construct {
 
     /**
      * Get all workflow names
-     * @returns Array of all workflow names
      */
     public getWorkflowNames(): string[] {
         return Array.from(this.workflows.keys());
     }
 }
-

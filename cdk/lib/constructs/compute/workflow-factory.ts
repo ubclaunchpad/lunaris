@@ -5,7 +5,7 @@ import {
     type StateMachineProps,
 } from "aws-cdk-lib/aws-stepfunctions";
 import { Function } from "aws-cdk-lib/aws-lambda";
-import type { WorkflowConfig, RetryConfig } from "../workflows/types";
+import type { WorkflowConfig, RetryConfig } from "../../workflows/types";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -20,29 +20,25 @@ export class WorkflowFactory extends Construct {
     /**
      * Creates a Step Functions workflow from configuration
      * @param config The workflow configuration
-     * @param lambdaFunctions Map of available Lambda functions
+     * @param lambdaFunctions Map of available Lambda functions keyed by functionName
      * @returns The created StateMachine
      */
     public createWorkflow(
         config: WorkflowConfig,
-        lambdaFunctions: Record<string, Function>,
+        lambdaFunctions: Map<string, Function>,
     ): StateMachine {
-        // Validate configuration
         this.validateConfig(config, lambdaFunctions);
 
-        // Load and process definition
         const definitionBody = this.processDefinition(config, lambdaFunctions);
 
-        // Create state machine
         const stateMachineProps: StateMachineProps = {
             definitionBody: DefinitionBody.fromString(definitionBody),
-            comment: config?.description,
-            timeout: config?.timeout,
+            comment: config.description,
+            timeout: config.timeout,
         };
 
         const stateMachine = new StateMachine(this, config.name, stateMachineProps);
 
-        // Grant permissions
         this.grantPermissions(config, lambdaFunctions, stateMachine);
 
         return stateMachine;
@@ -50,15 +46,12 @@ export class WorkflowFactory extends Construct {
 
     /**
      * Validates workflow configuration against available Lambda functions
-     * @param config The workflow configuration to validate
-     * @param lambdaFunctions Available Lambda functions
      * @throws Error if validation fails
      */
     private validateConfig(
         config: WorkflowConfig,
-        lambdaFunctions: Record<string, Function>,
+        lambdaFunctions: Map<string, Function>,
     ): void {
-        // Validate required fields
         if (!config.name) {
             throw new Error("Workflow configuration must have a name");
         }
@@ -71,7 +64,6 @@ export class WorkflowFactory extends Construct {
             throw new Error(`Workflow '${config.name}' must have a definitionPath`);
         }
 
-        // Validate definition file exists
         const definitionPath = this.getDefinitionPath(config.definitionPath);
         if (!fs.existsSync(definitionPath)) {
             throw new Error(
@@ -79,16 +71,14 @@ export class WorkflowFactory extends Construct {
             );
         }
 
-        // Validate all required Lambda functions exist
-        Object.entries(config.lambdaFunctions).forEach(([_, ref]) => {
-            if (ref.required && !lambdaFunctions[ref.functionName]) {
+        Object.values(config.lambdaFunctions).forEach((ref) => {
+            if (ref.required && !lambdaFunctions.get(ref.functionName)) {
                 throw new Error(
                     `Required Lambda function '${ref.functionName}' not found for workflow '${config.name}'`,
                 );
             }
         });
 
-        // Validate retry configuration if present
         if (config.retryConfig) {
             this.validateRetryConfig(config.name, config.retryConfig);
         }
@@ -96,8 +86,6 @@ export class WorkflowFactory extends Construct {
 
     /**
      * Validates retry configuration parameters
-     * @param workflowName Name of the workflow for error messages
-     * @param retryConfig Retry configuration to validate
      * @throws Error if validation fails
      */
     private validateRetryConfig(workflowName: string, retryConfig: RetryConfig): void {
@@ -121,21 +109,17 @@ export class WorkflowFactory extends Construct {
     }
 
     /**
-     * Processes the workflow definition by applying template substitutions
-     * @param config The workflow configuration
-     * @param lambdaFunctions Available Lambda functions
-     * @returns The processed definition as a string
+     * Processes the workflow definition by applying Lambda ARN substitutions
      */
     private processDefinition(
         config: WorkflowConfig,
-        lambdaFunctions: Record<string, Function>,
+        lambdaFunctions: Map<string, Function>,
     ): string {
         const definitionPath = this.getDefinitionPath(config.definitionPath);
 
         try {
             let template = fs.readFileSync(definitionPath, "utf8");
 
-            // Validate JSON syntax
             try {
                 JSON.parse(template);
             } catch (jsonError) {
@@ -144,9 +128,8 @@ export class WorkflowFactory extends Construct {
                 );
             }
 
-            // Apply substitutions
-            Object.entries(config.lambdaFunctions).forEach(([_, ref]) => {
-                const lambdaFunction = lambdaFunctions[ref.functionName];
+            Object.values(config.lambdaFunctions).forEach((ref) => {
+                const lambdaFunction = lambdaFunctions.get(ref.functionName);
                 if (lambdaFunction) {
                     template = template.replace(
                         new RegExp(this.escapeRegex(ref.placeholder), "g"),
@@ -155,7 +138,6 @@ export class WorkflowFactory extends Construct {
                 }
             });
 
-            // Validate that all placeholders were replaced
             this.validatePlaceholderSubstitution(config, template);
 
             return template;
@@ -169,15 +151,13 @@ export class WorkflowFactory extends Construct {
 
     /**
      * Validates that all required placeholders were substituted
-     * @param config The workflow configuration
-     * @param processedTemplate The processed template
      * @throws Error if required placeholders remain
      */
     private validatePlaceholderSubstitution(
         config: WorkflowConfig,
         processedTemplate: string,
     ): void {
-        Object.entries(config.lambdaFunctions).forEach(([_, ref]) => {
+        Object.values(config.lambdaFunctions).forEach((ref) => {
             if (ref.required && processedTemplate.includes(ref.placeholder)) {
                 throw new Error(
                     `Required placeholder '${ref.placeholder}' was not substituted in workflow '${config.name}'. ` +
@@ -188,18 +168,15 @@ export class WorkflowFactory extends Construct {
     }
 
     /**
-     * Grants invoke permissions from Lambda functions to the state machine
-     * @param config The workflow configuration
-     * @param lambdaFunctions Available Lambda functions
-     * @param stateMachine The created state machine
+     * Grants invoke permissions from the state machine to each Lambda function
      */
     private grantPermissions(
         config: WorkflowConfig,
-        lambdaFunctions: Record<string, Function>,
+        lambdaFunctions: Map<string, Function>,
         stateMachine: StateMachine,
     ): void {
-        Object.entries(config.lambdaFunctions).forEach(([_, ref]) => {
-            const lambdaFunction = lambdaFunctions[ref.functionName];
+        Object.values(config.lambdaFunctions).forEach((ref) => {
+            const lambdaFunction = lambdaFunctions.get(ref.functionName);
             if (lambdaFunction) {
                 lambdaFunction.grantInvoke(stateMachine);
             }
@@ -208,17 +185,13 @@ export class WorkflowFactory extends Construct {
 
     /**
      * Constructs the full path to a workflow definition file
-     * @param relativePath Relative path from the stepfunctions directory
-     * @returns Full path to the definition file
      */
     private getDefinitionPath(relativePath: string): string {
-        return path.join(__dirname, "../../stepfunctions", relativePath);
+        return path.join(__dirname, "../../../stepfunctions", relativePath);
     }
 
     /**
      * Escapes special regex characters in a string
-     * @param string String to escape
-     * @returns Escaped string safe for use in regex
      */
     private escapeRegex(string: string): string {
         return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

@@ -52,3 +52,13 @@ export function getConfigureDcvInstancePolicies(): PolicyStatement[] {
         }),
     ];
 }
+
+export function getTerminateEC2Policies(): PolicyStatement[] {
+    return [
+        new PolicyStatement({
+            effect: Effect.ALLOW,
+            actions: ["ec2:TerminateInstances", "ec2:DescribeInstances"],
+            resources: ["*"],
+        }),
+    ];
+}
