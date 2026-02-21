@@ -19,6 +19,11 @@ export interface LambdaEnvVarProvider {
     readonly SECURITY_GROUP_ID: string;
     readonly LAMBDA_REGION: string;
     readonly STRIPE_SECRET_KEY?: string;
+    readonly STRIPE_PRICE_STARTER?: string;
+    readonly STRIPE_PRICE_BASIC?: string;
+    readonly STRIPE_PRICE_STANDARD?: string;
+    readonly STRIPE_PRICE_PREMIUM?: string;
+    readonly STRIPE_PRICE_PRO?: string;
 }
 
 /**

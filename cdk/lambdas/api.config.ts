@@ -6,7 +6,16 @@ const config: LambdaFunctionConfig = {
     handler: "handlers/api.handler",
     description: "Unified API handler for all Lunaris API endpoints",
     timeoutSeconds: 60,
-    envVars: ["RUNNING_INSTANCES_TABLE_NAME", "RUNNING_STREAMS_TABLE_NAME", "STRIPE_SECRET_KEY"],
+    envVars: [
+        "RUNNING_INSTANCES_TABLE_NAME",
+        "RUNNING_STREAMS_TABLE_NAME",
+        "STRIPE_SECRET_KEY",
+        "STRIPE_PRICE_STARTER",
+        "STRIPE_PRICE_BASIC",
+        "STRIPE_PRICE_STANDARD",
+        "STRIPE_PRICE_PREMIUM",
+        "STRIPE_PRICE_PRO",
+    ],
 };
 
 export default config;

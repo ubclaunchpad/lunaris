@@ -38,6 +38,11 @@ export class ComputeStack extends Stack {
             ec2InstanceProfileName: props.ec2InstanceProfileName,
             dcvSecurityGroupId: dcvSecurityGroup.securityGroupId,
             stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+            stripePriceStarter: process.env.STRIPE_PRICE_STARTER,
+            stripePriceBasic: process.env.STRIPE_PRICE_BASIC,
+            stripePriceStandard: process.env.STRIPE_PRICE_STANDARD,
+            stripePricePremium: process.env.STRIPE_PRICE_PREMIUM,
+            stripePricePro: process.env.STRIPE_PRICE_PRO,
         });
 
         this.grantDynamoDbPermissions(lambdaFunctions, runningInstancesTable, runningStreamsTable);
