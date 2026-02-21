@@ -39,7 +39,7 @@ export class DynamoDbTables extends Construct {
             billingMode: BillingMode.PAY_PER_REQUEST,
             // Note: Encryption setting removed to avoid AWS rate limiting
             // DynamoDB tables are encrypted by default with AWS-owned keys
-            removalPolicy: RemovalPolicy.DESTROY, // Use RETAIN for production
+            removalPolicy: RemovalPolicy.RETAIN,
         });
 
         table.addGlobalSecondaryIndex({
@@ -64,8 +64,7 @@ export class DynamoDbTables extends Construct {
                 pointInTimeRecoveryEnabled: true,
             },
             billingMode: BillingMode.PAY_PER_REQUEST,
-            // TODO: add environment based removal policy config
-            removalPolicy: RemovalPolicy.DESTROY, // Use RETAIN for production
+            removalPolicy: RemovalPolicy.RETAIN,
         });
 
         // TODO future: add autoscaling group
