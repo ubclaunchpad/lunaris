@@ -48,10 +48,7 @@ export class WorkflowFactory extends Construct {
      * Validates workflow configuration against available Lambda functions
      * @throws Error if validation fails
      */
-    private validateConfig(
-        config: WorkflowConfig,
-        lambdaFunctions: Map<string, Function>,
-    ): void {
+    private validateConfig(config: WorkflowConfig, lambdaFunctions: Map<string, Function>): void {
         if (!config.name) {
             throw new Error("Workflow configuration must have a name");
         }

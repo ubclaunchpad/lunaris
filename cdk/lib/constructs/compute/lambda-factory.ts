@@ -19,10 +19,7 @@ export class LambdaFactory {
         this.scope = scope;
     }
 
-    public createFunction(
-        config: LambdaFunctionConfig,
-        provider: LambdaEnvVarProvider,
-    ): Function {
+    public createFunction(config: LambdaFunctionConfig, provider: LambdaEnvVarProvider): Function {
         const fn = new Function(this.scope, config.constructId, {
             runtime: Runtime.NODEJS_22_X,
             code: Code.fromAsset("../lambda/dist"),
