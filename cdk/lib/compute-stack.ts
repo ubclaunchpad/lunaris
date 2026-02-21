@@ -2,17 +2,23 @@ import { Stack, StackProps } from "aws-cdk-lib";
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { PolicyStatement, Effect } from "aws-cdk-lib/aws-iam";
+import { ITable } from "aws-cdk-lib/aws-dynamodb";
 import { Function } from "aws-cdk-lib/aws-lambda";
 import { LambdaFunctions } from "./constructs/compute/lambda-functions";
 import { StepFunctions } from "./constructs/compute/step-functions";
-import { DynamoDbTables } from "./constructs/dynamodb/dynamodb-tables";
-import { EC2InstanceRole } from "./constructs/compute/ec2-instance-role";
 import { DCVSecurityGroup } from "./constructs/compute/dcv-security-group";
+
+export interface ComputeStackProps extends StackProps {
+    readonly ec2InstanceProfileArn: string;
+    readonly ec2InstanceProfileName: string;
+    readonly runningInstancesTable: ITable;
+    readonly runningStreamsTable: ITable;
+}
 
 export class ComputeStack extends Stack {
     public readonly apiFunction: Function;
 
-    constructor(scope: Construct, id: string, props?: StackProps) {
+    constructor(scope: Construct, id: string, props: ComputeStackProps) {
         super(scope, id, {
             ...props,
             env: {
@@ -21,21 +27,17 @@ export class ComputeStack extends Stack {
             },
         });
 
-        // Create DynamoDB tables
-        const dynamoDbTables = new DynamoDbTables(this, "DynamoDbTables");
-
-        // Create EC2 Instance Role for DCV instances (enables SSM access)
-        const ec2InstanceRole = new EC2InstanceRole(this, "EC2InstanceRole");
+        const { runningInstancesTable, runningStreamsTable } = props;
 
         // Create Security Group for DCV instances (ports 8443, 80, 3389)
         const dcvSecurityGroup = new DCVSecurityGroup(this, "DCVSecurityGroup");
 
         // Create all Lambda functions
         const lambdaFunctions = new LambdaFunctions(this, "LambdaFunctions", {
-            runningInstancesTable: dynamoDbTables.runningInstancesTable,
-            runningStreamsTable: dynamoDbTables.runningStreamsTable,
-            ec2InstanceProfileArn: ec2InstanceRole.instanceProfileArn,
-            ec2InstanceProfileName: ec2InstanceRole.instanceProfileName,
+            runningInstancesTable,
+            runningStreamsTable,
+            ec2InstanceProfileArn: props.ec2InstanceProfileArn,
+            ec2InstanceProfileName: props.ec2InstanceProfileName,
             dcvSecurityGroupId: dcvSecurityGroup.securityGroupId,
             stripeSecretKey: process.env.STRIPE_SECRET_KEY,
         });
@@ -49,26 +51,26 @@ export class ComputeStack extends Stack {
         );
 
         // Grant DynamoDB permissions to unified API Lambda
-        dynamoDbTables.runningInstancesTable.grantReadWriteData(lambdaFunctions.apiFunction);
-        dynamoDbTables.runningStreamsTable.grantReadData(lambdaFunctions.apiFunction);
+        runningInstancesTable.grantReadWriteData(lambdaFunctions.apiFunction);
+        runningStreamsTable.grantReadData(lambdaFunctions.apiFunction);
 
         // Grant DynamoDB permissions for workflow Lambda functions
-        dynamoDbTables.runningInstancesTable.grantReadWriteData(lambdaFunctions.deployEC2Function);
-        dynamoDbTables.runningStreamsTable.grantReadData(
+        runningInstancesTable.grantReadWriteData(lambdaFunctions.deployEC2Function);
+        runningStreamsTable.grantReadData(
             lambdaFunctions.checkRunningStreamsFunction,
         );
-        dynamoDbTables.runningStreamsTable.grantWriteData(
+        runningStreamsTable.grantWriteData(
             lambdaFunctions.updateRunningStreamsFunction,
         );
 
         // Grant DynamoDB permissions for UserTerminateEC2 workflow
-        dynamoDbTables.runningStreamsTable.grantReadData(
+        runningStreamsTable.grantReadData(
             lambdaFunctions.checkRunningStreamsTerminateFunction,
         );
-        dynamoDbTables.runningInstancesTable.grantReadWriteData(
+        runningInstancesTable.grantReadWriteData(
             lambdaFunctions.terminateEC2Function,
         );
-        dynamoDbTables.runningStreamsTable.grantWriteData(
+        runningStreamsTable.grantWriteData(
             lambdaFunctions.updateRunningStreamsTerminateFunction,
         );
 

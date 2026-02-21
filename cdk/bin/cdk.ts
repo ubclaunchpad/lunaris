@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 import * as cdk from "aws-cdk-lib";
 import { WorkflowRegistry } from "../lib/workflows";
+import { IAMStack } from "../lib/iam-stack";
 import { AuthStack } from "../lib/auth-stack";
+import { DataStack } from "../lib/data-stack";
 import { ComputeStack } from "../lib/compute-stack";
 import { ApiStack } from "../lib/api-stack";
 
@@ -10,10 +12,15 @@ WorkflowRegistry.discoverWorkflows();
 
 const app = new cdk.App();
 
-// IAMStack
-// dataStack
+const iamStack = new IAMStack(app, "IAMStack");
 const authStack = new AuthStack(app, "AuthStack");
-const computeStack = new ComputeStack(app, "ComputeStack");
+const dataStack = new DataStack(app, "DataStack");
+const computeStack = new ComputeStack(app, "ComputeStack", {
+    ec2InstanceProfileArn: iamStack.ec2InstanceProfileArn,
+    ec2InstanceProfileName: iamStack.ec2InstanceProfileName,
+    runningInstancesTable: dataStack.runningInstancesTable,
+    runningStreamsTable: dataStack.runningStreamsTable,
+});
 const apiStack = new ApiStack(app, "ApiStack", {
     apiFunction: computeStack.apiFunction,
 });

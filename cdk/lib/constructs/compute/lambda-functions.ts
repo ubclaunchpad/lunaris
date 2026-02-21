@@ -2,7 +2,7 @@ import { Construct } from "constructs";
 import { Code, Function, Runtime, FunctionProps } from "aws-cdk-lib/aws-lambda";
 import { Duration } from "aws-cdk-lib";
 import { type ITable } from "aws-cdk-lib/aws-dynamodb";
-import { getDeployEC2Policies, getConfigureDcvInstancePolicies } from "./lambda-policies";
+import { getDeployEC2Policies, getConfigureDcvInstancePolicies } from "../iam/lambda-policies";
 
 export interface LambdaFunctionsProps {
     readonly runningInstancesTable: ITable;
