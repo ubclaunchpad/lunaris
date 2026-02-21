@@ -1,8 +1,8 @@
 import { Construct } from "constructs";
 import { StateMachine } from "aws-cdk-lib/aws-stepfunctions";
 import { Function } from "aws-cdk-lib/aws-lambda";
-import { WorkflowFactory } from "./workflow-factory";
-import { WorkflowRegistry } from "../workflows";
+import { WorkflowFactory } from "../workflow-factory";
+import { WorkflowRegistry } from "../../workflows";
 
 export interface StepFunctionsProps extends Record<string, Function> {
     readonly checkRunningStreamsFunction: Function;
@@ -71,3 +71,4 @@ export class StepFunctions extends Construct {
         return Array.from(this.workflows.keys());
     }
 }
+

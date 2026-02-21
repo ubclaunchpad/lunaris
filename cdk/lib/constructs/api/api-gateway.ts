@@ -122,3 +122,4 @@ export class ApiGateway extends Construct {
         resource.addMethod(endpoint.method, integration, methodOptions);
     }
 }
+

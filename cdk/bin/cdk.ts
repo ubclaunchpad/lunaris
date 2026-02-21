@@ -10,8 +10,10 @@ WorkflowRegistry.discoverWorkflows();
 
 const app = new cdk.App();
 
+// IAMStack
+// dataStack
 const authStack = new AuthStack(app, "AuthStack");
 const computeStack = new ComputeStack(app, "ComputeStack");
-new ApiStack(app, "ApiStack", {
+const apiStack = new ApiStack(app, "ApiStack", {
     apiFunction: computeStack.apiFunction,
 });

@@ -1,6 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import { Template } from "aws-cdk-lib/assertions";
-import { DynamoDbTables } from "../lib/constructs/dynamodb-tables";
+import { DynamoDbTables } from "../lib/constructs/dynamodb/dynamodb-tables";
 
 describe("CDK Constructs", () => {
     let app: cdk.App;

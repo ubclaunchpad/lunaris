@@ -2,7 +2,7 @@ import { Construct } from "constructs";
 import { Code, Function, Runtime, FunctionProps } from "aws-cdk-lib/aws-lambda";
 import { Duration } from "aws-cdk-lib";
 import { type ITable } from "aws-cdk-lib/aws-dynamodb";
-import { PolicyStatement, Effect } from "aws-cdk-lib/aws-iam";
+import { getDeployEC2Policies, getConfigureDcvInstancePolicies } from "./lambda-policies";
 
 export interface LambdaFunctionsProps {
     readonly runningInstancesTable: ITable;
@@ -95,54 +95,10 @@ export class LambdaFunctions extends Construct {
             },
         });
 
-        // Add permission to read from SSM Parameter Store
-        deployEC2Function.addToRolePolicy(
-            new PolicyStatement({
-                effect: Effect.ALLOW,
-                actions: ["ssm:GetParameter"],
-                resources: ["arn:aws:ssm:*:*:parameter/ami_id"],
-            }),
-        );
-
-        // Add EC2 permissions
-        deployEC2Function.addToRolePolicy(
-            new PolicyStatement({
-                effect: Effect.ALLOW,
-                actions: [
-                    "ec2:RunInstances",
-                    "ec2:DescribeInstances",
-                    "ec2:DescribeInstanceStatus",
-                    "ec2:CreateTags",
-                    "ec2:DescribeSecurityGroups",
-                    "ec2:DescribeSubnets",
-                    "ec2:DescribeKeyPairs",
-                ],
-                resources: ["*"],
-            }),
-        );
-
-        // Add IAM permission to pass role to EC2
-        deployEC2Function.addToRolePolicy(
-            new PolicyStatement({
-                effect: Effect.ALLOW,
-                actions: ["iam:PassRole"],
-                resources: ["*"],
-            }),
-        );
-
-        // Add SSM permissions for sending commands to instances
-        deployEC2Function.addToRolePolicy(
-            new PolicyStatement({
-                effect: Effect.ALLOW,
-                actions: [
-                    "ssm:SendCommand",
-                    "ssm:GetCommandInvocation",
-                    "ssm:CreateDocument",
-                    "ssm:GetDocument",
-                ],
-                resources: ["*"],
-            }),
-        );
+        // Attach deploy-related policies
+        for (const policy of getDeployEC2Policies()) {
+            deployEC2Function.addToRolePolicy(policy);
+        }
 
         return deployEC2Function;
     }
@@ -159,23 +115,10 @@ export class LambdaFunctions extends Construct {
             },
         });
 
-        // Add SSM permissions for sending commands to instances
-        configureDcvInstanceFunction.addToRolePolicy(
-            new PolicyStatement({
-                effect: Effect.ALLOW,
-                actions: ["ssm:SendCommand", "ssm:GetCommandInvocation"],
-                resources: ["*"],
-            }),
-        );
-
-        // Add EC2 describe permission to get instance details
-        configureDcvInstanceFunction.addToRolePolicy(
-            new PolicyStatement({
-                effect: Effect.ALLOW,
-                actions: ["ec2:DescribeInstances"],
-                resources: ["*"],
-            }),
-        );
+        // Attach configure-related policies
+        for (const policy of getConfigureDcvInstancePolicies()) {
+            configureDcvInstanceFunction.addToRolePolicy(policy);
+        }
 
         return configureDcvInstanceFunction;
     }

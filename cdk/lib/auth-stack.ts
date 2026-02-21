@@ -1,6 +1,6 @@
 import { Stack, StackProps } from "aws-cdk-lib";
 import { Construct } from "constructs";
-import { CognitoUserPool } from "./constructs/cognito-user-pool";
+import { CognitoUserPool } from "./constructs/auth/cognito-user-pool";
 import * as cognito from "aws-cdk-lib/aws-cognito";
 
 export class AuthStack extends Stack {

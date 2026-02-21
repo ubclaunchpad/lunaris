@@ -2,7 +2,7 @@ import { Stack, StackProps } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { Function } from "aws-cdk-lib/aws-lambda";
 import * as cognito from "aws-cdk-lib/aws-cognito";
-import { ApiGateway } from "./constructs/api-gateway";
+import { ApiGateway } from "./constructs/api/api-gateway";
 
 export interface ApiStackProps extends StackProps {
     apiFunction: Function;

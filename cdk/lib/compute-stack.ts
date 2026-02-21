@@ -3,11 +3,11 @@ import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { PolicyStatement, Effect } from "aws-cdk-lib/aws-iam";
 import { Function } from "aws-cdk-lib/aws-lambda";
-import { LambdaFunctions } from "./constructs/lambda-functions";
-import { StepFunctions } from "./constructs/step-functions";
-import { DynamoDbTables } from "./constructs/dynamodb-tables";
-import { EC2InstanceRole } from "./constructs/ec2-instance-role";
-import { DCVSecurityGroup } from "./constructs/dcv-security-group";
+import { LambdaFunctions } from "./constructs/compute/lambda-functions";
+import { StepFunctions } from "./constructs/compute/step-functions";
+import { DynamoDbTables } from "./constructs/dynamodb/dynamodb-tables";
+import { EC2InstanceRole } from "./constructs/compute/ec2-instance-role";
+import { DCVSecurityGroup } from "./constructs/compute/dcv-security-group";
 
 export class ComputeStack extends Stack {
     public readonly apiFunction: Function;
