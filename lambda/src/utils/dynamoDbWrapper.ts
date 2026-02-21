@@ -122,19 +122,6 @@ class DynamoDBWrapper {
         });
     }
 
-    async queryByRegion(region: string) {
-        return this.query({
-            IndexName: "RegionIndex",
-            KeyConditionExpression: "#region = :region",
-            ExpressionAttributeNames: {
-                "#region": "region",
-            },
-            ExpressionAttributeValues: {
-                ":region": region,
-            },
-        });
-    }
-
     getTableName(): string {
         return this.tableName;
     }
