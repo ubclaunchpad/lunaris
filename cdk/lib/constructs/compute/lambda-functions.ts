@@ -23,8 +23,6 @@ export class LambdaFunctions extends Construct {
     constructor(scope: Construct, id: string, props: LambdaFunctionsProps) {
         super(scope, id);
 
-        LambdaRegistry.discoverLambdas();
-
         const factory = new LambdaFactory(this);
         const provider = this.buildEnvVarProvider(props);
 

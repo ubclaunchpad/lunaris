@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 import * as cdk from "aws-cdk-lib";
 import { WorkflowRegistry } from "../lib/workflows";
+import { LambdaRegistry } from "../lib/constructs/compute/lambda-registry";
 import { IAMStack } from "../lib/iam-stack";
 import { AuthStack } from "../lib/auth-stack";
 import { StorageStack } from "../lib/storage-stack";
 import { ComputeStack } from "../lib/compute-stack";
 import { ApiStack } from "../lib/api-stack";
 
-// Discover and register workflows before creating the stacks
+// Discover and register workflows and lambdas before creating the stacks
 WorkflowRegistry.discoverWorkflows();
+LambdaRegistry.discoverLambdas();
 
 const app = new cdk.App();
 
