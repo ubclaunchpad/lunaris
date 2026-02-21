@@ -2,15 +2,16 @@ import { Stack, StackProps } from "aws-cdk-lib";
 import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { PolicyStatement, Effect } from "aws-cdk-lib/aws-iam";
+import { Function } from "aws-cdk-lib/aws-lambda";
 import { LambdaFunctions } from "./constructs/lambda-functions";
 import { StepFunctions } from "./constructs/step-functions";
-import { ApiGateway } from "./constructs/api-gateway";
 import { DynamoDbTables } from "./constructs/dynamodb-tables";
-import { CognitoUserPool } from "./constructs/cognito-user-pool";
 import { EC2InstanceRole } from "./constructs/ec2-instance-role";
 import { DCVSecurityGroup } from "./constructs/dcv-security-group";
 
-export class CdkStack extends Stack {
+export class ComputeStack extends Stack {
+    public readonly apiFunction: Function;
+
     constructor(scope: Construct, id: string, props?: StackProps) {
         super(scope, id, {
             ...props,
@@ -19,9 +20,6 @@ export class CdkStack extends Stack {
                 region: process.env.CDK_DEFAULT_REGION,
             },
         });
-
-        // Create Cognito User Pool
-        const cognitoUserPool = new CognitoUserPool(this, "CognitoUserPool");
 
         // Create DynamoDB tables
         const dynamoDbTables = new DynamoDbTables(this, "DynamoDbTables");
@@ -32,7 +30,7 @@ export class CdkStack extends Stack {
         // Create Security Group for DCV instances (ports 8443, 80, 3389)
         const dcvSecurityGroup = new DCVSecurityGroup(this, "DCVSecurityGroup");
 
-        // Create API Lambda functions
+        // Create all Lambda functions
         const lambdaFunctions = new LambdaFunctions(this, "LambdaFunctions", {
             runningInstancesTable: dynamoDbTables.runningInstancesTable,
             runningStreamsTable: dynamoDbTables.runningStreamsTable,
@@ -91,13 +89,11 @@ export class CdkStack extends Stack {
         cdk.Tags.of(stepFunctions).add("Component", "StepFunctions");
         cdk.Tags.of(stepFunctions).add("ManagedBy", "CDK");
 
-        // Get UserTerminateEC2Workflow
         const terminateWorkflow = stepFunctions.getWorkflow("UserTerminateEC2Workflow");
         if (!terminateWorkflow) {
             throw new Error("UserTerminateEC2Workflow not found");
         }
 
-        // Get UserDeployEC2Workflow
         const deployWorkflow = stepFunctions.getWorkflow("UserDeployEC2Workflow");
         if (!deployWorkflow) {
             throw new Error("UserDeployEC2Workflow not found");
@@ -142,11 +138,6 @@ export class CdkStack extends Stack {
             }),
         );
 
-        // Create API Gateway without Cognito authorizer (for testing)
-        // To enable authentication, pass: userPool: cognitoUserPool.userPool
-        const apiGateway = new ApiGateway(this, "ApiGateway", {
-            apiFunction: lambdaFunctions.apiFunction,
-            // userPool: cognitoUserPool.userPool, // Commented out for testing without auth
-        });
+        this.apiFunction = lambdaFunctions.apiFunction;
     }
 }
