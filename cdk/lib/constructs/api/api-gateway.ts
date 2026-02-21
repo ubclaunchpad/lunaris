@@ -52,7 +52,7 @@ const ENDPOINTS: EndpointDefinition[] = [
         statusCodes: ["200", "400"],
     },
     {
-        path: "session-status",
+        path: "checkout-session-status",
         method: "GET",
         statusCodes: ["200", "400"],
         queryParams: ["method.request.querystring.session_id"],
