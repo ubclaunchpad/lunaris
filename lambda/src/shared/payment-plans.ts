@@ -9,43 +9,52 @@ export interface PaymentPlan {
 }
 
 
-// TODO: fix this payment plan to match the actual stripe plan
 export const PAYMENT_PLANS = {
-    FREE_60: {
-        id: "FREE_60",
-        name: "New Player Award",
-        coins: 0,
-        priceCents: 0,
-        description: "60 free minutes for new players",
-        durationMinutes: 60,
-        stripePriceId: process.env.STRIPE_PRICE_FREE_60,
+    STARTER: {
+        id: "STARTER",
+        name: "Starter Pack",
+        coins: 100,
+        priceCents: 299,
+        description: "Perfect for a quick gaming session",
+        durationMinutes: 10,
+        stripePriceId: process.env.STRIPE_PRICE_STARTER,
     },
-    BASIC_120: {
-        id: "BASIC_120",
-        name: "120 + 20 Minutes",
+    BASIC: {
+        id: "BASIC",
+        name: "Basic Pack",
         coins: 300,
-        priceCents: 1200,
-        description: "120 minutes plus 20 bonus minutes",
-        durationMinutes: 140,
-        stripePriceId: process.env.STRIPE_PRICE_BASIC_120,
+        priceCents: 699,
+        description: "A solid half-hour session",
+        durationMinutes: 30,
+        stripePriceId: process.env.STRIPE_PRICE_BASIC,
     },
-    STANDARD_240: {
-        id: "STANDARD_240",
-        name: "240 + 50 Minutes",
+    STANDARD: {
+        id: "STANDARD",
+        name: "Standard Pack",
         coins: 600,
-        priceCents: 1200,
-        description: "240 minutes plus 50 bonus minutes",
-        durationMinutes: 290,
-        stripePriceId: process.env.STRIPE_PRICE_STANDARD_240,
+        priceCents: 999,
+        description: "A full hour of gaming",
+        durationMinutes: 60,
+        stripePriceId: process.env.STRIPE_PRICE_STANDARD,
     },
-    PREMIUM_480: {
-        id: "PREMIUM_480",
-        name: "480 + 100 Minutes",
+    PREMIUM: {
+        id: "PREMIUM",
+        name: "Premium Pack",
         coins: 1500,
-        priceCents: 1200,
-        description: "480 minutes plus 100 bonus minutes",
-        durationMinutes: 580,
-        stripePriceId: process.env.STRIPE_PRICE_PREMIUM_480,
+        priceCents: 2199,
+        description: "Extended gaming session",
+        durationMinutes: 150,
+
+        stripePriceId: process.env.STRIPE_PRICE_PREMIUM,
+    },
+    PRO: {
+        id: "PRO",
+        name: "Pro Pack",
+        coins: 3600,
+        priceCents: 4299,
+        description: "The ultimate gaming marathon",
+        durationMinutes: 360,
+        stripePriceId: process.env.STRIPE_PRICE_PRO,
     },
 } as const satisfies Record<string, PaymentPlan>;
 
