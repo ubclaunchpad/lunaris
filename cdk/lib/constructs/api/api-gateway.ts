@@ -18,9 +18,7 @@ export interface ApiGatewayProps {
 interface EndpointDefinition {
     path: string;
     method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
-    /** Status codes to include in methodResponses (401 is auto-added when authorizer is present) */
     statusCodes: string[];
-    /** Query params declared as required (true) when no authorizer, optional (false) when authorizer is present */
     queryParams?: string[];
 }
 
@@ -122,4 +120,3 @@ export class ApiGateway extends Construct {
         resource.addMethod(endpoint.method, integration, methodOptions);
     }
 }
-

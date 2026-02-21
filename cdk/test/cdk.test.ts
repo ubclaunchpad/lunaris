@@ -1,6 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import { Template } from "aws-cdk-lib/assertions";
-import { DynamoDbTables } from "../lib/constructs/dynamodb/dynamodb-tables";
+import { DynamoDbTables } from "../lib/constructs/storage/dynamodb-tables";
 
 describe("CDK Constructs", () => {
     let app: cdk.App;
@@ -44,7 +44,7 @@ describe("CDK Constructs", () => {
         });
 
         expect(dynamoDbTables.runningInstancesTable).toBeDefined();
-        expect(dynamoDbTables.RunningStreamsTable).toBeDefined();
+        expect(dynamoDbTables.runningStreamsTable).toBeDefined();
     });
 
     test("DynamoDB tables have correct removal policy", () => {

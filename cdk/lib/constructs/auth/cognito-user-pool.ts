@@ -39,7 +39,7 @@ export class CognitoUserPool extends Construct {
                 requireSymbols: false,
             },
             accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
-            removalPolicy: RemovalPolicy.DESTROY, // Use RETAIN in production
+            removalPolicy: RemovalPolicy.RETAIN,
         });
 
         // Create App Client for frontend integration

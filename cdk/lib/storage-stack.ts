@@ -1,9 +1,9 @@
 import { Stack, StackProps } from "aws-cdk-lib";
 import { Construct } from "constructs";
 import { ITable } from "aws-cdk-lib/aws-dynamodb";
-import { DynamoDbTables } from "./constructs/dynamodb/dynamodb-tables";
+import { DynamoDbTables } from "./constructs/storage/dynamodb-tables";
 
-export class DataStack extends Stack {
+export class StorageStack extends Stack {
     public readonly runningInstancesTable: ITable;
     public readonly runningStreamsTable: ITable;
 
