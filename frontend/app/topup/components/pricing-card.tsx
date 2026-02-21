@@ -9,6 +9,8 @@ interface PricingCardProps {
     badge: string;
     isHighlight?: boolean;
     buttonText: string;
+    planId: string;
+    onClaim?: (planId: string) => void;
 }
 
 export function PricingCard({
@@ -19,6 +21,8 @@ export function PricingCard({
     badge,
     isHighlight = false,
     buttonText,
+    planId,
+    onClaim,
 }: PricingCardProps) {
     return (
         <div
@@ -65,6 +69,7 @@ export function PricingCard({
                         )}
                     </div>
                     <Button
+                        onClick={() => onClaim?.(planId)}
                         className={`rounded-2xl px-4 py-2 font-normal text-lg border bg-[rgba(230,218,246,0.1)] border-[#e1ff9a] text-[#fbfff5] hover:bg-[rgba(230,218,246,0.2)] font-space-grotesk ${
                             isHighlight ? "" : ""
                         }`}

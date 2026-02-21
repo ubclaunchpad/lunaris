@@ -1,8 +1,15 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { PageHeader, PricingCard, SubscriptionCard } from "./components";
 
 export default function TopUpPage() {
+    const router = useRouter();
+
+    const handleClaim = (planId: string) => {
+        router.push(`/topup/checkout?planId=${planId}`);
+    };
+
     return (
         <main className="pt-40 px-8">
             <div className="max-w-7xl mx-auto">
@@ -11,13 +18,16 @@ export default function TopUpPage() {
                 <div className="flex gap-14 justify-center items-start">
                     <div className="grid grid-cols-2 gap-6 w-[660px]">
                         <PricingCard
+                            planId="FREE_60"
                             minutes="60"
                             price="$0"
                             badge="New Player Award"
                             buttonText="Free Claim"
+                            onClaim={handleClaim}
                         />
 
                         <PricingCard
+                            planId="BASIC_120"
                             minutes="120"
                             minorMinutes="20"
                             price="$12"
@@ -25,22 +35,27 @@ export default function TopUpPage() {
                             badge="Bonus 25 minutes"
                             isHighlight
                             buttonText="Claim"
+                            onClaim={handleClaim}
                         />
 
                         <PricingCard
+                            planId="STANDARD_240"
                             minutes="240"
                             minorMinutes="50"
                             price="$12"
                             badge="Bonus 25 minutes"
                             buttonText="Claim"
+                            onClaim={handleClaim}
                         />
 
                         <PricingCard
+                            planId="PREMIUM_480"
                             minutes="480"
                             minorMinutes="100"
                             price="$12"
                             badge="Bonus 25 minutes"
                             buttonText="Claim"
+                            onClaim={handleClaim}
                         />
                     </div>
 
