@@ -20,7 +20,7 @@ services:
             - AWS_ACCESS_KEY_ID=dummy
             - AWS_SECRET_ACCESS_KEY=dummy
             - DYNAMODB_ENDPOINT=http://dynamodb:8000
-            - RUNNING_INSTANCES_TABLE=RunningInstances
+            - RUNNING_INSTANCES_TABLE_NAME=RunningInstances
             - RUNNING_STREAMS_TABLE_NAME=RunningStreams
         depends_on:
             - dynamodb

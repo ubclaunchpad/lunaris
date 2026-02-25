@@ -37,7 +37,7 @@ const dynamoClient = new DynamoDBClient(dynamoClientConfig);
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
 // Environment variables
-const RUNNING_INSTANCES_TABLE = process.env.RUNNING_INSTANCES_TABLE || "";
+const RUNNING_INSTANCES_TABLE_NAME = process.env.RUNNING_INSTANCES_TABLE_NAME || "";
 const RUNNING_STREAMS_TABLE_NAME = process.env.RUNNING_STREAMS_TABLE_NAME || "";
 const USER_DEPLOY_EC2_WORKFLOW_ARN = process.env.USER_DEPLOY_EC2_WORKFLOW_ARN || "";
 const TERMINATE_WORKFLOW_ARN = process.env.TERMINATE_WORKFLOW_ARN || "";
@@ -84,7 +84,7 @@ const handleDeployInstance = async (
         const body: DeployInstanceRequest = JSON.parse(event.body || "{}");
         const { userId } = body;
 
-        if (!RUNNING_INSTANCES_TABLE) {
+        if (!RUNNING_INSTANCES_TABLE_NAME) {
             throw new Error("MissingRunningInstancesTable");
         }
 
@@ -147,7 +147,7 @@ const handleDeployInstance = async (
 
         try {
             const putCommand = new PutCommand({
-                TableName: RUNNING_INSTANCES_TABLE,
+                TableName: RUNNING_INSTANCES_TABLE_NAME,
                 Item: {
                     instanceId: placeholderInstanceId,
                     userId: userId,
@@ -213,7 +213,7 @@ const handleTerminateInstance = async (
             });
         }
 
-        if (!RUNNING_INSTANCES_TABLE) {
+        if (!RUNNING_INSTANCES_TABLE_NAME) {
             return createResponse(500, {
                 status: "error",
                 message: "Internal server error: Database configuration missing",
@@ -274,7 +274,7 @@ const handleTerminateInstance = async (
         const timestamp = new Date().toISOString();
         try {
             const updateCommand = new UpdateCommand({
-                TableName: RUNNING_INSTANCES_TABLE,
+                TableName: RUNNING_INSTANCES_TABLE_NAME,
                 Key: {
                     instanceId: instanceId,
                 },
@@ -547,7 +547,7 @@ const handleDeploymentStatus = async (
             });
         }
 
-        const dbWrapper = new DynamoDBWrapper(RUNNING_INSTANCES_TABLE);
+        const dbWrapper = new DynamoDBWrapper(RUNNING_INSTANCES_TABLE_NAME);
         const instances = await dbWrapper.queryByUserId(userId);
 
         if (!instances || instances.length === 0) {

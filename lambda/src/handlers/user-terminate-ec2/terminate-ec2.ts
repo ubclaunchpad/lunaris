@@ -114,7 +114,7 @@ export const handler = async (event: TerminateEc2Event): Promise<TerminateEc2Res
         console.log(`Terminating instance ${resolvedInstanceId} for user ${userId}`);
 
         const runningInstancesTable = new DynamoDBWrapper(
-            process.env.RUNNING_INSTANCES_TABLE || "RunningInstances",
+            process.env.RUNNING_INSTANCES_TABLE_NAME || "RunningInstances",
         );
 
         // Skip validation - the CheckRunningStreams step already verified the instance exists

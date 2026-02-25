@@ -10,7 +10,7 @@ Globals:
         Environment:
             Variables:
                 NODE_ENV: local
-                RUNNING_INSTANCES_TABLE: !Ref RunningInstancesTable
+                RUNNING_INSTANCES_TABLE_NAME: !Ref RunningInstancesTable
                 RUNNING_STREAMS_TABLE_NAME: !Ref RunningStreamsTable
 
 Resources:

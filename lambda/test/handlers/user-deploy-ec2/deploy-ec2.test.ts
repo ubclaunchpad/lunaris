@@ -58,7 +58,7 @@ describe("deploy-ec2 Step Function handler", () => {
         process.env.SECURITY_GROUP_ID = "sg-test123";
         process.env.SUBNET_ID = "subnet-test456";
         process.env.KEY_PAIR_NAME = "test-keypair";
-        process.env.RUNNING_INSTANCES_TABLE = "RunningStreams";
+        process.env.RUNNING_INSTANCES_TABLE_NAME = "RunningStreams";
         process.env.EC2_INSTANCE_PROFILE_NAME = mockProfileArn;
     });
 

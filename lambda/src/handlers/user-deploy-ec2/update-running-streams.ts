@@ -95,7 +95,7 @@ export const handler = async (
 
     // Also update the RunningInstances table to replace the placeholder instanceId with the real one
     // This is crucial for terminate to work correctly
-    const runningInstancesTable = process.env.RUNNING_INSTANCES_TABLE;
+    const runningInstancesTable = process.env.RUNNING_INSTANCES_TABLE_NAME;
     if (runningInstancesTable) {
         try {
             // Find the placeholder record for this user

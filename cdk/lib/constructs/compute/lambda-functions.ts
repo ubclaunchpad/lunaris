@@ -51,7 +51,7 @@ export class LambdaFunctions extends Construct {
 
     private buildEnvVarProvider(props: LambdaFunctionsProps): LambdaEnvVarProvider {
         return {
-            RUNNING_INSTANCES_TABLE: props.runningInstancesTable.tableName,
+            RUNNING_INSTANCES_TABLE_NAME: props.runningInstancesTable.tableName,
             RUNNING_STREAMS_TABLE_NAME: props.runningStreamsTable.tableName,
             EC2_INSTANCE_PROFILE_ARN: props.ec2InstanceProfileArn ?? "",
             EC2_INSTANCE_PROFILE_NAME: props.ec2InstanceProfileName ?? "",

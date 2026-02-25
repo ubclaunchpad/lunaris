@@ -5,7 +5,7 @@ export type LambdaPolicy = "deployEC2" | "configureDcv" | "terminateEC2";
  * Keys match the exact env var names set in the Lambda environment.
  */
 export interface LambdaEnvVarProvider {
-    readonly RUNNING_INSTANCES_TABLE: string;
+    readonly RUNNING_INSTANCES_TABLE_NAME: string;
     readonly RUNNING_STREAMS_TABLE_NAME: string;
     readonly EC2_INSTANCE_PROFILE_ARN: string;
     readonly EC2_INSTANCE_PROFILE_NAME: string;
