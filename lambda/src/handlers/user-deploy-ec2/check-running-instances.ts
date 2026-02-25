@@ -29,4 +29,4 @@ export const handler = async (event: checkRunningInstancesEvent): Promise<checkR
     const instanceId = instance.instanceId || ""
 
     return { status, instanceId }
-
+}
