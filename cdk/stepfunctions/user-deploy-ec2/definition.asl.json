@@ -44,7 +44,7 @@
         "FunctionName": "${CheckRunningInstancesArn}",
         "Payload.$": "$"
       },
-      "ResultPath": "checkRunningInstancesResult",
+      "ResultPath": "$.checkRunningInstancesResult",
       "Next": "CheckIfInstanceExists",
       "Catch": [
         {
@@ -88,7 +88,7 @@
         }
       },
       "ResultPath": "$.resumeDeployResult",
-      "Next": "UpdateRunningStreams",
+      "Next": "GetDcvConfig",
       "Catch": [
         {
           "ErrorEquals": [
@@ -97,6 +97,50 @@
           "Next": "HandleFailedDeployment"
         }
       ]
+    },
+    "GetDcvConfig": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${GetDcvConfigArn}",
+        "Payload": {
+          "instanceArn.$": "$.resumeDeployResult.Payload.instanceArn"
+        }
+      },
+      "ResultPath": "$.dcvConfig",
+      "Next": "MergeResumeData",
+      "Catch": [
+        {
+          "ErrorEquals": [
+            "MissingTableNameEnv"
+          ],
+          "Next": "HandleMissingTableName"
+        },
+        {
+          "ErrorEquals": [
+            "StreamNotFound",
+            "States.TaskFailed"
+          ],
+          "Next": "HandleDatabaseError"
+        }
+      ]
+    },
+    "MergeResumeData": {
+      "Type": "Pass",
+      "Parameters": {
+        "userId.$": "$.userId",
+        "deployResult": {
+          "Payload": {
+            "instanceId.$": "$.resumeDeployResult.Payload.instanceId",
+            "instanceArn.$": "$.resumeDeployResult.Payload.instanceArn",
+            "dcvIp.$": "$.dcvConfig.Payload.dcvIp",
+            "dcvPort.$": "$.dcvConfig.Payload.dcvPort",
+            "dcvUser.$": "$.dcvConfig.Payload.dcvUser",
+            "dcvPassword.$": "$.dcvConfig.Payload.dcvPassword"
+          }
+        }
+      },
+      "Next": "WaitForInstanceReady"
     },
     "DeployEC2": {
       "Type": "Task",

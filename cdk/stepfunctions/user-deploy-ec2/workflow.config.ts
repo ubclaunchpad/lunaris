@@ -47,7 +47,12 @@ const config: WorkflowConfig = {
         },
         resumeDeployInstance: {
             functionName: "resumeDeployInstanceFunction",
-            placeholder: "${resumeDeployInstanceArn}",
+            placeholder: "${ResumeDeployInstanceArn}",
+            required: true,
+        },
+        getDcvConfig: {
+            functionName: "getDcvConfigFunction",
+            placeholder: "${GetDcvConfigArn}",
             required: true,
         },
     },
