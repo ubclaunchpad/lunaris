@@ -132,6 +132,7 @@
           "Payload": {
             "instanceId.$": "$.resumeDeployResult.Payload.instanceId",
             "instanceArn.$": "$.resumeDeployResult.Payload.instanceArn",
+            "creationTime.$": "$.resumeDeployResult.Payload.creationTime",
             "dcvIp.$": "$.dcvConfig.Payload.dcvIp",
             "dcvPort.$": "$.dcvConfig.Payload.dcvPort",
             "dcvUser.$": "$.dcvConfig.Payload.dcvUser",
@@ -240,7 +241,8 @@
         "Payload": {
           "userId.$": "$.userId",
           "instanceId.$": "$.deployResult.Payload.instanceId",
-          "instanceArn.$": "$.deployResult.Payload.instanceArn"
+          "instanceArn.$": "$.deployResult.Payload.instanceArn",
+          "creationTime.$": "$.deployResult.Payload.creationTime"
         }
       },
       "ResultPath": "$.updateRunningInstanceResult",

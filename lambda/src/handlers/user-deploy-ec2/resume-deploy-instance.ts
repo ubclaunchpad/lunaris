@@ -8,6 +8,7 @@ type ResumeDeployInstanceEvent = {
 type ResumeDeployInstanceResult = {
     instanceId: string;
     instanceArn: string;
+    creationTime: string;
 };
 
 export const handler = async (
@@ -25,5 +26,6 @@ export const handler = async (
     return {
         instanceId,
         instanceArn: generateArn(process.env.LAMBDA_REGION || "us-west-2", instanceId),
+        creationTime: "",
     };
 };

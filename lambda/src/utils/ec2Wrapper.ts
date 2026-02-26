@@ -61,7 +61,7 @@ export interface TerminateResult {
     wasAlreadyTerminated?: boolean;
 }
 
-const DEFAULT_INSTANCE_TYPE = "t3.small";
+export const DEFAULT_INSTANCE_TYPE = "t3.small";
 
 export enum ErrorMessages {
     INSTANCE_NOT_FOUND = "Instance does not exist or is not available",
