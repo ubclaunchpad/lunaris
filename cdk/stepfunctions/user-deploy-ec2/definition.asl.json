@@ -83,7 +83,6 @@
       "Parameters": {
         "FunctionName": "${ResumeDeployInstanceArn}",
         "Payload": {
-          "userId.$": "$.userId",
           "instanceId.$": "$.checkRunningInstancesResult.Payload.instanceId"
         }
       },

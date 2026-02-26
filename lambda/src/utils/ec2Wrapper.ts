@@ -13,6 +13,7 @@ import {
     type _InstanceType,
     CreateTagsCommand,
     TerminateInstancesCommand,
+    StartInstancesCommand,
 } from "@aws-sdk/client-ec2";
 import { generateArn } from "./generateArn";
 
@@ -35,6 +36,11 @@ export interface EC2InstanceResult {
     state: string;
     createdAt: string;
     instanceArn: string;
+}
+
+export interface EC2ResumeResult {
+    instanceId: string;
+    status: string;
 }
 
 export interface InstanceDetails {
@@ -259,6 +265,21 @@ class EC2Wrapper {
         }
     }
 
+    async resumeAndStartInstance(instanceId: string): Promise<EC2ResumeResult> {
+        try {
+            const command = new StartInstancesCommand({
+            InstanceIds: [instanceId]
+            });
+            const response = await this.client.send(command);
+
+            return {
+            instanceId,
+            status: response.StartingInstances?.[0]?.CurrentState?.Name || 'pending'
+            };
+        } catch (error) {
+            throw new Error(`Failed to start instance ${instanceId}: ${error instanceof Error ? error.message : String(error)}`);
+        }
+    }
     // --- EC2 Termination Functions ---
     async getInstanceDetails(instanceId: string): Promise<InstanceDetails> {
         try {
