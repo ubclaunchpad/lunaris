@@ -1,33 +1,35 @@
-import DynamoDBWrapper from "../../utils/dynamoDbWrapper"
-import EC2Wrapper from "../../utils/ec2Wrapper"
-import { DEFAULT_INSTANCE_TYPE } from "../../utils/ec2Wrapper"
+import DynamoDBWrapper from "../../utils/dynamoDbWrapper";
+import EC2Wrapper from "../../utils/ec2Wrapper";
+import { DEFAULT_INSTANCE_TYPE } from "../../utils/ec2Wrapper";
 
 type UpdateRunningInstancesEvent = {
-    instanceId: string
-    instanceArn: string
-    userId: string
-    creationTime: string
-}
+    instanceId: string;
+    instanceArn: string;
+    userId: string;
+    creationTime: string;
+};
 
 type UpdateRunningInstancesResult = {
-    success: boolean
-    instanceId: string
-}
+    success: boolean;
+    instanceId: string;
+};
 
-export const handler = async (event: UpdateRunningInstancesEvent): Promise<UpdateRunningInstancesResult> => {
+export const handler = async (
+    event: UpdateRunningInstancesEvent,
+): Promise<UpdateRunningInstancesResult> => {
     try {
         if (!process.env.RUNNING_INSTANCES_TABLE_NAME) {
-            throw new Error("MissingTableNameEnv")
+            throw new Error("MissingTableNameEnv");
         }
 
         if (!event.instanceArn || !event.instanceId) {
-            throw new Error("Missing required fields: instanceArn, instanceId")
+            throw new Error("Missing required fields: instanceArn, instanceId");
         }
 
-        console.log("Update event received:", JSON.stringify(event))
+        console.log("Update event received:", JSON.stringify(event));
 
-        const db = new DynamoDBWrapper(process.env.RUNNING_INSTANCES_TABLE_NAME)
-        const now = new Date().toISOString()
+        const db = new DynamoDBWrapper(process.env.RUNNING_INSTANCES_TABLE_NAME);
+        const now = new Date().toISOString();
 
         const payload = {
             instanceId: event.instanceId,
@@ -37,8 +39,8 @@ export const handler = async (event: UpdateRunningInstancesEvent): Promise<Updat
             status: "running",
             lastModifiedTime: now,
             region: process.env.LAMBDA_REGION,
-            instanceType: DEFAULT_INSTANCE_TYPE
-        }
+            instanceType: DEFAULT_INSTANCE_TYPE,
+        };
 
         const expressionAttributeValues: Record<string, string> = {
             ":instanceArn": payload.instanceArn,
@@ -48,7 +50,7 @@ export const handler = async (event: UpdateRunningInstancesEvent): Promise<Updat
             ":lastModifiedTime": payload.lastModifiedTime,
             ":region": payload.region || "us-west-2",
             ":instanceType": payload.instanceType,
-        }
+        };
 
         const updateExpression = `
             SET
@@ -59,7 +61,7 @@ export const handler = async (event: UpdateRunningInstancesEvent): Promise<Updat
                 lastModifiedTime = :lastModifiedTime,
                 #region = :region,
                 instanceType = :instanceType
-        `
+        `;
 
         const updateConfig = {
             Key: { instanceId: event.instanceId },
@@ -69,20 +71,17 @@ export const handler = async (event: UpdateRunningInstancesEvent): Promise<Updat
                 "#region": "region",
             },
             ExpressionAttributeValues: expressionAttributeValues,
-        }
+        };
 
-        await db.updateItem(updateConfig)
+        await db.updateItem(updateConfig);
 
         return {
             success: true,
             instanceId: event.instanceId,
-        }
+        };
     } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error)
-        console.error("Failed to update running instances:", message)
-        throw error
+        const message = error instanceof Error ? error.message : String(error);
+        console.error("Failed to update running instances:", message);
+        throw error;
     }
-}
-
-
-
+};

@@ -43,7 +43,7 @@ const config: WorkflowConfig = {
         updateRunningInstances: {
             functionName: "updateRunningInstancesFunction",
             placeholder: "${UpdateRunningInstancesArn}",
-            required: true
+            required: true,
         },
         resumeDeployInstance: {
             functionName: "resumeDeployInstanceFunction",

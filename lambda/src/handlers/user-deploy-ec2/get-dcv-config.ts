@@ -11,9 +11,7 @@ type GetDcvConfigResult = {
     dcvIp: string;
 };
 
-export const handler = async (
-    event: GetDcvConfigEvent,
-): Promise<GetDcvConfigResult> => {
+export const handler = async (event: GetDcvConfigEvent): Promise<GetDcvConfigResult> => {
     if (!process.env.RUNNING_STREAMS_TABLE_NAME) {
         throw new Error("MissingTableNameEnv");
     }

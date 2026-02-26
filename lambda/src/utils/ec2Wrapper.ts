@@ -268,16 +268,18 @@ class EC2Wrapper {
     async resumeAndStartInstance(instanceId: string): Promise<EC2ResumeResult> {
         try {
             const command = new StartInstancesCommand({
-            InstanceIds: [instanceId]
+                InstanceIds: [instanceId],
             });
             const response = await this.client.send(command);
 
             return {
-            instanceId,
-            status: response.StartingInstances?.[0]?.CurrentState?.Name || 'pending'
+                instanceId,
+                status: response.StartingInstances?.[0]?.CurrentState?.Name || "pending",
             };
         } catch (error) {
-            throw new Error(`Failed to start instance ${instanceId}: ${error instanceof Error ? error.message : String(error)}`);
+            throw new Error(
+                `Failed to start instance ${instanceId}: ${error instanceof Error ? error.message : String(error)}`,
+            );
         }
     }
     // --- EC2 Termination Functions ---
