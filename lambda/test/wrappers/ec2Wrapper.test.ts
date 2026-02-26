@@ -7,6 +7,7 @@ import {
     CreateImageCommand,
     CreateTagsCommand,
     TerminateInstancesCommand,
+    StartInstancesCommand,
     InstanceStateName,
 } from "@aws-sdk/client-ec2";
 import EC2Wrapper, { EC2InstanceConfig, ErrorMessages } from "../../src/utils/ec2Wrapper";
@@ -881,6 +882,115 @@ describe("EC2Wrapper", () => {
                 expect(result.wasAlreadyTerminated).toBe(true); // instance already terminated
                 expect(result.state).toBe("terminated");
             });
+        });
+    });
+
+    describe("resumeAndStartInstance", () => {
+        const RESUME_INSTANCE_ID = "i-resume-test123";
+
+        beforeEach(() => {
+            resetAllMocks();
+            jest.clearAllMocks();
+        });
+
+        // ── Success — CurrentState.Name present ───────────────────────────────
+
+        it("returns instanceId and the CurrentState.Name on success", async () => {
+            ec2Mock.on(StartInstancesCommand).resolves({
+                StartingInstances: [
+                    { InstanceId: RESUME_INSTANCE_ID, CurrentState: { Name: "running" } },
+                ],
+            });
+
+            const ec2Wrapper = new EC2Wrapper();
+            const result = await ec2Wrapper.resumeAndStartInstance(RESUME_INSTANCE_ID);
+
+            expect(result).toEqual({ instanceId: RESUME_INSTANCE_ID, status: "running" });
+        });
+
+        it("returns status 'pending' when CurrentState.Name is 'pending'", async () => {
+            ec2Mock.on(StartInstancesCommand).resolves({
+                StartingInstances: [
+                    { InstanceId: RESUME_INSTANCE_ID, CurrentState: { Name: "pending" } },
+                ],
+            });
+
+            const ec2Wrapper = new EC2Wrapper();
+            const result = await ec2Wrapper.resumeAndStartInstance(RESUME_INSTANCE_ID);
+
+            expect(result.status).toBe("pending");
+        });
+
+        // ── Default status when StartingInstances is empty / undefined ────────
+
+        it("defaults status to 'pending' when StartingInstances is an empty array", async () => {
+            ec2Mock.on(StartInstancesCommand).resolves({
+                StartingInstances: [],
+            });
+
+            const ec2Wrapper = new EC2Wrapper();
+            const result = await ec2Wrapper.resumeAndStartInstance(RESUME_INSTANCE_ID);
+
+            expect(result).toEqual({ instanceId: RESUME_INSTANCE_ID, status: "pending" });
+        });
+
+        it("defaults status to 'pending' when StartingInstances is undefined", async () => {
+            ec2Mock.on(StartInstancesCommand).resolves({
+                StartingInstances: undefined,
+            });
+
+            const ec2Wrapper = new EC2Wrapper();
+            const result = await ec2Wrapper.resumeAndStartInstance(RESUME_INSTANCE_ID);
+
+            expect(result).toEqual({ instanceId: RESUME_INSTANCE_ID, status: "pending" });
+        });
+
+        it("defaults status to 'pending' when CurrentState is undefined on the first entry", async () => {
+            ec2Mock.on(StartInstancesCommand).resolves({
+                StartingInstances: [{ InstanceId: RESUME_INSTANCE_ID, CurrentState: undefined }],
+            });
+
+            const ec2Wrapper = new EC2Wrapper();
+            const result = await ec2Wrapper.resumeAndStartInstance(RESUME_INSTANCE_ID);
+
+            expect(result.status).toBe("pending");
+        });
+
+        // ── StartInstancesCommand input ───────────────────────────────────────
+
+        it("sends StartInstancesCommand with the correct InstanceIds", async () => {
+            ec2Mock.on(StartInstancesCommand).resolves({
+                StartingInstances: [
+                    { InstanceId: RESUME_INSTANCE_ID, CurrentState: { Name: "running" } },
+                ],
+            });
+
+            const ec2Wrapper = new EC2Wrapper();
+            await ec2Wrapper.resumeAndStartInstance(RESUME_INSTANCE_ID);
+
+            const calls = ec2Mock.commandCalls(StartInstancesCommand);
+            expect(calls).toHaveLength(1);
+            expect(calls[0].args[0].input.InstanceIds).toEqual([RESUME_INSTANCE_ID]);
+        });
+
+        // ── Error wrapping ────────────────────────────────────────────────────
+
+        it("wraps EC2 errors with 'Failed to start instance <id>: <message>'", async () => {
+            ec2Mock.on(StartInstancesCommand).rejects(new Error("insufficient capacity"));
+
+            const ec2Wrapper = new EC2Wrapper();
+            await expect(ec2Wrapper.resumeAndStartInstance(RESUME_INSTANCE_ID)).rejects.toThrow(
+                `Failed to start instance ${RESUME_INSTANCE_ID}: insufficient capacity`,
+            );
+        });
+
+        it("wraps non-Error thrown values (string) into the error message", async () => {
+            ec2Mock.on(StartInstancesCommand).rejects("raw-string-error");
+
+            const ec2Wrapper = new EC2Wrapper();
+            await expect(ec2Wrapper.resumeAndStartInstance(RESUME_INSTANCE_ID)).rejects.toThrow(
+                `Failed to start instance ${RESUME_INSTANCE_ID}:`,
+            );
         });
     });
 });
