@@ -14,6 +14,7 @@ import {
     CreateTagsCommand,
     TerminateInstancesCommand,
     StartInstancesCommand,
+    StopInstancesCommand,
 } from "@aws-sdk/client-ec2";
 import { generateArn } from "./generateArn";
 
@@ -61,11 +62,17 @@ export interface TerminateResult {
     wasAlreadyTerminated?: boolean;
 }
 
+export type StopResult = {
+    instanceId: string
+    status: string
+}
+
 export const DEFAULT_INSTANCE_TYPE = "t3.small";
 
 export enum ErrorMessages {
     INSTANCE_NOT_FOUND = "Instance does not exist or is not available",
     TERMINATION_FAILED = "Failed to terminate the instance",
+    STOP_FAILED = "Failed to stop the instance",
     INSTANCE_ALREADY_TERMINATED = "Instance already terminated or terminating",
     WAIT_TERMINATION_FAILED = "Failed to wait for termination of the instance",
     FAILED_GET_INSTANCE_DETAILS = "Failed to retrieve instance details",
@@ -282,6 +289,70 @@ class EC2Wrapper {
             );
         }
     }
+
+    // EC2 Stop functions
+
+    async canStop(instanceId: string): Promise<boolean> {
+         try {
+            const instanceDetails = await this.getInstanceDetails(instanceId);
+            const currentState = instanceDetails.state;
+
+            switch (currentState) {
+                case "running":
+                    return true
+                case "pending":
+                case "stopping":
+                    console.log(`Instance ${instanceId} is in a pending/stopping state, cannot stop`)
+                    return false
+                case "shutting-down":
+                case "terminated":
+                case "stopped":
+                    console.log(`Instance ${instanceId} is already terminated/shutting down/stopped.`);
+                    return false;
+
+                default:
+                    throw new Error(`Unknown or unsupported instance state: ${currentState}`);
+            }
+        } catch (error: unknown) {
+            // If the instance does not exist, treat it as stopped
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes(ErrorMessages.INSTANCE_NOT_FOUND)) {
+                console.log(`Instance ${instanceId} does not exist, treat as stopped.`);
+                return false;
+            }
+            throw error;
+        }
+
+    }
+
+    async stopEC2Instance(instanceId: string): Promise<StopResult> {
+        try {
+            if (!(await this.canStop(instanceId))) {
+                console.log(`${ErrorMessages.INSTANCE_ALREADY_TERMINATED} ${instanceId}`);
+                return {
+                    instanceId,
+                    status: "stopped",
+                };
+            }
+
+            const command = new StopInstancesCommand({ InstanceIds: [instanceId] });
+            const response = await this.client.send(command);
+            const stoppedInstance = response.StoppingInstances?.[0];
+
+            if (!stoppedInstance) {
+                throw new Error(ErrorMessages.STOP_FAILED);
+            }
+
+            return {
+                instanceId: stoppedInstance.InstanceId || instanceId,
+                status: stoppedInstance.CurrentState?.Name as InstanceStateName,
+            };
+        } catch (error: unknown) {
+            console.error(`${ErrorMessages.STOP_FAILED} for ${instanceId}:`, error);
+            throw error;
+        }
+    }
+
     // --- EC2 Termination Functions ---
     async getInstanceDetails(instanceId: string): Promise<InstanceDetails> {
         try {

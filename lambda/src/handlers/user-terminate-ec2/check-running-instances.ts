@@ -12,7 +12,8 @@ type checkRunningInstancesResult = {
 export const handler = async (
     event: checkRunningInstancesEvent,
 ): Promise<checkRunningInstancesResult> => {
-    if (!process.env.RUNNING_INSTANCES_TABLE_NAME) {
+    try {
+        if (!process.env.RUNNING_INSTANCES_TABLE_NAME) {
         throw new Error("MissingTableNameEnv");
     }
 
@@ -40,4 +41,11 @@ export const handler = async (
     const valid = instance.status && instance.status === "running";
 
     return { valid };
+
+    } catch (error) {
+        const message = error instanceof(Error)? error.message: String(error)
+        console.log("Error occurred during check running instances:", message)
+        throw error
+    }
+
 };

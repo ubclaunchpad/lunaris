@@ -1,5 +1,4 @@
 import DynamoDBWrapper from "../../utils/dynamoDbWrapper";
-import EC2Wrapper from "../../utils/ec2Wrapper";
 import { DEFAULT_INSTANCE_TYPE } from "../../utils/ec2Wrapper";
 
 type UpdateRunningInstancesEvent = {
