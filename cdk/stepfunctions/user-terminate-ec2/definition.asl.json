@@ -38,7 +38,7 @@
             "Resource": "arn:aws:states:::lambda:invoke",
             "Parameters": {
                 "FunctionName": "CheckRunningInstancesArn",
-                "Payload.$": "$"
+                "Payload.$": "$.checkRunningStreamsResult.Payload.instanceId"
             },
             "ResultPath": "$.checkRunningInstancesResult",
             "Next": "CheckValidInstance",
