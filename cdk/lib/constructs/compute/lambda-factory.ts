@@ -6,6 +6,8 @@ import {
     getDeployEC2Policies,
     getConfigureDcvInstancePolicies,
     getTerminateEC2Policies,
+    getStopEC2Policies,
+    getStopDCVInstancePolicies,
 } from "../iam/lambda-policies";
 
 /**
@@ -65,6 +67,10 @@ export class LambdaFactory {
                 return getConfigureDcvInstancePolicies();
             case "terminateEC2":
                 return getTerminateEC2Policies();
+            case "stopEC2":
+                return getStopEC2Policies();
+            case "stopDcv":
+                return getStopDCVInstancePolicies();
         }
     }
 }

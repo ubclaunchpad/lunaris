@@ -28,28 +28,79 @@
                 {
                     "Variable": "$.checkRunningStreamsResult.Payload.valid",
                     "BooleanEquals": true,
-                    "Next": "TerminateEC2"
+                    "Next": "CheckRunningInstances"
                 }
             ],
             "Default": "InvalidStreamError"
         },
-        "TerminateEC2": {
+        "CheckRunningInstances": {
             "Type": "Task",
             "Resource": "arn:aws:states:::lambda:invoke",
             "Parameters": {
-                "FunctionName": "${TerminateEC2Arn}",
+                "FunctionName": "CheckRunningInstancesArn",
+                "Payload.$": "$"
+            },
+            "ResultPath": "$.checkRunningInstancesResult",
+            "Next": "CheckValidInstance",
+            "Catch": [
+                {
+                    "ErrorEquals": ["MissingTableNameEnv"],
+                    "Next": "HandleMissingTableName"
+                },
+                {
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "Next": "HandleDatabaseError"
+                }
+            ]
+        },
+        "CheckValidInstance": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.checkRunningInstancesResult.Payload.valid",
+                    "BooleanEquals": true,
+                    "Next": "StopDCV"
+                }
+            ],
+            "Default": "InvalidInstanceError"
+        },
+        "StopDCV": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${StopDcvInstanceArn",
                 "Payload": {
                     "userId.$": "$.userId",
                     "instanceId.$": "$.checkRunningStreamsResult.Payload.instanceId",
                     "instanceArn.$": "$.checkRunningStreamsResult.Payload.instanceArn"
                 }
             },
-            "ResultPath": "$.terminateResult",
+            "ResultPath": "stopDcvResult",
+            "Next": "StopEC2",
+            "Catch": [
+                {
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "Next": "HandleFailedStop"
+                }
+            ]
+        },
+        "StopEC2": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${StopEC2Arn}",
+                "Payload": {
+                    "userId.$": "$.userId",
+                    "instanceId.$": "$.checkRunningStreamsResult.Payload.instanceId",
+                    "instanceArn.$": "$.checkRunningStreamsResult.Payload.instanceArn"
+                }
+            },
+            "ResultPath": "$.stopResult",
             "Next": "UpdateRunningStreams",
             "Catch": [
                 {
                     "ErrorEquals": ["States.TaskFailed"],
-                    "Next": "HandleFailedTermination"
+                    "Next": "HandleFailedStop"
                 }
             ]
         },
@@ -58,6 +109,29 @@
             "Resource": "arn:aws:states:::lambda:invoke",
             "Parameters": {
                 "FunctionName": "${UpdateRunningStreamsArn}",
+                "Payload": {
+                    "userId.$": "$.userId",
+                    "instanceArn.$": "$.checkRunningStreamsResult.Payload.instanceArn"
+                }
+            },
+            "ResultPath": "$.updateResult",
+            "Next": "UpdateRunningInstances",
+            "Catch": [
+                {
+                    "ErrorEquals": ["MissingTableNameEnv"],
+                    "Next": "HandleMissingTableName"
+                },
+                {
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "Next": "HandleDatabaseError"
+                }
+            ]
+        },
+        "UpdateRunningInstances": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${UpdateRunningInstancesArn}",
                 "Payload": {
                     "userId.$": "$.userId",
                     "instanceArn.$": "$.checkRunningStreamsResult.Payload.instanceArn"
@@ -81,6 +155,11 @@
             "Cause": "No valid running stream found for user",
             "Error": "InvalidStreamError"
         },
+        "InvalidInstanceError": {
+            "Type": "Fail",
+            "Cause": "No valid running instance found for user",
+            "Error": "InvalidInstanceError"
+        },
         "HandleMissingTableName": {
             "Type": "Fail",
             "Cause": "RUNNING_STREAMS_TABLE_NAME environment variable was not set",
@@ -91,10 +170,10 @@
             "Cause": "Error occurred while accessing the running streams database",
             "Error": "DatabaseError"
         },
-        "HandleFailedTermination": {
+        "HandleFailedStop": {
             "Type": "Fail",
-            "Cause": "Failed to terminate EC2 instance",
-            "Error": "TerminationFailedError"
+            "Cause": "Failed to stop EC2 instance",
+            "Error": "StopFailedError"
         },
         "Success": {
             "Type": "Succeed"
