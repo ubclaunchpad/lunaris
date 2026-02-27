@@ -59,7 +59,7 @@ export function getStopEC2Policies(): PolicyStatement[] {
     return [
         new PolicyStatement({
             effect: Effect.ALLOW,
-            actions: ["ec2:StopInstances, ec2:DescribeInstances"],
+            actions: ["ec2:StopInstances", "ec2:DescribeInstances"],
             resources: ["*"],
         }),
     ];
@@ -80,7 +80,12 @@ export function getStopDCVInstancePolicies(): PolicyStatement[] {
     return [
         new PolicyStatement({
             effect: Effect.ALLOW,
-            actions: [],
+            actions: ["ssm:SendCommand", "ssm:GetCommandInvocation"],
+            resources: ["*"],
+        }),
+        new PolicyStatement({
+            effect: Effect.ALLOW,
+            actions: ["ec2:DescribeInstances"],
             resources: ["*"],
         }),
     ];
