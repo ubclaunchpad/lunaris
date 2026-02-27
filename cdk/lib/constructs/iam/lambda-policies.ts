@@ -41,11 +41,7 @@ export function getStartEC2Policies(): PolicyStatement[] {
     return [
         new PolicyStatement({
             effect: Effect.ALLOW,
-            actions: [
-                "ec2:StartInstances",
-                "ec2:DescribeInstances",
-                "ec2:DescribeInstanceStatus",
-            ],
+            actions: ["ec2:StartInstances", "ec2:DescribeInstances", "ec2:DescribeInstanceStatus"],
             resources: ["*"],
         }),
     ];
