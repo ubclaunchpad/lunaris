@@ -1,13 +1,12 @@
 import DynamoDBWrapper from "../../utils/dynamoDbWrapper";
 
 type checkRunningInstancesEvent = {
-    instanceId: string
-
-}
+    instanceId: string;
+};
 
 type checkRunningInstancesResult = {
-    valid: boolean,
-}
+    valid: boolean;
+};
 
 // QUESTION: should this be wrapped in try catch?
 export const handler = async (
@@ -26,7 +25,7 @@ export const handler = async (
             ":instanceId": instanceId,
         },
         ScanIndexForward: false, // Get most recent first
-    })
+    });
 
     // Check if any items were returned
     if (!items || items.length === 0) {
@@ -36,9 +35,9 @@ export const handler = async (
     // Get the first (most recent) instance
     const instance = items[0];
     if (!instance.status) {
-        return {valid: false}
+        return { valid: false };
     }
-    const valid = instance.status && instance.status === "running"
+    const valid = instance.status && instance.status === "running";
 
     return { valid };
 };

@@ -55,15 +55,14 @@ export function getConfigureDcvInstancePolicies(): PolicyStatement[] {
 
 // do i need a new policy for startec2 here? what about the db lambdas?
 
-
 export function getStopEC2Policies(): PolicyStatement[] {
     return [
         new PolicyStatement({
             effect: Effect.ALLOW,
             actions: ["ec2:StopInstances, ec2:DescribeInstances"],
-            resources: ["*"]
-        })
-    ]
+            resources: ["*"],
+        }),
+    ];
 }
 
 export function getTerminateEC2Policies(): PolicyStatement[] {
@@ -82,7 +81,7 @@ export function getStopDCVInstancePolicies(): PolicyStatement[] {
         new PolicyStatement({
             effect: Effect.ALLOW,
             actions: [],
-            resources: ["*"]
-        })
-    ]
+            resources: ["*"],
+        }),
+    ];
 }

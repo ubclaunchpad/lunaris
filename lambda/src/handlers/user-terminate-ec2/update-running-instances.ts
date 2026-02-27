@@ -1,3 +1,1 @@
-export const handler = async () => {
-
-}
+export const handler = async () => {};

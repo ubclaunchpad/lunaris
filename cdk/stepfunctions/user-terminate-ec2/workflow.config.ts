@@ -33,12 +33,12 @@ const config: WorkflowConfig = {
         stopDCV: {
             functionName: "stopDcvInstanceFunction",
             placeholder: "${StopDcvInstanceArn",
-            required: true
+            required: true,
         },
         stopEC2: {
             functionName: "stopEC2Function",
             placeholder: "${StopEC2Arn}",
-            required: true
+            required: true,
         },
         checkRunningInstances: {
             functionName: "checkRunningInstancesTerminateFunction",
@@ -64,7 +64,8 @@ const config: WorkflowConfig = {
             InvalidStreamError: "HandleInvalidStreamError",
             // TerminationFailedError: "HandleFailedTermination",
             InvalidInstanceError: "HandleInvalidInstanceError",
-            StopFailedError: "HandleFailedStop"
+            StopFailedError: "HandleFailedStop",
+            DcvStopFailedError: "HandleFailedDcvStop",
         },
     },
 };
