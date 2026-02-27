@@ -53,8 +53,6 @@ export function getConfigureDcvInstancePolicies(): PolicyStatement[] {
     ];
 }
 
-// do i need a new policy for startec2 here? what about the db lambdas?
-
 export function getStopEC2Policies(): PolicyStatement[] {
     return [
         new PolicyStatement({
