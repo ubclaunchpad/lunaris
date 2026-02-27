@@ -1,18 +1,18 @@
-import DynamoDBWrapper from "../../utils/dynamoDbWrapper"
+import DynamoDBWrapper from "../../utils/dynamoDbWrapper";
 
 type updateRunningInstancesEvent = {
-    instanceId: string
-    status: string
-
-
-}
+    instanceId: string;
+    status: string;
+};
 
 type updateRunningInstancesResult = {
-    success: boolean
-    instanceId: string
-}
+    success: boolean;
+    instanceId: string;
+};
 
-export const handler = async (event: updateRunningInstancesEvent): Promise<updateRunningInstancesResult> => {
+export const handler = async (
+    event: updateRunningInstancesEvent,
+): Promise<updateRunningInstancesResult> => {
     try {
         if (!process.env.RUNNING_INSTANCES_TABLE_NAME) {
             throw new Error("MissingTableNameEnv");
@@ -64,5 +64,4 @@ export const handler = async (event: updateRunningInstancesEvent): Promise<updat
         console.error("Failed to update running instances:", message);
         throw error;
     }
-
 };

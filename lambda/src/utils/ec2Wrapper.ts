@@ -63,9 +63,9 @@ export interface TerminateResult {
 }
 
 export type StopResult = {
-    instanceId: string
-    status: string
-}
+    instanceId: string;
+    status: string;
+};
 
 export const DEFAULT_INSTANCE_TYPE = "t3.small";
 
@@ -292,21 +292,25 @@ class EC2Wrapper {
 
     // EC2 Stop functions
     async canStop(instanceId: string): Promise<boolean> {
-         try {
+        try {
             const instanceDetails = await this.getInstanceDetails(instanceId);
             const currentState = instanceDetails.state;
 
             switch (currentState) {
                 case "running":
-                    return true
+                    return true;
                 case "pending":
                 case "stopping":
-                    console.log(`Instance ${instanceId} is in a pending/stopping state, cannot stop`)
-                    return false
+                    console.log(
+                        `Instance ${instanceId} is in a pending/stopping state, cannot stop`,
+                    );
+                    return false;
                 case "shutting-down":
                 case "terminated":
                 case "stopped":
-                    console.log(`Instance ${instanceId} is already terminated/shutting down/stopped.`);
+                    console.log(
+                        `Instance ${instanceId} is already terminated/shutting down/stopped.`,
+                    );
                     return false;
 
                 default:
@@ -321,7 +325,6 @@ class EC2Wrapper {
             }
             throw error;
         }
-
     }
 
     async stopEC2Instance(instanceId: string): Promise<StopResult> {

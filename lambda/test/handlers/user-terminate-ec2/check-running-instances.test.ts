@@ -93,4 +93,38 @@ describe("user-terminate-ec2/check-running-instances", () => {
         expect(input.ExpressionAttributeValues).toMatchObject({ ":instanceId": "instance-456" });
         expect(input.ScanIndexForward).toBe(false);
     });
+
+    it("returns valid:false when instance status is 'stopped'", async () => {
+        dynamoMock.on(QueryCommand).resolves({
+            Items: [{ instanceId: "instance-123", status: "stopped" }],
+        });
+
+        const result = await handler({ instanceId: "instance-123" });
+
+        expect(result).toEqual({ valid: false });
+    });
+
+    it("returns valid:false when instance status is 'terminated'", async () => {
+        dynamoMock.on(QueryCommand).resolves({
+            Items: [{ instanceId: "instance-123", status: "terminated" }],
+        });
+
+        const result = await handler({ instanceId: "instance-123" });
+
+        expect(result).toEqual({ valid: false });
+    });
+
+    it("uses only the first (most recent) item when DynamoDB returns multiple results", async () => {
+        dynamoMock.on(QueryCommand).resolves({
+            Items: [
+                { instanceId: "instance-123", status: "running" },
+                { instanceId: "instance-123", status: "stopped" },
+            ],
+        });
+
+        const result = await handler({ instanceId: "instance-123" });
+
+        // First item is "running" so valid should be true
+        expect(result).toEqual({ valid: true });
+    });
 });

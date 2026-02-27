@@ -11,7 +11,7 @@ type stopDcvInstanceResult = {
 
 export const handler = async (event: stopDcvInstanceEvent): Promise<stopDcvInstanceResult> => {
     try {
-         if (!event.userId || !event.instanceId) {
+        if (!event.userId || !event.instanceId) {
             throw new Error("missing userId or instanceId in StopDCVInstanceHandler");
         }
 
@@ -19,14 +19,13 @@ export const handler = async (event: stopDcvInstanceEvent): Promise<stopDcvInsta
 
         const result = await dcvWrapper.stopDCVSession();
         if (!result) {
-            throw new Error("didn't return result")
+            throw new Error("didn't return result");
         }
 
         return { success: result.stoppedSuccessfully };
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         console.log("Failed to stop dcv instance:", message);
-        throw error
+        throw error;
     }
-
 };

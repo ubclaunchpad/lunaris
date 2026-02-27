@@ -188,9 +188,9 @@
             "Error": "DcvStopFailedError"
         },
         "HandleMissingFields": {
-          "Type": "Fail",
-          "Cause": "Missing fields in input",
-          "Error": "MissingFieldsError"
+            "Type": "Fail",
+            "Cause": "Missing fields in input",
+            "Error": "MissingFieldsError"
         },
         "Success": {
             "Type": "Succeed"
