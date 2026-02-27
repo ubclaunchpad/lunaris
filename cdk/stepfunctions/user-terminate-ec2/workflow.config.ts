@@ -63,6 +63,7 @@ const config: WorkflowConfig = {
             DatabaseError: "HandleDatabaseError",
             InvalidStreamError: "HandleInvalidStreamError",
             // TerminationFailedError: "HandleFailedTermination",
+            MissingFieldsError: "HandleMissingFields",
             InvalidInstanceError: "HandleInvalidInstanceError",
             StopFailedError: "HandleFailedStop",
             DcvStopFailedError: "HandleFailedDcvStop",

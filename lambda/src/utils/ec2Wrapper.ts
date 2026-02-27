@@ -291,7 +291,6 @@ class EC2Wrapper {
     }
 
     // EC2 Stop functions
-
     async canStop(instanceId: string): Promise<boolean> {
          try {
             const instanceDetails = await this.getInstanceDetails(instanceId);

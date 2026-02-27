@@ -48,6 +48,10 @@
                     "Next": "HandleMissingTableName"
                 },
                 {
+                    "ErrorEquals": ["Missing required fields: instanceId, status"],
+                    "Next": "HandleMissingFields"
+                },
+                {
                     "ErrorEquals": ["States.TaskFailed"],
                     "Next": "HandleDatabaseError"
                 }
@@ -102,7 +106,7 @@
                     "Next": "HandleFailedStop"
                 },
                 {
-                    "ErrorEquals": ["MissingLambdaRegionEnv"],
+                    "ErrorEquals": ["MissingLambdaRegionEnv", "InvalidStatus"],
                     "Next": "HandleFailedStop"
                 }
             ]
@@ -182,6 +186,11 @@
             "Type": "Fail",
             "Cause": "Failed to stop Dcv session",
             "Error": "DcvStopFailedError"
+        },
+        "HandleMissingFields": {
+          "Type": "Fail",
+          "Cause": "Missing fields in input",
+          "Error": "MissingFieldsError"
         },
         "Success": {
             "Type": "Succeed"

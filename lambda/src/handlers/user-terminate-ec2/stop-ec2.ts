@@ -19,6 +19,10 @@ export const handler = async (event: stopEC2Event): Promise<stopEc2Result> => {
 
         const result = await ec2Wrapper.stopEC2Instance(event.instanceId)
 
+        if (result.status !== "stopped") {
+            throw new Error("InvalidStatus")
+        }
+
         return result
 
     } catch (error) {
@@ -26,5 +30,4 @@ export const handler = async (event: stopEC2Event): Promise<stopEc2Result> => {
         console.log("Failed to stop ec2 instance:", message);
         throw error
     }
-
 };

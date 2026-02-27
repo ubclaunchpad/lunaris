@@ -5,7 +5,7 @@ import { dynamoMock, ensureInstancesTableEnv } from "../../utils/dynamoMock";
 
 let restoreEnv: () => void;
 
-describe("user-terminate-ec2/check-running-streams", () => {
+describe("user-terminate-ec2/check-running-instances", () => {
     beforeEach(() => {
         dynamoMock.reset();
         restoreEnv = ensureInstancesTableEnv();
