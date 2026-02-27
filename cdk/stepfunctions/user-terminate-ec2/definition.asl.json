@@ -100,6 +100,10 @@
                 {
                     "ErrorEquals": ["States.TaskFailed"],
                     "Next": "HandleFailedStop"
+                },
+                {
+                    "ErrorEquals": ["MissingLambdaRegionEnv"],
+                    "Next": "HandleFailedStop"
                 }
             ]
         },
@@ -132,8 +136,8 @@
             "Parameters": {
                 "FunctionName": "${UpdateRunningInstancesArn}",
                 "Payload": {
-                    "userId.$": "$.userId",
-                    "instanceArn.$": "$.checkRunningStreamsResult.Payload.instanceArn"
+                    "instanceId.$": "$.checkRunningStreamsResult.Payload.instanceId",
+                    "status.$": "$.stopEC2Result.Payload.status"
                 }
             },
             "ResultPath": "$.updateResult",
