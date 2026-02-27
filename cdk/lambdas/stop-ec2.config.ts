@@ -7,7 +7,7 @@ const config: LambdaFunctionConfig = {
     description: "Stop EC2 instance as part of user termination workflow",
     timeoutSeconds: 60,
     envVars: ["RUNNING_INSTANCES_TABLE_NAME", "LAMBDA_REGION"],
-    policies: ["terminateEC2"],
+    policies: ["stopEC2"],
 };
 
 export default config;

@@ -1,4 +1,10 @@
-export type LambdaPolicy = "deployEC2" | "resumeEC2" | "configureDcv" | "terminateEC2"|  "stopEC2" | "stopDcv" ;
+export type LambdaPolicy =
+    | "deployEC2"
+    | "resumeEC2"
+    | "configureDcv"
+    | "terminateEC2"
+    | "stopEC2"
+    | "stopDcv";
 
 /**
  * Provider for CDK token values and static config needed to populate Lambda env vars.

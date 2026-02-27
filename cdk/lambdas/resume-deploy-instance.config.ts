@@ -7,7 +7,7 @@ const config: LambdaFunctionConfig = {
     description:
         "Deploys instance when user already has a previously stopped but not terminated game instance as part of user deployment workflow",
     envVars: ["LAMBDA_REGION"],
-    policies: ["resumeEC2"]
+    policies: ["resumeEC2"],
 };
 
 export default config;

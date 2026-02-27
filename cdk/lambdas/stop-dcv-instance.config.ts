@@ -6,7 +6,7 @@ const config: LambdaFunctionConfig = {
     handler: "handlers/user-terminate-ec2/stop-dcv-instance.handler",
     description: "Stops DCV instance",
     envVars: ["RUNNING_INSTANCES_TABLE_NAME"],
-    policies: ["configureDcv"],
+    policies: ["stopDcv"],
 };
 
 export default config;
