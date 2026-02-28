@@ -25,4 +25,5 @@ const computeStack = new ComputeStack(app, "ComputeStack", {
 });
 const apiStack = new ApiStack(app, "ApiStack", {
     apiFunction: computeStack.apiFunction,
+    userPool: authStack.userPool, // Enable Cognito authorization
 });

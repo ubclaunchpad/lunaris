@@ -42,6 +42,13 @@ export class CognitoUserPool extends Construct {
             removalPolicy: RemovalPolicy.RETAIN,
         });
 
+        // Add Cognito Domain for OAuth/OIDC flows
+        const domain = this.userPool.addDomain("CognitoDomain", {
+            cognitoDomain: {
+                domainPrefix: "lunaris-auth-ubc", // Must be globally unique
+            },
+        });
+
         // Create App Client for frontend integration
         this.userPoolClient = new cognito.UserPoolClient(this, "LunarisUserPoolClient", {
             userPool: this.userPool,
@@ -50,11 +57,28 @@ export class CognitoUserPool extends Construct {
                 userPassword: true,
                 userSrp: true,
             },
-            generateSecret: false,
+            generateSecret: true, 
             accessTokenValidity: Duration.hours(1),
             idTokenValidity: Duration.hours(1),
             refreshTokenValidity: Duration.days(30),
             preventUserExistenceErrors: true,
+            // OAuth settings for NextAuth OIDC flow
+            oAuth: {
+                flows: {
+                    authorizationCodeGrant: true,
+                },
+                scopes: [
+                    cognito.OAuthScope.EMAIL,
+                    cognito.OAuthScope.OPENID,
+                    cognito.OAuthScope.PROFILE,
+                ],
+                callbackUrls: [
+                    "http://localhost:3000/api/auth/callback/cognito",
+                    "https://localhost:3000/api/auth/callback/cognito",
+                    // Add production URLs as needed
+                ],
+                logoutUrls: ["http://localhost:3000", "https://localhost:3000"],
+            },
         });
 
         // Output important values for frontend configuration
@@ -74,6 +98,18 @@ export class CognitoUserPool extends Construct {
             value: this.userPool.userPoolArn,
             description: "Cognito User Pool ARN",
             exportName: "LunarisUserPoolArn",
+        });
+
+        new CfnOutput(this, "UserPoolDomain", {
+            value: domain.domainName,
+            description: "Cognito Domain for OAuth",
+            exportName: "LunarisCognitoDomain",
+        });
+
+        new CfnOutput(this, "UserPoolIssuer", {
+            value: `https://cognito-idp.${this.userPool.stack.region}.amazonaws.com/${this.userPool.userPoolId}`,
+            description: "Cognito OIDC Issuer URL",
+            exportName: "LunarisCognitoIssuer",
         });
     }
 }

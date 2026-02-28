@@ -128,10 +128,18 @@ class ApiClient {
 
     private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
         const url = `${this.baseUrl}${endpoint}`;
+
+        // Import getSession dynamically to avoid issues with server-side rendering
+        const { getSession } = await import("next-auth/react");
+        const session = await getSession();
+
         const requestOptions: RequestInit = {
             ...options,
             headers: {
                 "Content-Type": "application/json",
+                ...(session?.idToken && {
+                    Authorization: `Bearer ${session.idToken}`,
+                }),
                 ...options.headers,
             },
         };
