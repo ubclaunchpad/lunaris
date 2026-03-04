@@ -1,10 +1,10 @@
 import { LambdaFunctionConfig } from "../lib/constructs/compute/lambda-types";
 
 const config: LambdaFunctionConfig = {
-    functionName: "checkRunningInstancesFunction",
-    constructId: "CheckRunningInstancesHandler",
+    functionName: "checkRunningInstancesTerminateFunction",
+    constructId: "CheckRunningInstancesTerminateHandler",
     handler: "handlers/user-terminate-ec2/check-running-instances.handler",
-    description: "Checks if user has active instance",
+    description: "Checks if user has active instance for terminate workflow",
     envVars: ["RUNNING_INSTANCES_TABLE_NAME"],
 };
 
