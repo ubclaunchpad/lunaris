@@ -1,6 +1,10 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, UpdateCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import {
+    DynamoDBDocumentClient,
+    UpdateCommand,
+    // PutCommand
+} from "@aws-sdk/lib-dynamodb";
 import {
     SFNClient,
     StartExecutionCommand,
@@ -142,27 +146,27 @@ const handleDeployInstance = async (
 
         // Store execution ARN in DynamoDB immediately so we can track the deployment status
         // Use a placeholder instanceId based on the execution name until the real instance is created
-        const placeholderInstanceId = `pending-${executionName}`;
-        const now = new Date().toISOString();
+        // const placeholderInstanceId = `pending-${executionName}`;
+        // const now = new Date().toISOString();
 
-        try {
-            const putCommand = new PutCommand({
-                TableName: RUNNING_INSTANCES_TABLE_NAME,
-                Item: {
-                    instanceId: placeholderInstanceId,
-                    userId: userId,
-                    executionArn: executionResponse.executionArn,
-                    status: "deploying",
-                    creationTime: now, // Match GSI sort key name
-                    lastModifiedTime: now,
-                },
-            });
-            await docClient.send(putCommand);
-            console.log(`Stored execution tracking record for user ${userId}`);
-        } catch (dbError) {
-            console.error("Failed to store execution ARN in DynamoDB:", dbError);
-            // Don't fail the request - the Step Function has already started
-        }
+        // try {
+        //     const putCommand = new PutCommand({
+        //         TableName: RUNNING_INSTANCES_TABLE_NAME,
+        //         Item: {
+        //             instanceId: placeholderInstanceId,
+        //             userId: userId,
+        //             executionArn: executionResponse.executionArn,
+        //             status: "deploying",
+        //             creationTime: now, // Match GSI sort key name
+        //             lastModifiedTime: now,
+        //         },
+        //     });
+        //     await docClient.send(putCommand);
+        //     console.log(`Stored execution tracking record for user ${userId}`);
+        // } catch (dbError) {
+        //     console.error("Failed to store execution ARN in DynamoDB:", dbError);
+        //     // Don't fail the request - the Step Function has already started
+        // }
 
         console.log(
             `Started Step Function execution ${executionResponse.executionArn} for user ${userId}`,
