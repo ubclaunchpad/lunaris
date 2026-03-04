@@ -137,13 +137,29 @@
                 }
             },
             "ResultPath": "$.deployResult",
-            "Next": "WaitForInstanceReady",
+            "Next": "CheckDeploymentSuccess",
             "Catch": [
                 {
                     "ErrorEquals": ["States.TaskFailed"],
                     "Next": "HandleFailedDeployment"
                 }
             ]
+        },
+        "CheckDeploymentSuccess": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.deployResult.Payload.success",
+                    "BooleanEquals": true,
+                    "Next": "WaitForInstanceReady"
+                }
+            ],
+            "Default": "HandleDeploymentError"
+        },
+        "HandleDeploymentError": {
+            "Type": "Fail",
+            "Cause": "EC2 deployment failed",
+            "Error": "DeploymentFailedError"
         },
         "WaitForInstanceReady": {
             "Type": "Wait",
@@ -200,11 +216,13 @@
             "Catch": [
                 {
                     "ErrorEquals": ["MissingTableNameEnv"],
-                    "Next": "HandleMissingTableName"
+                    "ResultPath": "$.error",
+                    "Next": "RollbackInstance"
                 },
                 {
                     "ErrorEquals": ["States.TaskFailed"],
-                    "Next": "HandleDatabaseError"
+                    "ResultPath": "$.error",
+                    "Next": "RollbackInstance"
                 }
             ]
         },
@@ -225,10 +243,33 @@
             "Catch": [
                 {
                     "ErrorEquals": ["MissingTableNameEnv"],
-                    "Next": "HandleMissingTableName"
+                    "ResultPath": "$.error",
+                    "Next": "RollbackInstance"
                 },
                 {
                     "ErrorEquals": ["States.TaskFailed"],
+                    "ResultPath": "$.error",
+                    "Next": "RollbackInstance"
+                }
+            ]
+        },
+        "RollbackInstance": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${TerminateEC2Arn}",
+                "Payload": {
+                    "userId.$": "$.userId",
+                    "instanceId.$": "$.deployResult.Payload.instanceId",
+                    "instanceArn.$": "$.deployResult.Payload.instanceArn"
+                }
+            },
+            "ResultPath": "$.rollbackResult",
+            "Next": "HandleDatabaseError",
+            "Catch": [
+                {
+                    "ErrorEquals": ["States.ALL"],
+                    "ResultPath": "$.rollbackError",
                     "Next": "HandleDatabaseError"
                 }
             ]
@@ -253,7 +294,7 @@
         },
         "HandleInstancesRunningError": {
             "Type": "Fail",
-            "Cause": "Valid running stream found for user",
+            "Cause": "Valid running instance found for user",
             "Error": "InstancesRunningError"
         },
         "HandleFailedDeployment": {

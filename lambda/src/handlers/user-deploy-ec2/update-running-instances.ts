@@ -62,17 +62,17 @@ export const handler = async (
                 instanceType = :instanceType
         `;
 
-        const updateConfig = {
-            Key: { instanceId: event.instanceId },
-            UpdateExpression: updateExpression,
-            ExpressionAttributeNames: {
-                "#status": "status",
-                "#region": "region",
+        await db.updateItem(
+            { instanceId: event.instanceId },
+            {
+                UpdateExpression: updateExpression,
+                ExpressionAttributeNames: {
+                    "#status": "status",
+                    "#region": "region",
+                },
+                ExpressionAttributeValues: expressionAttributeValues,
             },
-            ExpressionAttributeValues: expressionAttributeValues,
-        };
-
-        await db.updateItem(updateConfig);
+        );
 
         return {
             success: true,
