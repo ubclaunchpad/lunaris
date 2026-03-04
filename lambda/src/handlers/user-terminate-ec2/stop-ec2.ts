@@ -8,7 +8,7 @@ type stopEC2Event = {
 
 type stopEc2Result = StopResult;
 
-0;
+
 export const handler = async (event: stopEC2Event): Promise<stopEc2Result> => {
     try {
         if (!process.env.LAMBDA_REGION) {
