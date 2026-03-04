@@ -79,7 +79,7 @@
                     "instanceArn.$": "$.checkRunningStreamsResult.Payload.instanceArn"
                 }
             },
-            "ResultPath": "stopDcvResult",
+            "ResultPath": "$.stopDcvResult",
             "Next": "StopEC2",
             "Catch": [
                 {
