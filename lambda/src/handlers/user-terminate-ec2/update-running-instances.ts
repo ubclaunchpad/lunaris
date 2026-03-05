@@ -27,9 +27,12 @@ export const handler = async (
         const db = new DynamoDBWrapper(process.env.RUNNING_INSTANCES_TABLE_NAME);
         const now = new Date().toISOString();
 
+        // Note: sometimes the stopEC2 status will return as stopping, even though it succesfully stops
+        const status = "stopped"
+
         const payload = {
             instanceId: event.instanceId,
-            status: event.status,
+            status: status,
             lastModifiedTime: now,
         };
 
@@ -41,19 +44,20 @@ export const handler = async (
         const updateExpression = `
             SET
                 #status = :status,
-                lastModifiedTime = :lastModifiedTime,
+                lastModifiedTime = :lastModifiedTime
         `;
 
-        const updateConfig = {
-            Key: { instanceId: event.instanceId },
-            UpdateExpression: updateExpression,
-            ExpressionAttributeNames: {
-                "#status": "status",
-            },
-            ExpressionAttributeValues: expressionAttributeValues,
-        };
 
-        await db.updateItem(updateConfig);
+        await db.updateItem(
+            { instanceId: event.instanceId },
+            {
+                UpdateExpression: updateExpression,
+                ExpressionAttributeNames: {
+                    "#status": "status",
+                },
+                ExpressionAttributeValues: expressionAttributeValues,
+            }
+        );
 
         return {
             success: true,

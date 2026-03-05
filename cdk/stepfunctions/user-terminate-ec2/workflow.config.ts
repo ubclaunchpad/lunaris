@@ -32,7 +32,7 @@ const config: WorkflowConfig = {
         },
         stopDCV: {
             functionName: "stopDcvInstanceFunction",
-            placeholder: "${StopDcvInstanceArn",
+            placeholder: "${StopDcvInstanceArn}",
             required: true,
         },
         stopEC2: {

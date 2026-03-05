@@ -377,6 +377,11 @@ class EC2Wrapper {
                     })) || [],
             };
         } catch (error: unknown) {
+            const errorName = (error as { name?: string }).name;
+            if (errorName === "InvalidInstanceID.NotFound") {
+                throw new Error(`${ErrorMessages.INSTANCE_NOT_FOUND}: ${instanceId}`);
+            }
+
             console.error(`${ErrorMessages.FAILED_GET_INSTANCE_DETAILS} for ${instanceId}:`, error);
             throw error;
         }

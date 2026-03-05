@@ -37,8 +37,10 @@
             "Type": "Task",
             "Resource": "arn:aws:states:::lambda:invoke",
             "Parameters": {
-                "FunctionName": "CheckRunningInstancesArn",
-                "Payload.$": "$.checkRunningStreamsResult.Payload.instanceId"
+                "FunctionName": "${CheckRunningInstancesArn}",
+                "Payload": {
+                    "instanceId.$": "$.checkRunningStreamsResult.Payload.instanceId"
+                }
             },
             "ResultPath": "$.checkRunningInstancesResult",
             "Next": "CheckValidInstance",
@@ -72,7 +74,7 @@
             "Type": "Task",
             "Resource": "arn:aws:states:::lambda:invoke",
             "Parameters": {
-                "FunctionName": "${StopDcvInstanceArn",
+                "FunctionName": "${StopDcvInstanceArn}",
                 "Payload": {
                     "userId.$": "$.userId",
                     "instanceId.$": "$.checkRunningStreamsResult.Payload.instanceId",
@@ -141,7 +143,7 @@
                 "FunctionName": "${UpdateRunningInstancesArn}",
                 "Payload": {
                     "instanceId.$": "$.checkRunningStreamsResult.Payload.instanceId",
-                    "status.$": "$.stopEC2Result.Payload.status"
+                    "status.$": "$.stopResult.Payload.status"
                 }
             },
             "ResultPath": "$.updateResult",
