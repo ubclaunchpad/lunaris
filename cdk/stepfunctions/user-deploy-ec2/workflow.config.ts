@@ -55,6 +55,16 @@ const config: WorkflowConfig = {
             placeholder: "${GetDcvConfigArn}",
             required: true,
         },
+        startDcvInstance: {
+            functionName: "startDcvInstanceFunction",
+            placeholder: "${StartDcvInstanceArn}",
+            required: true,
+        },
+        terminateEC2: {
+            functionName: "terminateEC2Function",
+            placeholder: "${TerminateEC2Arn}",
+            required: true,
+        },
     },
     retryConfig: {
         maxAttempts: 3,
@@ -69,6 +79,7 @@ const config: WorkflowConfig = {
             StreamsRunningError: "HandleStreamsRunningError",
             InstancesRunningError: "HandleInstancesRunningError",
             DeploymentFailedError: "HandleFailedDeployment",
+            StartDcvFailedError: "HandleStartDcvError",
         },
     },
 };

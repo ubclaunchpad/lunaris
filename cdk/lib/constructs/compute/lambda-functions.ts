@@ -56,7 +56,7 @@ export class LambdaFunctions extends Construct {
             EC2_INSTANCE_PROFILE_ARN: props.ec2InstanceProfileArn ?? "",
             EC2_INSTANCE_PROFILE_NAME: props.ec2InstanceProfileName ?? "",
             SECURITY_GROUP_ID: props.dcvSecurityGroupId ?? "",
-            LAMBDA_REGION: process.env.AWS_REGION ?? "us-west-2",
+            LAMBDA_REGION: process.env.AWS_REGION ?? "us-east-1",
             STRIPE_SECRET_KEY: props.stripeSecretKey,
         };
     }

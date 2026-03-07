@@ -47,6 +47,21 @@ export function getStartEC2Policies(): PolicyStatement[] {
     ];
 }
 
+export function getStartDcvInstancePolicies(): PolicyStatement[] {
+    return [
+        new PolicyStatement({
+            effect: Effect.ALLOW,
+            actions: ["ssm:SendCommand", "ssm:GetCommandInvocation", "ssm:DescribeInstanceInformation"],
+            resources: ["*"],
+        }),
+        new PolicyStatement({
+            effect: Effect.ALLOW,
+            actions: ["ec2:DescribeInstances"],
+            resources: ["*"],
+        }),
+    ];
+}
+
 export function getConfigureDcvInstancePolicies(): PolicyStatement[] {
     return [
         new PolicyStatement({

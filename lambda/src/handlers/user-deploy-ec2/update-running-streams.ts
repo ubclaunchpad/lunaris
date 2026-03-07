@@ -59,6 +59,7 @@ export const handler = async (
         dcvPassword: event.dcvPassword,
         streamingLink: streamingLink,
         updatedAt: now,
+        status: "running"
     };
 
     const expressionAttributeValues: Record<string, string | number> = {
@@ -71,6 +72,7 @@ export const handler = async (
         ":streamingLink": payload.streamingLink,
         ":updatedAt": payload.updatedAt,
         ":createdAt": now,
+        ":status": payload.status
     };
 
     const updateExpression = `
@@ -83,11 +85,15 @@ export const handler = async (
         dcvPassword = :dcvPassword,
         streamingLink = :streamingLink,
         updatedAt = :updatedAt,
-        createdAt = if_not_exists(createdAt, :createdAt)
+        createdAt = if_not_exists(createdAt, :createdAt),
+        #status = :status
     `;
 
     const updateConfig = {
         UpdateExpression: updateExpression,
+        ExpressionAttributeNames: {
+            "#status": "status",
+        },
         ExpressionAttributeValues: expressionAttributeValues,
     };
 
