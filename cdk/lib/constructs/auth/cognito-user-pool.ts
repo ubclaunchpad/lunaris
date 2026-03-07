@@ -57,7 +57,7 @@ export class CognitoUserPool extends Construct {
                 userPassword: true,
                 userSrp: true,
             },
-            generateSecret: true, 
+            generateSecret: true,
             accessTokenValidity: Duration.hours(1),
             idTokenValidity: Duration.hours(1),
             refreshTokenValidity: Duration.days(30),
