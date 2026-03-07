@@ -59,7 +59,7 @@ export const handler = async (
         dcvPassword: event.dcvPassword,
         streamingLink: streamingLink,
         updatedAt: now,
-        status: "running"
+        status: "running",
     };
 
     const expressionAttributeValues: Record<string, string | number> = {
@@ -72,7 +72,7 @@ export const handler = async (
         ":streamingLink": payload.streamingLink,
         ":updatedAt": payload.updatedAt,
         ":createdAt": now,
-        ":status": payload.status
+        ":status": payload.status,
     };
 
     const updateExpression = `

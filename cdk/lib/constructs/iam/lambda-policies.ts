@@ -51,7 +51,11 @@ export function getStartDcvInstancePolicies(): PolicyStatement[] {
     return [
         new PolicyStatement({
             effect: Effect.ALLOW,
-            actions: ["ssm:SendCommand", "ssm:GetCommandInvocation", "ssm:DescribeInstanceInformation"],
+            actions: [
+                "ssm:SendCommand",
+                "ssm:GetCommandInvocation",
+                "ssm:DescribeInstanceInformation",
+            ],
             resources: ["*"],
         }),
         new PolicyStatement({

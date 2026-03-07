@@ -28,7 +28,7 @@ export const handler = async (
         const now = new Date().toISOString();
 
         // Note: sometimes the stopEC2 status will return as stopping, even though it succesfully stops
-        const status = "stopped"
+        const status = "stopped";
 
         const payload = {
             instanceId: event.instanceId,
@@ -47,7 +47,6 @@ export const handler = async (
                 lastModifiedTime = :lastModifiedTime
         `;
 
-
         await db.updateItem(
             { instanceId: event.instanceId },
             {
@@ -56,7 +55,7 @@ export const handler = async (
                     "#status": "status",
                 },
                 ExpressionAttributeValues: expressionAttributeValues,
-            }
+            },
         );
 
         return {

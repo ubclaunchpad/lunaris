@@ -148,7 +148,11 @@
             "Next": "PrepareUpdatePayload",
             "Retry": [
                 {
-                    "ErrorEquals": ["InvalidInstanceId", "InstanceNotReadyForSsm", "States.TaskFailed"],
+                    "ErrorEquals": [
+                        "InvalidInstanceId",
+                        "InstanceNotReadyForSsm",
+                        "States.TaskFailed"
+                    ],
                     "IntervalSeconds": 20,
                     "MaxAttempts": 3,
                     "BackoffRate": 2

@@ -10,16 +10,16 @@ export const handler = async (
     const db = new DynamoDBWrapper(process.env.RUNNING_STREAMS_TABLE_NAME);
 
     // instead of delete, update the status to stopped and updatedAt time to now
-    const now = new Date().toISOString()
+    const now = new Date().toISOString();
 
     const payload = {
         updatedAt: now,
-        status: "stopped"
+        status: "stopped",
     };
 
     const expressionAttributeValues: Record<string, string | number> = {
         ":updatedAt": payload.updatedAt,
-        ":status": payload.status
+        ":status": payload.status,
     };
 
     const updateExpression = `
