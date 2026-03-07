@@ -1,28 +1,25 @@
 import DynamoDBWrapper from "../../utils/dynamoDbWrapper";
-import { DEFAULT_INSTANCE_TYPE } from "../../utils/ec2Wrapper";
 
-type UpdateRunningInstancesEvent = {
+type updateRunningInstancesEvent = {
     instanceId: string;
-    instanceArn: string;
-    userId: string;
-    creationTime: string;
+    status: string;
 };
 
-type UpdateRunningInstancesResult = {
+type updateRunningInstancesResult = {
     success: boolean;
     instanceId: string;
 };
 
 export const handler = async (
-    event: UpdateRunningInstancesEvent,
-): Promise<UpdateRunningInstancesResult> => {
+    event: updateRunningInstancesEvent,
+): Promise<updateRunningInstancesResult> => {
     try {
         if (!process.env.RUNNING_INSTANCES_TABLE_NAME) {
             throw new Error("MissingTableNameEnv");
         }
 
-        if (!event.instanceArn || !event.instanceId) {
-            throw new Error("Missing required fields: instanceArn, instanceId");
+        if (!event.instanceId || !event.status) {
+            throw new Error("Missing required fields: instanceId, status");
         }
 
         console.log("Update event received:", JSON.stringify(event));
@@ -30,36 +27,24 @@ export const handler = async (
         const db = new DynamoDBWrapper(process.env.RUNNING_INSTANCES_TABLE_NAME);
         const now = new Date().toISOString();
 
+        // Note: sometimes the stopEC2 status will return as stopping, even though it succesfully stops
+        const status = "stopped";
+
         const payload = {
             instanceId: event.instanceId,
-            instanceArn: event.instanceArn,
-            userId: event.userId,
-            creationTime: event.creationTime,
-            status: "running",
+            status: status,
             lastModifiedTime: now,
-            region: process.env.LAMBDA_REGION,
-            instanceType: DEFAULT_INSTANCE_TYPE,
         };
 
         const expressionAttributeValues: Record<string, string> = {
-            ":instanceArn": payload.instanceArn,
-            ":userId": payload.userId,
-            ":creationTime": payload.creationTime,
             ":status": payload.status,
             ":lastModifiedTime": payload.lastModifiedTime,
-            ":region": payload.region || "us-west-2",
-            ":instanceType": payload.instanceType,
         };
 
         const updateExpression = `
             SET
-                instanceArn = :instanceArn,
-                userId = :userId,
-                creationTime = if_not_exists(creationTime, :creationTime),
                 #status = :status,
-                lastModifiedTime = :lastModifiedTime,
-                #region = :region,
-                instanceType = :instanceType
+                lastModifiedTime = :lastModifiedTime
         `;
 
         await db.updateItem(
@@ -68,7 +53,6 @@ export const handler = async (
                 UpdateExpression: updateExpression,
                 ExpressionAttributeNames: {
                     "#status": "status",
-                    "#region": "region",
                 },
                 ExpressionAttributeValues: expressionAttributeValues,
             },

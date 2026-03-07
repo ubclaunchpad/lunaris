@@ -20,7 +20,7 @@ export const handler = async (
         ScanIndexForward: false, // Get most recent first
     });
 
-    if (!items || items.length === 0) {
+    if (!items || items.length === 0 || items[0].status !== "running") {
         return {
             valid: false,
             message: "No active streaming session found for user",

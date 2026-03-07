@@ -134,5 +134,12 @@ export class ComputeStack extends Stack {
         runningStreamsTable.grantWriteData(
             lambdaFunctions.getFunction("updateRunningStreamsTerminateFunction"),
         );
+        runningInstancesTable.grantReadWriteData(lambdaFunctions.getFunction("stopEC2Function"));
+        runningInstancesTable.grantReadData(
+            lambdaFunctions.getFunction("checkRunningInstancesTerminateFunction"),
+        );
+        runningInstancesTable.grantWriteData(
+            lambdaFunctions.getFunction("updateRunningInstancesTerminateFunction"),
+        );
     }
 }

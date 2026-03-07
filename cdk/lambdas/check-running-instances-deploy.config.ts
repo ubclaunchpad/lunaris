@@ -4,7 +4,7 @@ const config: LambdaFunctionConfig = {
     functionName: "checkRunningInstancesFunction",
     constructId: "CheckRunningInstancesHandler",
     handler: "handlers/user-deploy-ec2/check-running-instances.handler",
-    description: "Checks if user has active streaming sessions",
+    description: "Checks if user has active instance",
     envVars: ["RUNNING_INSTANCES_TABLE_NAME"],
 };
 

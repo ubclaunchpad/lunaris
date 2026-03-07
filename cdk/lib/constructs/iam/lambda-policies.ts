@@ -81,11 +81,37 @@ export function getConfigureDcvInstancePolicies(): PolicyStatement[] {
     ];
 }
 
+export function getStopEC2Policies(): PolicyStatement[] {
+    return [
+        new PolicyStatement({
+            effect: Effect.ALLOW,
+            actions: ["ec2:StopInstances", "ec2:DescribeInstances"],
+            resources: ["*"],
+        }),
+    ];
+}
+
 export function getTerminateEC2Policies(): PolicyStatement[] {
     return [
         new PolicyStatement({
             effect: Effect.ALLOW,
             actions: ["ec2:TerminateInstances", "ec2:DescribeInstances"],
+            resources: ["*"],
+        }),
+    ];
+}
+
+// TOOD: finish policystatement
+export function getStopDCVInstancePolicies(): PolicyStatement[] {
+    return [
+        new PolicyStatement({
+            effect: Effect.ALLOW,
+            actions: ["ssm:SendCommand", "ssm:GetCommandInvocation"],
+            resources: ["*"],
+        }),
+        new PolicyStatement({
+            effect: Effect.ALLOW,
+            actions: ["ec2:DescribeInstances"],
             resources: ["*"],
         }),
     ];

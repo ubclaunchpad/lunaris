@@ -2,7 +2,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
     DynamoDBDocumentClient,
-    UpdateCommand,
+    // UpdateCommand,
     // PutCommand
 } from "@aws-sdk/lib-dynamodb";
 import {
@@ -52,7 +52,7 @@ interface DeployInstanceRequest {
 
 interface TerminateInstanceRequest {
     userId: string;
-    instanceId: string;
+    // instanceId: string;
 }
 
 interface ResponseBody {
@@ -192,7 +192,7 @@ const handleTerminateInstance = async (
 ): Promise<APIGatewayProxyResult> => {
     try {
         const body: TerminateInstanceRequest = JSON.parse(event.body || "{}");
-        const { userId, instanceId } = body;
+        const { userId } = body;
 
         // Validate input
         if (!userId) {
@@ -202,12 +202,12 @@ const handleTerminateInstance = async (
             });
         }
 
-        if (!instanceId) {
-            return createResponse(400, {
-                status: "error",
-                message: "Instance ID is required",
-            });
-        }
+        // if (!instanceId) {
+        //     return createResponse(400, {
+        //         status: "error",
+        //         message: "Instance ID is required",
+        //     });
+        // }
 
         // Validate environment variables
         if (!TERMINATE_WORKFLOW_ARN) {
@@ -275,33 +275,33 @@ const handleTerminateInstance = async (
 
         // Update DynamoDB with execution ARN and status
         // This should not fail the request if it errors (Step Function already started)
-        const timestamp = new Date().toISOString();
-        try {
-            const updateCommand = new UpdateCommand({
-                TableName: RUNNING_INSTANCES_TABLE_NAME,
-                Key: {
-                    instanceId: instanceId,
-                },
-                UpdateExpression:
-                    "SET executionArn = :arn, #status = :status, lastModifiedTime = :timestamp",
-                ExpressionAttributeNames: {
-                    "#status": "status",
-                },
-                ExpressionAttributeValues: {
-                    ":arn": executionResponse.executionArn,
-                    ":status": "terminating",
-                    ":timestamp": timestamp,
-                },
-            });
+        // const timestamp = new Date().toISOString();
+        // try {
+        //     const updateCommand = new UpdateCommand({
+        //         TableName: RUNNING_INSTANCES_TABLE_NAME,
+        //         Key: {
+        //             instanceId: instanceId,
+        //         },
+        //         UpdateExpression:
+        //             "SET executionArn = :arn, #status = :status, lastModifiedTime = :timestamp",
+        //         ExpressionAttributeNames: {
+        //             "#status": "status",
+        //         },
+        //         ExpressionAttributeValues: {
+        //             ":arn": executionResponse.executionArn,
+        //             ":status": "terminating",
+        //             ":timestamp": timestamp,
+        //         },
+        //     });
 
-            await docClient.send(updateCommand);
-            console.log(
-                `Updated DynamoDB with execution ARN: ${executionResponse.executionArn} for instance ${instanceId}`,
-            );
-        } catch (dbError) {
-            // Log error but don't fail the request since Step Function was already started
-            console.error("Failed to update DynamoDB:", dbError);
-        }
+        //     await docClient.send(updateCommand);
+        //     console.log(
+        //         `Updated DynamoDB with execution ARN: ${executionResponse.executionArn} for instance ${instanceId}`,
+        //     );
+        // } catch (dbError) {
+        //     // Log error but don't fail the request since Step Function was already started
+        //     console.error("Failed to update DynamoDB:", dbError);
+        // }
 
         console.log(
             `Started Step Function execution ${executionResponse.executionArn} for user ${userId}`,
