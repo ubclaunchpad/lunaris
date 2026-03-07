@@ -1,6 +1,7 @@
 export type LambdaPolicy =
     | "deployEC2"
     | "resumeEC2"
+    | "startDcv"
     | "configureDcv"
     | "terminateEC2"
     | "stopEC2"

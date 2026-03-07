@@ -79,13 +79,19 @@
                 }
             },
             "ResultPath": "$.resumeDeployResult",
-            "Next": "GetDcvConfig",
+            "Next": "WaitForResumeInstanceReady",
             "Catch": [
                 {
                     "ErrorEquals": ["States.TaskFailed"],
                     "Next": "HandleFailedDeployment"
                 }
             ]
+        },
+        "WaitForResumeInstanceReady": {
+            "Type": "Wait",
+            "Seconds": 60,
+            "Comment": "Wait for resumed EC2 instance to be ready for SSM commands",
+            "Next": "GetDcvConfig"
         },
         "GetDcvConfig": {
             "Type": "Task",
@@ -111,6 +117,7 @@
         },
         "MergeResumeData": {
             "Type": "Pass",
+            "Comment": "Merge resume path data to match deploy path structure",
             "Parameters": {
                 "userId.$": "$.userId",
                 "deployResult": {
@@ -125,7 +132,35 @@
                     }
                 }
             },
-            "Next": "WaitForInstanceReady"
+            "ResultPath": "$",
+            "Next": "StartDcvInstance"
+        },
+        "StartDcvInstance": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${StartDcvInstanceArn}",
+                "Payload": {
+                    "instanceId.$": "$.deployResult.Payload.instanceId"
+                }
+            },
+            "ResultPath": "$.startDcvResult",
+            "Next": "PrepareUpdatePayload",
+            "Retry": [
+                {
+                    "ErrorEquals": ["InvalidInstanceId", "InstanceNotReadyForSsm", "States.TaskFailed"],
+                    "IntervalSeconds": 20,
+                    "MaxAttempts": 3,
+                    "BackoffRate": 2
+                }
+            ],
+            "Catch": [
+                {
+                    "ErrorEquals": ["States.ALL"],
+                    "ResultPath": "$.startDcvError",
+                    "Next": "HandleStartDcvError"
+                }
+            ]
         },
         "DeployEC2": {
             "Type": "Task",
@@ -179,7 +214,7 @@
                 }
             },
             "ResultPath": "$.configureResult",
-            "Next": "UpdateRunningStreams",
+            "Next": "PrepareUpdatePayload",
             "Retry": [
                 {
                     "ErrorEquals": ["States.TaskFailed"],
@@ -196,20 +231,27 @@
                 }
             ]
         },
+        "PrepareUpdatePayload": {
+            "Type": "Pass",
+            "Comment": "Normalize data from both deploy and resume paths for UpdateRunningStreams",
+            "Parameters": {
+                "userId.$": "$.userId",
+                "instanceId.$": "$.deployResult.Payload.instanceId",
+                "instanceArn.$": "$.deployResult.Payload.instanceArn",
+                "dcvIp.$": "$.deployResult.Payload.dcvIp",
+                "dcvPort.$": "$.deployResult.Payload.dcvPort",
+                "dcvUser.$": "$.deployResult.Payload.dcvUser",
+                "dcvPassword.$": "$.deployResult.Payload.dcvPassword"
+            },
+            "ResultPath": "$.updatePayload",
+            "Next": "UpdateRunningStreams"
+        },
         "UpdateRunningStreams": {
             "Type": "Task",
             "Resource": "arn:aws:states:::lambda:invoke",
             "Parameters": {
                 "FunctionName": "${UpdateRunningStreamsArn}",
-                "Payload": {
-                    "userId.$": "$.userId",
-                    "instanceId.$": "$.deployResult.Payload.instanceId",
-                    "instanceArn.$": "$.deployResult.Payload.instanceArn",
-                    "dcvIp.$": "$.deployResult.Payload.dcvIp",
-                    "dcvPort.$": "$.deployResult.Payload.dcvPort",
-                    "dcvUser.$": "$.deployResult.Payload.dcvUser",
-                    "dcvPassword.$": "$.deployResult.Payload.dcvPassword"
-                }
+                "Payload.$": "$.updatePayload"
             },
             "ResultPath": "$.updateResult",
             "Next": "UpdateRunningInstances",
@@ -233,8 +275,8 @@
                 "FunctionName": "${UpdateRunningInstancesArn}",
                 "Payload": {
                     "userId.$": "$.userId",
-                    "instanceId.$": "$.deployResult.Payload.instanceId",
-                    "instanceArn.$": "$.deployResult.Payload.instanceArn",
+                    "instanceId.$": "$.updatePayload.instanceId",
+                    "instanceArn.$": "$.updatePayload.instanceArn",
                     "creationTime.$": "$.deployResult.Payload.creationTime"
                 }
             },
@@ -301,6 +343,11 @@
             "Type": "Fail",
             "Cause": "Failed to deploy EC2 instance",
             "Error": "DeploymentFailedError"
+        },
+        "HandleStartDcvError": {
+            "Type": "Fail",
+            "Cause": "Failed to start DCV service on resumed instance",
+            "Error": "StartDcvFailedError"
         }
     }
 }

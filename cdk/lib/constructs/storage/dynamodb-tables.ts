@@ -29,6 +29,7 @@ export class DynamoDbTables extends Construct {
      * - dcvPassword (string) - Unique password per instance (encrypted at rest)
      * - createdAt (ISO 8601 formatted date string)
      * - updatedAt (ISO 8601 formatted date string)
+     * - status (string) - current status of stream
      *
      * Security: Passwords are generated per-instance and stored encrypted.
      * The table uses AWS-managed encryption (KMS) at rest.
