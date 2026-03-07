@@ -6,7 +6,7 @@ const config: LambdaFunctionConfig = {
     handler: "handlers/user-deploy-ec2/deploy-ec2.handler",
     description: "Deploys EC2 instance as part of user deployment workflow",
     envVars: [
-        "RUNNING_INSTANCES_TABLE",
+        "RUNNING_INSTANCES_TABLE_NAME",
         "LAMBDA_REGION",
         "EC2_INSTANCE_PROFILE_ARN",
         "EC2_INSTANCE_PROFILE_NAME",

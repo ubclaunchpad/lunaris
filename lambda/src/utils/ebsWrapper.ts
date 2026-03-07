@@ -64,7 +64,8 @@ class EBSWrapper {
 
         this.region = region || process.env.CDK_DEFAULT_REGION || "us-east-1";
         this.size = size ?? this.size;
-        this.tableName = tableName || process.env.RUNNING_INSTANCES_TABLE || "RunningInstances";
+        this.tableName =
+            tableName || process.env.RUNNING_INSTANCES_TABLE_NAME || "RunningInstances";
     }
 
     async createAndAttachEBSVolume(

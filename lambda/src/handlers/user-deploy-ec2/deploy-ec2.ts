@@ -14,6 +14,7 @@ type DeployEC2Success = {
     dcvPort: number;
     dcvUser: string;
     dcvPassword: string;
+    creationTime: string;
 };
 
 type DeployEC2Error = {
@@ -91,12 +92,14 @@ export const handler = async (
     event: DeployEc2Event,
 ): Promise<DeployEC2Success | DeployEC2Error> => {
     try {
-        const ssmWrapper = new SSMWrapper();
+        const ssmWrapper = new SSMWrapper(process.env.LAMBDA_REGION || "us-west-2");
         const amiId = await ssmWrapper.getParamFromParamStore("ami_id");
 
         if (!amiId) {
             throw new Error("AMI ID not found in Parameter Store");
         }
+
+        console.log(`Using AMI ID: ${amiId}`);
 
         const ec2Wrapper = new EC2Wrapper(process.env.LAMBDA_REGION || "us-west-2");
 
@@ -117,6 +120,7 @@ export const handler = async (
         };
 
         const instance = await ec2Wrapper.createAndWaitForInstance(instanceConfig);
+        const now = new Date().toISOString();
 
         return {
             success: true,
@@ -126,6 +130,7 @@ export const handler = async (
             dcvPort: 8443,
             dcvUser: "Administrator",
             dcvPassword: dcvPassword,
+            creationTime: now,
         };
     } catch (err: unknown) {
         if (err instanceof Error) {

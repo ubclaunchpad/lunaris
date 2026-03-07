@@ -37,6 +37,34 @@ export function getDeployEC2Policies(): PolicyStatement[] {
         }),
     ];
 }
+export function getStartEC2Policies(): PolicyStatement[] {
+    return [
+        new PolicyStatement({
+            effect: Effect.ALLOW,
+            actions: ["ec2:StartInstances", "ec2:DescribeInstances", "ec2:DescribeInstanceStatus"],
+            resources: ["*"],
+        }),
+    ];
+}
+
+export function getStartDcvInstancePolicies(): PolicyStatement[] {
+    return [
+        new PolicyStatement({
+            effect: Effect.ALLOW,
+            actions: [
+                "ssm:SendCommand",
+                "ssm:GetCommandInvocation",
+                "ssm:DescribeInstanceInformation",
+            ],
+            resources: ["*"],
+        }),
+        new PolicyStatement({
+            effect: Effect.ALLOW,
+            actions: ["ec2:DescribeInstances"],
+            resources: ["*"],
+        }),
+    ];
+}
 
 export function getConfigureDcvInstancePolicies(): PolicyStatement[] {
     return [

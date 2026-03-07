@@ -1,6 +1,10 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, UpdateCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import {
+    DynamoDBDocumentClient,
+    UpdateCommand,
+    // PutCommand
+} from "@aws-sdk/lib-dynamodb";
 import {
     SFNClient,
     StartExecutionCommand,
@@ -37,7 +41,7 @@ const dynamoClient = new DynamoDBClient(dynamoClientConfig);
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
 // Environment variables
-const RUNNING_INSTANCES_TABLE = process.env.RUNNING_INSTANCES_TABLE || "";
+const RUNNING_INSTANCES_TABLE_NAME = process.env.RUNNING_INSTANCES_TABLE_NAME || "";
 const RUNNING_STREAMS_TABLE_NAME = process.env.RUNNING_STREAMS_TABLE_NAME || "";
 const USER_DEPLOY_EC2_WORKFLOW_ARN = process.env.USER_DEPLOY_EC2_WORKFLOW_ARN || "";
 const TERMINATE_WORKFLOW_ARN = process.env.TERMINATE_WORKFLOW_ARN || "";
@@ -84,7 +88,7 @@ const handleDeployInstance = async (
         const body: DeployInstanceRequest = JSON.parse(event.body || "{}");
         const { userId } = body;
 
-        if (!RUNNING_INSTANCES_TABLE) {
+        if (!RUNNING_INSTANCES_TABLE_NAME) {
             throw new Error("MissingRunningInstancesTable");
         }
 
@@ -142,27 +146,27 @@ const handleDeployInstance = async (
 
         // Store execution ARN in DynamoDB immediately so we can track the deployment status
         // Use a placeholder instanceId based on the execution name until the real instance is created
-        const placeholderInstanceId = `pending-${executionName}`;
-        const now = new Date().toISOString();
+        // const placeholderInstanceId = `pending-${executionName}`;
+        // const now = new Date().toISOString();
 
-        try {
-            const putCommand = new PutCommand({
-                TableName: RUNNING_INSTANCES_TABLE,
-                Item: {
-                    instanceId: placeholderInstanceId,
-                    userId: userId,
-                    executionArn: executionResponse.executionArn,
-                    status: "deploying",
-                    creationTime: now, // Match GSI sort key name
-                    lastModifiedTime: now,
-                },
-            });
-            await docClient.send(putCommand);
-            console.log(`Stored execution tracking record for user ${userId}`);
-        } catch (dbError) {
-            console.error("Failed to store execution ARN in DynamoDB:", dbError);
-            // Don't fail the request - the Step Function has already started
-        }
+        // try {
+        //     const putCommand = new PutCommand({
+        //         TableName: RUNNING_INSTANCES_TABLE_NAME,
+        //         Item: {
+        //             instanceId: placeholderInstanceId,
+        //             userId: userId,
+        //             executionArn: executionResponse.executionArn,
+        //             status: "deploying",
+        //             creationTime: now, // Match GSI sort key name
+        //             lastModifiedTime: now,
+        //         },
+        //     });
+        //     await docClient.send(putCommand);
+        //     console.log(`Stored execution tracking record for user ${userId}`);
+        // } catch (dbError) {
+        //     console.error("Failed to store execution ARN in DynamoDB:", dbError);
+        //     // Don't fail the request - the Step Function has already started
+        // }
 
         console.log(
             `Started Step Function execution ${executionResponse.executionArn} for user ${userId}`,
@@ -213,7 +217,7 @@ const handleTerminateInstance = async (
             });
         }
 
-        if (!RUNNING_INSTANCES_TABLE) {
+        if (!RUNNING_INSTANCES_TABLE_NAME) {
             return createResponse(500, {
                 status: "error",
                 message: "Internal server error: Database configuration missing",
@@ -274,7 +278,7 @@ const handleTerminateInstance = async (
         const timestamp = new Date().toISOString();
         try {
             const updateCommand = new UpdateCommand({
-                TableName: RUNNING_INSTANCES_TABLE,
+                TableName: RUNNING_INSTANCES_TABLE_NAME,
                 Key: {
                     instanceId: instanceId,
                 },
@@ -547,7 +551,7 @@ const handleDeploymentStatus = async (
             });
         }
 
-        const dbWrapper = new DynamoDBWrapper(RUNNING_INSTANCES_TABLE);
+        const dbWrapper = new DynamoDBWrapper(RUNNING_INSTANCES_TABLE_NAME);
         const instances = await dbWrapper.queryByUserId(userId);
 
         if (!instances || instances.length === 0) {

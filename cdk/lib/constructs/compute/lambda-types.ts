@@ -1,11 +1,18 @@
-export type LambdaPolicy = "deployEC2" | "configureDcv" | "terminateEC2";
+export type LambdaPolicy =
+    | "deployEC2"
+    | "resumeEC2"
+    | "startDcv"
+    | "configureDcv"
+    | "terminateEC2"
+    | "stopEC2"
+    | "stopDcv";
 
 /**
  * Provider for CDK token values and static config needed to populate Lambda env vars.
  * Keys match the exact env var names set in the Lambda environment.
  */
 export interface LambdaEnvVarProvider {
-    readonly RUNNING_INSTANCES_TABLE: string;
+    readonly RUNNING_INSTANCES_TABLE_NAME: string;
     readonly RUNNING_STREAMS_TABLE_NAME: string;
     readonly EC2_INSTANCE_PROFILE_ARN: string;
     readonly EC2_INSTANCE_PROFILE_NAME: string;

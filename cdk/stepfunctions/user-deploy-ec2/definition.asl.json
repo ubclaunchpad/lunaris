@@ -28,10 +28,143 @@
                 {
                     "Variable": "$.checkRunningStreamsResult.Payload.streamsRunning",
                     "BooleanEquals": false,
-                    "Next": "DeployEC2"
+                    "Next": "CheckRunningInstances"
                 }
             ],
             "Default": "HandleStreamsRunningError"
+        },
+        "CheckRunningInstances": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${CheckRunningInstancesArn}",
+                "Payload.$": "$"
+            },
+            "ResultPath": "$.checkRunningInstancesResult",
+            "Next": "CheckIfInstanceExists",
+            "Catch": [
+                {
+                    "ErrorEquals": ["MissingTableNameEnv"],
+                    "Next": "HandleMissingTableName"
+                },
+                {
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "Next": "HandleDatabaseError"
+                }
+            ]
+        },
+        "CheckIfInstanceExists": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.checkRunningInstancesResult.Payload.status",
+                    "StringEquals": "stopped",
+                    "Next": "ResumeDeployInstance"
+                },
+                {
+                    "Variable": "$.checkRunningInstancesResult.Payload.status",
+                    "StringEquals": "terminated",
+                    "Next": "DeployEC2"
+                }
+            ],
+            "Default": "HandleInstancesRunningError"
+        },
+        "ResumeDeployInstance": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${ResumeDeployInstanceArn}",
+                "Payload": {
+                    "instanceId.$": "$.checkRunningInstancesResult.Payload.instanceId"
+                }
+            },
+            "ResultPath": "$.resumeDeployResult",
+            "Next": "WaitForResumeInstanceReady",
+            "Catch": [
+                {
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "Next": "HandleFailedDeployment"
+                }
+            ]
+        },
+        "WaitForResumeInstanceReady": {
+            "Type": "Wait",
+            "Seconds": 60,
+            "Comment": "Wait for resumed EC2 instance to be ready for SSM commands",
+            "Next": "GetDcvConfig"
+        },
+        "GetDcvConfig": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${GetDcvConfigArn}",
+                "Payload": {
+                    "instanceArn.$": "$.resumeDeployResult.Payload.instanceArn"
+                }
+            },
+            "ResultPath": "$.dcvConfig",
+            "Next": "MergeResumeData",
+            "Catch": [
+                {
+                    "ErrorEquals": ["MissingTableNameEnv"],
+                    "Next": "HandleMissingTableName"
+                },
+                {
+                    "ErrorEquals": ["StreamNotFound", "States.TaskFailed"],
+                    "Next": "HandleDatabaseError"
+                }
+            ]
+        },
+        "MergeResumeData": {
+            "Type": "Pass",
+            "Comment": "Merge resume path data to match deploy path structure",
+            "Parameters": {
+                "userId.$": "$.userId",
+                "deployResult": {
+                    "Payload": {
+                        "instanceId.$": "$.resumeDeployResult.Payload.instanceId",
+                        "instanceArn.$": "$.resumeDeployResult.Payload.instanceArn",
+                        "creationTime.$": "$.resumeDeployResult.Payload.creationTime",
+                        "dcvIp.$": "$.dcvConfig.Payload.dcvIp",
+                        "dcvPort.$": "$.dcvConfig.Payload.dcvPort",
+                        "dcvUser.$": "$.dcvConfig.Payload.dcvUser",
+                        "dcvPassword.$": "$.dcvConfig.Payload.dcvPassword"
+                    }
+                }
+            },
+            "ResultPath": "$",
+            "Next": "StartDcvInstance"
+        },
+        "StartDcvInstance": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${StartDcvInstanceArn}",
+                "Payload": {
+                    "instanceId.$": "$.deployResult.Payload.instanceId"
+                }
+            },
+            "ResultPath": "$.startDcvResult",
+            "Next": "PrepareUpdatePayload",
+            "Retry": [
+                {
+                    "ErrorEquals": [
+                        "InvalidInstanceId",
+                        "InstanceNotReadyForSsm",
+                        "States.TaskFailed"
+                    ],
+                    "IntervalSeconds": 20,
+                    "MaxAttempts": 3,
+                    "BackoffRate": 2
+                }
+            ],
+            "Catch": [
+                {
+                    "ErrorEquals": ["States.ALL"],
+                    "ResultPath": "$.startDcvError",
+                    "Next": "HandleStartDcvError"
+                }
+            ]
         },
         "DeployEC2": {
             "Type": "Task",
@@ -43,13 +176,29 @@
                 }
             },
             "ResultPath": "$.deployResult",
-            "Next": "WaitForInstanceReady",
+            "Next": "CheckDeploymentSuccess",
             "Catch": [
                 {
                     "ErrorEquals": ["States.TaskFailed"],
                     "Next": "HandleFailedDeployment"
                 }
             ]
+        },
+        "CheckDeploymentSuccess": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.deployResult.Payload.success",
+                    "BooleanEquals": true,
+                    "Next": "WaitForInstanceReady"
+                }
+            ],
+            "Default": "HandleDeploymentError"
+        },
+        "HandleDeploymentError": {
+            "Type": "Fail",
+            "Cause": "EC2 deployment failed",
+            "Error": "DeploymentFailedError"
         },
         "WaitForInstanceReady": {
             "Type": "Wait",
@@ -69,7 +218,7 @@
                 }
             },
             "ResultPath": "$.configureResult",
-            "Next": "UpdateRunningStreams",
+            "Next": "PrepareUpdatePayload",
             "Retry": [
                 {
                     "ErrorEquals": ["States.TaskFailed"],
@@ -86,30 +235,87 @@
                 }
             ]
         },
+        "PrepareUpdatePayload": {
+            "Type": "Pass",
+            "Comment": "Normalize data from both deploy and resume paths for UpdateRunningStreams",
+            "Parameters": {
+                "userId.$": "$.userId",
+                "instanceId.$": "$.deployResult.Payload.instanceId",
+                "instanceArn.$": "$.deployResult.Payload.instanceArn",
+                "dcvIp.$": "$.deployResult.Payload.dcvIp",
+                "dcvPort.$": "$.deployResult.Payload.dcvPort",
+                "dcvUser.$": "$.deployResult.Payload.dcvUser",
+                "dcvPassword.$": "$.deployResult.Payload.dcvPassword"
+            },
+            "ResultPath": "$.updatePayload",
+            "Next": "UpdateRunningStreams"
+        },
         "UpdateRunningStreams": {
             "Type": "Task",
             "Resource": "arn:aws:states:::lambda:invoke",
             "Parameters": {
                 "FunctionName": "${UpdateRunningStreamsArn}",
-                "Payload": {
-                    "userId.$": "$.userId",
-                    "instanceId.$": "$.deployResult.Payload.instanceId",
-                    "instanceArn.$": "$.deployResult.Payload.instanceArn",
-                    "dcvIp.$": "$.deployResult.Payload.dcvIp",
-                    "dcvPort.$": "$.deployResult.Payload.dcvPort",
-                    "dcvUser.$": "$.deployResult.Payload.dcvUser",
-                    "dcvPassword.$": "$.deployResult.Payload.dcvPassword"
-                }
+                "Payload.$": "$.updatePayload"
             },
             "ResultPath": "$.updateResult",
+            "Next": "UpdateRunningInstances",
+            "Catch": [
+                {
+                    "ErrorEquals": ["MissingTableNameEnv"],
+                    "ResultPath": "$.error",
+                    "Next": "RollbackInstance"
+                },
+                {
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "ResultPath": "$.error",
+                    "Next": "RollbackInstance"
+                }
+            ]
+        },
+        "UpdateRunningInstances": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${UpdateRunningInstancesArn}",
+                "Payload": {
+                    "userId.$": "$.userId",
+                    "instanceId.$": "$.updatePayload.instanceId",
+                    "instanceArn.$": "$.updatePayload.instanceArn",
+                    "creationTime.$": "$.deployResult.Payload.creationTime"
+                }
+            },
+            "ResultPath": "$.updateRunningInstanceResult",
             "Next": "Success",
             "Catch": [
                 {
                     "ErrorEquals": ["MissingTableNameEnv"],
-                    "Next": "HandleMissingTableName"
+                    "ResultPath": "$.error",
+                    "Next": "RollbackInstance"
                 },
                 {
                     "ErrorEquals": ["States.TaskFailed"],
+                    "ResultPath": "$.error",
+                    "Next": "RollbackInstance"
+                }
+            ]
+        },
+        "RollbackInstance": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${TerminateEC2Arn}",
+                "Payload": {
+                    "userId.$": "$.userId",
+                    "instanceId.$": "$.deployResult.Payload.instanceId",
+                    "instanceArn.$": "$.deployResult.Payload.instanceArn"
+                }
+            },
+            "ResultPath": "$.rollbackResult",
+            "Next": "HandleDatabaseError",
+            "Catch": [
+                {
+                    "ErrorEquals": ["States.ALL"],
+                    "ResultPath": "$.rollbackError",
                     "Next": "HandleDatabaseError"
                 }
             ]
@@ -132,10 +338,20 @@
             "Cause": "Valid running stream found for user",
             "Error": "StreamsRunningError"
         },
+        "HandleInstancesRunningError": {
+            "Type": "Fail",
+            "Cause": "Valid running instance found for user",
+            "Error": "InstancesRunningError"
+        },
         "HandleFailedDeployment": {
             "Type": "Fail",
             "Cause": "Failed to deploy EC2 instance",
             "Error": "DeploymentFailedError"
+        },
+        "HandleStartDcvError": {
+            "Type": "Fail",
+            "Cause": "Failed to start DCV service on resumed instance",
+            "Error": "StartDcvFailedError"
         }
     }
 }

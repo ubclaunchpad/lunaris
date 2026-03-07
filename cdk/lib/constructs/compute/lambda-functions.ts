@@ -51,12 +51,12 @@ export class LambdaFunctions extends Construct {
 
     private buildEnvVarProvider(props: LambdaFunctionsProps): LambdaEnvVarProvider {
         return {
-            RUNNING_INSTANCES_TABLE: props.runningInstancesTable.tableName,
+            RUNNING_INSTANCES_TABLE_NAME: props.runningInstancesTable.tableName,
             RUNNING_STREAMS_TABLE_NAME: props.runningStreamsTable.tableName,
             EC2_INSTANCE_PROFILE_ARN: props.ec2InstanceProfileArn ?? "",
             EC2_INSTANCE_PROFILE_NAME: props.ec2InstanceProfileName ?? "",
             SECURITY_GROUP_ID: props.dcvSecurityGroupId ?? "",
-            LAMBDA_REGION: process.env.AWS_REGION ?? "us-west-2",
+            LAMBDA_REGION: process.env.AWS_REGION ?? "us-east-1",
             STRIPE_SECRET_KEY: props.stripeSecretKey,
         };
     }

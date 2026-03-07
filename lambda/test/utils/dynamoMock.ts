@@ -41,3 +41,9 @@ export const withEnv = (overrides: EnvOverrides): RestoreEnvFn => {
  */
 export const ensureStreamsTableEnv = (tableName = "test-running-streams"): RestoreEnvFn =>
     withEnv({ RUNNING_STREAMS_TABLE_NAME: tableName });
+
+/**
+ * Convenience helper that ensures RUNNING_INSTANCES_TABLE_NAME is set for a test.
+ */
+export const ensureInstancesTableEnv = (tableName = "test-running-instances"): RestoreEnvFn =>
+    withEnv({ RUNNING_INSTANCES_TABLE_NAME: tableName });
