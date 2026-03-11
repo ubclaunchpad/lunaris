@@ -12,11 +12,13 @@ import { RemovalPolicy } from "aws-cdk-lib";
 export class DynamoDbTables extends Construct {
     public readonly runningStreamsTable: ITable;
     public readonly runningInstancesTable: ITable;
+    public readonly gamesTable: ITable;
 
     constructor(scope: Construct, id: string) {
         super(scope, id);
         this.runningStreamsTable = this.setUpRunningStreamsTable();
         this.runningInstancesTable = this.setupRunningInstances();
+        this.gamesTable = this.setupGamesTable();
     }
 
     /*
@@ -85,6 +87,16 @@ export class DynamoDbTables extends Construct {
             partitionKey: { name: "userId", type: AttributeType.STRING },
             sortKey: { name: "creationTime", type: AttributeType.STRING },
             projectionType: ProjectionType.ALL,
+        });
+
+        return table;
+    }
+
+    setupGamesTable(): ITable {
+        const table = new Table(this, "Games", {
+            partitionKey: { name: "gameId", type: AttributeType.STRING },
+            billingMode: BillingMode.PAY_PER_REQUEST,
+            removalPolicy: RemovalPolicy.RETAIN,
         });
 
         return table;
