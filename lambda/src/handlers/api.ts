@@ -4,6 +4,8 @@ import {
     DynamoDBDocumentClient,
     // UpdateCommand,
     // PutCommand
+    ScanCommand,
+    GetCommand,
 } from "@aws-sdk/lib-dynamodb";
 import {
     SFNClient,
@@ -48,6 +50,17 @@ const RUNNING_STREAMS_TABLE_NAME = process.env.RUNNING_STREAMS_TABLE_NAME || "";
 const USER_DEPLOY_EC2_WORKFLOW_ARN = process.env.USER_DEPLOY_EC2_WORKFLOW_ARN || "";
 const TERMINATE_WORKFLOW_ARN = process.env.TERMINATE_WORKFLOW_ARN || "";
 
+interface GameItem {
+    gameId: string;
+    name: string;
+    description: string;
+    imageUrl: string;
+    tags: string[];
+    modes?: string[];
+    ebsSnapshotId: string;
+    minInstanceType: string;
+}
+
 interface DeployInstanceRequest {
     userId: string;
 }
@@ -86,6 +99,104 @@ const createResponse = (statusCode: number, body: ResponseBody): APIGatewayProxy
     },
     body: JSON.stringify(body),
 });
+
+/**
+ * List all games from the Games table
+ * GET /games
+ */
+const handleListGames = async (
+    _event: APIGatewayProxyEvent,
+): Promise<APIGatewayProxyResult> => {
+    try {
+        const tableName = process.env.GAMES_TABLE_NAME || "";
+        if (!tableName) {
+            return createResponse(500, {
+                error: "Internal Server Error",
+                message: "Games table not configured",
+            });
+        }
+
+        console.log("Scanning Games table for all games");
+
+        const scanCommand = new ScanCommand({
+            TableName: tableName,
+        });
+
+        const result = await docClient.send(scanCommand);
+        const games = (result.Items || []) as GameItem[];
+
+        console.log(`Retrieved ${games.length} games from database`);
+
+        return createResponse(200, {
+            message: "Games retrieved successfully",
+            data: games,
+        });
+    } catch (error: unknown) {
+        console.error("Error listing games:", error);
+        return createResponse(500, {
+            error: "Internal Server Error",
+            message: error instanceof Error ? error.message : "Unknown error occurred",
+        });
+    }
+};
+
+/**
+ * Get a single game by gameId
+ * GET /games/{gameId}
+ */
+const handleGetGameById = async (
+    event: APIGatewayProxyEvent,
+): Promise<APIGatewayProxyResult> => {
+    try {
+        const tableName = process.env.GAMES_TABLE_NAME || "";
+        if (!tableName) {
+            return createResponse(500, {
+                error: "Internal Server Error",
+                message: "Games table not configured",
+            });
+        }
+
+        // Extract gameId from path parameters
+        const gameId = event.pathParameters?.gameId;
+
+        if (!gameId) {
+            return createResponse(400, {
+                error: "Bad Request",
+                message: "gameId path parameter is required",
+            });
+        }
+
+        console.log(`Fetching game with ID: ${gameId}`);
+
+        const getCommand = new GetCommand({
+            TableName: tableName,
+            Key: { gameId },
+        });
+
+        const result = await docClient.send(getCommand);
+        const game = result.Item as GameItem | undefined;
+
+        if (!game) {
+            return createResponse(404, {
+                error: "Not Found",
+                message: `Game with ID '${gameId}' not found`,
+            });
+        }
+
+        console.log(`Retrieved game: ${game.name}`);
+
+        return createResponse(200, {
+            message: "Game retrieved successfully",
+            data: game,
+        });
+    } catch (error: unknown) {
+        console.error("Error fetching game:", error);
+        return createResponse(500, {
+            error: "Internal Server Error",
+            message: error instanceof Error ? error.message : "Unknown error occurred",
+        });
+    }
+};
 
 // Deploy Instance Handler
 const handleDeployInstance = async (
@@ -806,6 +917,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             return await handleCreateCheckoutSession(event);
         } else if (path === "/checkout-session" && method === "GET") {
             return await handleGetCheckoutSession(event);
+        } else if (path === "/games" && method === "GET") {
+            return await handleListGames(event);
+        } else if (path?.startsWith("/games/") && method === "GET") {
+            return await handleGetGameById(event);
         } else {
             return createResponse(404, {
                 error: "Not Found",
