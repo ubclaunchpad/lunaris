@@ -282,9 +282,17 @@ export default function GamePage({ params }: GamePageProps) {
                 ) : (
                     <button
                         onClick={handlePlayClick}
-                        disabled={!game.playable || isDeploying || isFetchingCredentials || isCheckingExisting}
+                        disabled={
+                            !game.playable ||
+                            isDeploying ||
+                            isFetchingCredentials ||
+                            isCheckingExisting
+                        }
                         className={`border border-[#e6daf6] font-space-grotesk font-medium text-xl px-5 py-3 rounded-xl shadow-[8px_7px_20px_0px_rgba(0,0,0,0.12)] transition-colors ${
-                            game.playable && !isDeploying && !isFetchingCredentials && !isCheckingExisting
+                            game.playable &&
+                            !isDeploying &&
+                            !isFetchingCredentials &&
+                            !isCheckingExisting
                                 ? "bg-[#e1ff9a] text-[#12191d] hover:bg-[#d1ef8a] cursor-pointer"
                                 : "bg-gray-500 text-gray-300 cursor-not-allowed opacity-50"
                         }`}
