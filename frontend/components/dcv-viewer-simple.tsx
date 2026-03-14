@@ -156,7 +156,7 @@ export function DCVViewerSimple({
             // Calculate zoom to fit while maintaining aspect ratio
             const scaleX = containerWidth / canvasWidth;
             const scaleY = containerHeight / canvasHeight;
-            const zoom = Math.min(scaleX, scaleY, 1); // Don't zoom in past 100%
+            const zoom = Math.min(scaleX, scaleY); // Scale to fit container
 
             // Store zoom for mouse event adjustment
             currentZoomRef.current = zoom;
