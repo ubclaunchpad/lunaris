@@ -3,7 +3,7 @@ import {
     CreateTableCommand,
     ListTablesCommand,
     CreateTableCommandInput,
-    PutItemCommand
+    PutItemCommand,
 } from "@aws-sdk/client-dynamodb";
 
 import { marshall } from "@aws-sdk/util-dynamodb";
@@ -123,12 +123,14 @@ async function seedGamesTable() {
                 imageUrl: image,
                 ebsSnapshotId: "dummy-ebs-id",
                 minInstanceType: "g4dn.xlarge",
-                ...rest
+                ...rest,
             };
-            await client.send(new PutItemCommand({
-                TableName: "Games",
-                Item: marshall(dynamoItem)
-            }));
+            await client.send(
+                new PutItemCommand({
+                    TableName: "Games",
+                    Item: marshall(dynamoItem),
+                }),
+            );
         } catch (error) {
             console.error(`Failed to insert game ${game.gameId}`, error);
         }

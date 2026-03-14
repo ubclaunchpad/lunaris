@@ -104,9 +104,7 @@ const createResponse = (statusCode: number, body: ResponseBody): APIGatewayProxy
  * List all games from the Games table
  * GET /games
  */
-const handleListGames = async (
-    _event: APIGatewayProxyEvent,
-): Promise<APIGatewayProxyResult> => {
+const handleListGames = async (_event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
         const tableName = process.env.GAMES_TABLE_NAME || "";
         if (!tableName) {
@@ -144,9 +142,7 @@ const handleListGames = async (
  * Get a single game by gameId
  * GET /games/{gameId}
  */
-const handleGetGameById = async (
-    event: APIGatewayProxyEvent,
-): Promise<APIGatewayProxyResult> => {
+const handleGetGameById = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     try {
         const tableName = process.env.GAMES_TABLE_NAME || "";
         if (!tableName) {
