@@ -87,7 +87,7 @@ class ApiClient {
         this.baseUrl =
             process.env.NEXT_PUBLIC_API_GATEWAY_URL ||
             process.env.NEXT_PUBLIC_API_URL ||
-            "https://snmonwfes7.execute-api.us-west-2.amazonaws.com/prod";
+            "https://bw6fr5u0dc.execute-api.us-west-2.amazonaws.com/prod";
         this.isDevelopment = process.env.NODE_ENV === "development";
 
         if (!this.baseUrl) {

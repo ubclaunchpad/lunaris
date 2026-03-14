@@ -9,6 +9,8 @@ export function Navbar() {
 
     const isActive = (path: string) => pathname === path;
 
+    if (pathname === "/streaming") return null;
+
     return (
         <nav className="fixed top-0 left-0 right-0 z-50 bg-[#12191d] border-b border-[rgba(255,255,255,0.1)]">
             <div className="flex items-center justify-between px-7 py-6 max-w-full">
