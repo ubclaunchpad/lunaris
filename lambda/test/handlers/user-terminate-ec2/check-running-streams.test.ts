@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
-import { GetCommand } from "@aws-sdk/lib-dynamodb";
+import { QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { handler } from "../../../src/handlers/user-terminate-ec2/check-running-streams";
 import { dynamoMock, ensureStreamsTableEnv } from "../../utils/dynamoMock";
 
@@ -15,47 +15,51 @@ describe("user-terminate-ec2/check-running-streams", () => {
         restoreEnv();
     });
 
-    it("returns valid=true when a session exists", async () => {
-        dynamoMock.on(GetCommand).resolves({
-            Item: {
-                userId: "user-123",
-                sessionId: "session-456",
-                instanceArn: "arn:aws:ec2:region:acct:instance/i-abc",
-            },
+    it("returns valid=true when a running session exists", async () => {
+        dynamoMock.on(QueryCommand).resolves({
+            Items: [
+                {
+                    userId: "user-123",
+                    status: "running",
+                    sessionId: "session-456",
+                    instanceId: "i-abc",
+                    instanceArn: "arn:aws:ec2:region:acct:instance/i-abc",
+                },
+            ],
         });
 
-        const result = await handler({ userId: "user-123" });
-
-        expect(result).toEqual({
+        await expect(handler({ userId: "user-123" })).resolves.toEqual({
             valid: true,
             sessionId: "session-456",
+            instanceId: "i-abc",
             instanceArn: "arn:aws:ec2:region:acct:instance/i-abc",
         });
     });
 
-    it("falls back to the userId when sessionId is absent", async () => {
-        dynamoMock.on(GetCommand).resolves({
-            Item: {
-                userId: "user-456",
-                instanceArn: "arn:aws:ec2:region:acct:instance/i-def",
-            },
+    it("falls back to userId when sessionId is absent", async () => {
+        dynamoMock.on(QueryCommand).resolves({
+            Items: [
+                {
+                    userId: "user-456",
+                    status: "running",
+                    instanceId: "i-def",
+                    instanceArn: "arn:aws:ec2:region:acct:instance/i-def",
+                },
+            ],
         });
 
-        const result = await handler({ userId: "user-456" });
-
-        expect(result).toEqual({
+        await expect(handler({ userId: "user-456" })).resolves.toEqual({
             valid: true,
             sessionId: "user-456",
+            instanceId: "i-def",
             instanceArn: "arn:aws:ec2:region:acct:instance/i-def",
         });
     });
 
-    it("returns valid=false when no session is found", async () => {
-        dynamoMock.on(GetCommand).resolves({ Item: undefined });
+    it("returns valid=false when no running session exists", async () => {
+        dynamoMock.on(QueryCommand).resolves({ Items: [{ status: "stopped" }] });
 
-        const result = await handler({ userId: "user-123" });
-
-        expect(result).toEqual({
+        await expect(handler({ userId: "user-123" })).resolves.toEqual({
             valid: false,
             message: "No active streaming session found for user",
         });
@@ -69,7 +73,7 @@ describe("user-terminate-ec2/check-running-streams", () => {
     });
 
     it("propagates DynamoDB errors", async () => {
-        dynamoMock.on(GetCommand).rejects(new Error("ddb-error"));
+        dynamoMock.on(QueryCommand).rejects(new Error("ddb-error"));
 
         await expect(handler({ userId: "user-123" })).rejects.toThrow("ddb-error");
     });

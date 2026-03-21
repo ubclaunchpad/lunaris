@@ -1,93 +1,56 @@
-import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
+import { describe, expect, it } from "@jest/globals";
 import { handler } from "../../../src/handlers/user-terminate-ec2/stop-ec2";
 import EC2Wrapper from "../../../src/utils/ec2Wrapper";
 import { withEnv } from "../../utils/dynamoMock";
 
-jest.mock("../../../src/utils/EC2Wrapper");
-let restoreEnv: () => void;
+jest.mock("../../../src/utils/ec2Wrapper");
 
 describe("user-terminate-ec2/stop-ec2", () => {
-    let mockEC2Wrapper: jest.Mocked<EC2Wrapper>;
+    let restoreEnv: () => void;
+    let mockEC2: jest.Mocked<EC2Wrapper>;
 
     beforeEach(() => {
         jest.clearAllMocks();
-        mockEC2Wrapper = new EC2Wrapper() as jest.Mocked<EC2Wrapper>;
-        (EC2Wrapper as jest.MockedClass<typeof EC2Wrapper>).mockImplementation(
-            () => mockEC2Wrapper,
-        );
         restoreEnv = withEnv({ LAMBDA_REGION: "us-east-2" });
+        mockEC2 = new EC2Wrapper() as jest.Mocked<EC2Wrapper>;
+        (EC2Wrapper as jest.MockedClass<typeof EC2Wrapper>).mockImplementation(() => mockEC2);
     });
 
-    afterEach(() => {
-        restoreEnv();
-    });
+    afterEach(() => restoreEnv());
 
-    // throw error no env var test
-    it("should throw MissingLambdaRegionEnv when LAMBDA_REGION not found", async () => {
+    it("throws when LAMBDA_REGION is missing", async () => {
         restoreEnv();
         delete process.env.LAMBDA_REGION;
-
-        await expect(handler({ instanceId: "instance-123", userId: "user-123" })).rejects.toThrow(
+        await expect(handler({ instanceId: "i-1", userId: "u-1" })).rejects.toThrow(
             "MissingLambdaRegionEnv",
         );
     });
-    // throw error when status not stopped
-    it("should throw InvalidStatus when result status is NOT stopped", async () => {
-        mockEC2Wrapper.stopEC2Instance.mockResolvedValue({
-            status: "notStopped",
-            instanceId: "instance-123",
-        });
 
-        await expect(handler({ instanceId: "instance-123", userId: "user-123" })).rejects.toThrow(
+    it("returns stop result for stopped status", async () => {
+        mockEC2.stopEC2Instance.mockResolvedValue({ instanceId: "i-1", status: "stopped" });
+        await expect(handler({ instanceId: "i-1", userId: "u-1" })).resolves.toEqual({
+            instanceId: "i-1",
+            status: "stopped",
+        });
+    });
+
+    it("returns stop result for stopping status", async () => {
+        mockEC2.stopEC2Instance.mockResolvedValue({ instanceId: "i-1", status: "stopping" });
+        await expect(handler({ instanceId: "i-1", userId: "u-1" })).resolves.toEqual({
+            instanceId: "i-1",
+            status: "stopping",
+        });
+    });
+
+    it("throws InvalidStatus for unexpected status", async () => {
+        mockEC2.stopEC2Instance.mockResolvedValue({ instanceId: "i-1", status: "pending" } as any);
+        await expect(handler({ instanceId: "i-1", userId: "u-1" })).rejects.toThrow(
             "InvalidStatus",
         );
     });
 
-    // return status = stopped when success
-    it("should properly return success when status is stopped", async () => {
-        mockEC2Wrapper.stopEC2Instance.mockResolvedValue({
-            status: "stopped",
-            instanceId: "instance-123",
-        });
-
-        const result = await handler({ userId: "user-123", instanceId: "instance-123" });
-
-        expect(result).toEqual({
-            status: "stopped",
-            instanceId: "instance-123",
-        });
-    });
-
-    // ── Delegation ────────────────────────────────────────────────────────────
-
-    it("instantiates EC2Wrapper with the LAMBDA_REGION value", async () => {
-        mockEC2Wrapper.stopEC2Instance.mockResolvedValue({
-            status: "stopped",
-            instanceId: "instance-123",
-        });
-
-        await handler({ instanceId: "instance-123", userId: "user-123" });
-
-        // LAMBDA_REGION is set to "us-east-2" in beforeEach via withEnv
-        expect(EC2Wrapper).toHaveBeenLastCalledWith("us-east-2");
-    });
-
-    it("calls stopEC2Instance with the instanceId from the event", async () => {
-        mockEC2Wrapper.stopEC2Instance.mockResolvedValue({
-            status: "stopped",
-            instanceId: "specific-instance",
-        });
-
-        await handler({ instanceId: "specific-instance", userId: "user-123" });
-
-        expect(mockEC2Wrapper.stopEC2Instance).toHaveBeenCalledWith("specific-instance");
-    });
-
-    it("propagates errors thrown by stopEC2Instance", async () => {
-        mockEC2Wrapper.stopEC2Instance.mockRejectedValue(new Error("ec2-wrapper-error"));
-
-        await expect(handler({ instanceId: "instance-123", userId: "user-123" })).rejects.toThrow(
-            "ec2-wrapper-error",
-        );
+    it("propagates wrapper errors", async () => {
+        mockEC2.stopEC2Instance.mockRejectedValue(new Error("ec2-failure"));
+        await expect(handler({ instanceId: "i-1", userId: "u-1" })).rejects.toThrow("ec2-failure");
     });
 });

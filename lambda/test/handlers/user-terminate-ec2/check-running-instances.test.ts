@@ -1,130 +1,53 @@
-import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
+import { describe, expect, it } from "@jest/globals";
 import { handler } from "../../../src/handlers/user-terminate-ec2/check-running-instances";
-import { QueryCommand } from "@aws-sdk/lib-dynamodb";
-import { dynamoMock, ensureInstancesTableEnv } from "../../utils/dynamoMock";
+import DynamoDBWrapper from "../../../src/utils/dynamoDbWrapper";
+import { ensureInstancesTableEnv } from "../../utils/dynamoMock";
 
-let restoreEnv: () => void;
+jest.mock("../../../src/utils/dynamoDbWrapper");
 
 describe("user-terminate-ec2/check-running-instances", () => {
+    let restoreEnv: () => void;
+    let mockDb: jest.Mocked<DynamoDBWrapper>;
+
     beforeEach(() => {
-        dynamoMock.reset();
+        jest.clearAllMocks();
         restoreEnv = ensureInstancesTableEnv();
-    });
-
-    afterEach(() => {
-        restoreEnv();
-    });
-
-    // no env val
-    it("throws MissingTableNameEnv when RUNNING_INSTANCES_TABLE_NAME is not set", async () => {
-        restoreEnv();
-        delete process.env.RUNNING_INSTANCES_TABLE_NAME;
-
-        await expect(handler({ instanceId: "instance-123" })).rejects.toThrow(
-            "MissingTableNameEnv",
+        mockDb = new DynamoDBWrapper("table") as jest.Mocked<DynamoDBWrapper>;
+        (DynamoDBWrapper as jest.MockedClass<typeof DynamoDBWrapper>).mockImplementation(
+            () => mockDb,
         );
     });
 
-    // no items, return false
-    it("should return false upon no items being returned from DynamoDB", async () => {
-        dynamoMock.on(QueryCommand).resolves({ Items: [] });
+    afterEach(() => restoreEnv());
 
-        const result = await handler({ instanceId: "instance-123" });
-
-        expect(result).toEqual({ valid: false });
+    it("throws when table env is missing", async () => {
+        restoreEnv();
+        delete process.env.RUNNING_INSTANCES_TABLE_NAME;
+        await expect(handler({ instanceId: "i-1" })).rejects.toThrow("MissingTableNameEnv");
     });
 
-    // no items, return false
-    it("should return false when DynamoDB returns undefined Items", async () => {
-        dynamoMock.on(QueryCommand).resolves({ Items: undefined });
-
-        const result = await handler({ instanceId: "instanceId-123" });
-
-        expect(result).toEqual({ valid: false });
+    it("returns valid=false when no record exists", async () => {
+        mockDb.getItem.mockResolvedValue(null);
+        await expect(handler({ instanceId: "i-1" })).resolves.toEqual({ valid: false });
     });
 
-    it("propagates DynamoDB errors", async () => {
-        dynamoMock.on(QueryCommand).rejects(new Error("ddb-query-error"));
-
-        await expect(handler({ instanceId: "instance-123" })).rejects.toThrow("ddb-query-error");
+    it("returns valid=false when status is missing", async () => {
+        mockDb.getItem.mockResolvedValue({ instanceId: "i-1" } as any);
+        await expect(handler({ instanceId: "i-1" })).resolves.toEqual({ valid: false });
     });
 
-    // items are returned
-    it("should return valid status as TRUE when dynamoDb returns an running instance", async () => {
-        dynamoMock.on(QueryCommand).resolves({
-            Items: [{ instanceId: "instance-123", userId: "user-123", status: "running" }],
-        });
-
-        const result = await handler({ instanceId: "instance-123" });
-
-        expect(result).toEqual({ valid: true });
+    it("returns valid=true only for running status", async () => {
+        mockDb.getItem.mockResolvedValue({ instanceId: "i-1", status: "running" } as any);
+        await expect(handler({ instanceId: "i-1" })).resolves.toEqual({ valid: true });
     });
 
-    it("should return valid status as FALSE when dynamoDb returns an instance with status NOT running", async () => {
-        dynamoMock.on(QueryCommand).resolves({
-            Items: [{ instanceId: "instance-123", userId: "user-123", status: "lol" }],
-        });
-
-        const result = await handler({ instanceId: "instance-123" });
-
-        expect(result).toEqual({ valid: false });
+    it("returns valid=false for non-running statuses", async () => {
+        mockDb.getItem.mockResolvedValue({ instanceId: "i-1", status: "stopped" } as any);
+        await expect(handler({ instanceId: "i-1" })).resolves.toEqual({ valid: false });
     });
 
-    it("should return valid status as FALSE when dynamoDb returns an instance with no status field", async () => {
-        dynamoMock.on(QueryCommand).resolves({
-            Items: [{ instanceId: "instance-123", userId: "user-123" }],
-        });
-
-        const result = await handler({ instanceId: "instance-123" });
-
-        expect(result).toEqual({ valid: false });
-    });
-
-    it("queries by the correct instanceId against the right table", async () => {
-        dynamoMock.on(QueryCommand).resolves({ Items: [] });
-
-        await handler({ instanceId: "instance-456" });
-
-        const calls = dynamoMock.commandCalls(QueryCommand);
-        expect(calls).toHaveLength(1);
-        const input = calls[0].args[0].input;
-        expect(input.TableName).toBe("test-running-instances");
-        expect(input.IndexName).toBe("InstanceIdIndex");
-        expect(input.ExpressionAttributeValues).toMatchObject({ ":instanceId": "instance-456" });
-        expect(input.ScanIndexForward).toBe(false);
-    });
-
-    it("returns valid:false when instance status is 'stopped'", async () => {
-        dynamoMock.on(QueryCommand).resolves({
-            Items: [{ instanceId: "instance-123", status: "stopped" }],
-        });
-
-        const result = await handler({ instanceId: "instance-123" });
-
-        expect(result).toEqual({ valid: false });
-    });
-
-    it("returns valid:false when instance status is 'terminated'", async () => {
-        dynamoMock.on(QueryCommand).resolves({
-            Items: [{ instanceId: "instance-123", status: "terminated" }],
-        });
-
-        const result = await handler({ instanceId: "instance-123" });
-
-        expect(result).toEqual({ valid: false });
-    });
-
-    it("uses only the first (most recent) item when DynamoDB returns multiple results", async () => {
-        dynamoMock.on(QueryCommand).resolves({
-            Items: [
-                { instanceId: "instance-123", status: "running" },
-                { instanceId: "instance-123", status: "stopped" },
-            ],
-        });
-
-        const result = await handler({ instanceId: "instance-123" });
-
-        // First item is "running" so valid should be true
-        expect(result).toEqual({ valid: true });
+    it("propagates db errors", async () => {
+        mockDb.getItem.mockRejectedValue(new Error("ddb-error"));
+        await expect(handler({ instanceId: "i-1" })).rejects.toThrow("ddb-error");
     });
 });

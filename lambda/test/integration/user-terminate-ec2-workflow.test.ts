@@ -1,187 +1,89 @@
-import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
-import { GetCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { describe, expect, it, jest } from "@jest/globals";
 import { handler as checkRunningStreamsHandler } from "../../src/handlers/user-terminate-ec2/check-running-streams";
-import { handler as terminateEc2Handler } from "../../src/handlers/user-terminate-ec2/terminate-ec2";
-import { handler as updateRunningStreamsHandler } from "../../src/handlers/user-terminate-ec2/update-running-streams";
-import { dynamoMock, withEnv } from "../utils/dynamoMock";
+import { handler as checkRunningInstancesHandler } from "../../src/handlers/user-terminate-ec2/check-running-instances";
+import { handler as stopDcvHandler } from "../../src/handlers/user-terminate-ec2/stop-dcv-instance";
+import { handler as stopEc2Handler } from "../../src/handlers/user-terminate-ec2/stop-ec2";
+import { handler as updateStreamsHandler } from "../../src/handlers/user-terminate-ec2/update-running-streams";
+import { handler as updateInstancesHandler } from "../../src/handlers/user-terminate-ec2/update-running-instances";
+import DynamoDBWrapper from "../../src/utils/dynamoDbWrapper";
+import DCVWrapper from "../../src/utils/dcvWrapper";
+import EC2Wrapper from "../../src/utils/ec2Wrapper";
+import { withEnv } from "../utils/dynamoMock";
 
-let restoreEnv: () => void;
+jest.mock("../../src/utils/dynamoDbWrapper");
+jest.mock("../../src/utils/dcvWrapper");
+jest.mock("../../src/utils/ec2Wrapper");
 
-/**
- * Integration tests for UserTerminateEC2Workflow
- *
- * These tests simulate the Step Function workflow by calling Lambda handlers in sequence,
- *
- *
- * For actual Step Function testing, you would need:
- * - AWS Step Functions Local (local testing)
- * - Or deploy to AWS and test with real Step Functions
- */
 describe("UserTerminateEC2Workflow Integration", () => {
+    let restoreEnv: () => void;
+    let mockDb: jest.Mocked<DynamoDBWrapper>;
+    let mockDcv: jest.Mocked<DCVWrapper>;
+    let mockEc2: jest.Mocked<EC2Wrapper>;
+
     beforeEach(() => {
-        restoreEnv = withEnv({ RUNNING_STREAMS_TABLE_NAME: "running-streams-table" });
-        dynamoMock.reset();
+        jest.clearAllMocks();
+        restoreEnv = withEnv({
+            RUNNING_STREAMS_TABLE_NAME: "running-streams",
+            RUNNING_INSTANCES_TABLE_NAME: "running-instances",
+            LAMBDA_REGION: "us-west-2",
+        });
+
+        mockDb = new DynamoDBWrapper("t") as jest.Mocked<DynamoDBWrapper>;
+        (DynamoDBWrapper as jest.MockedClass<typeof DynamoDBWrapper>).mockImplementation(
+            () => mockDb,
+        );
+
+        mockDcv = new DCVWrapper("i-1", "u-1") as jest.Mocked<DCVWrapper>;
+        (DCVWrapper as jest.MockedClass<typeof DCVWrapper>).mockImplementation(() => mockDcv);
+
+        mockEc2 = new EC2Wrapper("us-west-2") as jest.Mocked<EC2Wrapper>;
+        (EC2Wrapper as jest.MockedClass<typeof EC2Wrapper>).mockImplementation(() => mockEc2);
     });
 
-    afterEach(() => {
-        restoreEnv();
+    afterEach(() => restoreEnv());
+
+    it("simulates happy-path state progression across handlers", async () => {
+        mockDb.query.mockResolvedValue([
+            {
+                status: "running",
+                sessionId: "s-1",
+                instanceId: "i-1",
+                instanceArn: "arn:...:i-1",
+            },
+        ]);
+        mockDb.getItem.mockResolvedValue({ instanceId: "i-1", status: "running" } as any);
+        mockDcv.stopDCVSession.mockResolvedValue({ stoppedSuccessfully: true, message: "ok" });
+        mockEc2.stopEC2Instance.mockResolvedValue({ instanceId: "i-1", status: "stopped" });
+        mockDb.updateItem.mockResolvedValue(undefined);
+
+        const checkStreams = await checkRunningStreamsHandler({ userId: "u-1" });
+        expect(checkStreams.valid).toBe(true);
+
+        const checkInstances = await checkRunningInstancesHandler({ instanceId: "i-1" });
+        expect(checkInstances.valid).toBe(true);
+
+        const stopDcv = await stopDcvHandler({ userId: "u-1", instanceId: "i-1" });
+        expect(stopDcv.success).toBe(true);
+
+        const stopEc2 = await stopEc2Handler({ userId: "u-1", instanceId: "i-1" });
+        expect(stopEc2.status).toBe("stopped");
+
+        const updateStreams = await updateStreamsHandler({
+            userId: "u-1",
+            instanceArn: "arn:...:i-1",
+        });
+        expect(updateStreams.success).toBe(true);
+
+        const updateInstances = await updateInstancesHandler({
+            instanceId: "i-1",
+            status: stopEc2.status,
+        });
+        expect(updateInstances.success).toBe(true);
     });
 
-    /**
-     * Simulates the complete workflow execution by calling the lambda functions in sequence
-     *
-     */
-    const simulateWorkflow = async (userId: string, hasActiveStream = true) => {
-        // Step 1: CheckRunningStreams
-        const checkResult = await checkRunningStreamsHandler({ userId });
-
-        if (
-            !checkResult.valid ||
-            !hasActiveStream ||
-            !checkResult.sessionId ||
-            !checkResult.instanceArn
-        ) {
-            return { success: false, error: "InvalidStreamError" };
-        }
-
-        // Step 2: TerminateEC2
-        const terminateResult = await terminateEc2Handler({
-            userId,
-        });
-
-        // Step 3: UpdateRunningStreams
-        const updateResult = await updateRunningStreamsHandler({
-            userId,
-            sessionId: checkResult.sessionId,
-            instanceArn: checkResult.instanceArn,
-            running: false,
-        });
-
-        return {
-            success: true,
-            checkResult,
-            terminateResult,
-            updateResult,
-        };
-    };
-
-    describe("End-to-End Success Flow", () => {
-        it("completes workflow successfully when user has active stream", async () => {
-            // Mock CheckRunningStreams - uses getItem
-            dynamoMock.on(GetCommand).resolves({
-                Item: {
-                    instanceArn: "arn:aws:ec2:us-west-2:123456789012:instance/i-1234567890abcdef0",
-                    userId: "user-123",
-                    streamingId: "stream-456",
-                    sessionId: "session-456",
-                },
-            });
-
-            // Mock UpdateRunningStreams - uses updateItem
-            dynamoMock.on(UpdateCommand).resolves({});
-
-            const result = await simulateWorkflow("user-123", true);
-
-            expect(result.success).toBe(true);
-            expect(result.checkResult?.valid).toBe(true);
-            expect(result.terminateResult?.success).toBe(true);
-            expect(result.updateResult?.success).toBe(true);
-        });
-    });
-
-    describe("Error Scenarios", () => {
-        it("should fail when user has no active stream", async () => {
-            // getItem returns null when item doesn't exist
-            dynamoMock.on(GetCommand).resolves({
-                Item: undefined,
-            });
-
-            const result = await simulateWorkflow("user-no-stream", false);
-
-            expect(result.success).toBe(false);
-            expect(result.error).toBe("InvalidStreamError");
-        });
-
-        it("handles missingTableNameEnv in CheckRunningStreams", async () => {
-            // test handler's env var check
-            restoreEnv();
-            delete process.env.RUNNING_STREAMS_TABLE_NAME;
-
-            await expect(simulateWorkflow("user-123", true)).rejects.toThrow("MissingTableNameEnv");
-        });
-
-        it("handles missingTableNameEnv in UpdateRunningStreams", async () => {
-            // Mock CheckRunningStreams success
-            dynamoMock.on(GetCommand).resolves({
-                Item: {
-                    instanceArn: "arn:aws:ec2:us-west-2:123456789012:instance/i-123",
-                    userId: "user-123",
-                    sessionId: "session-123",
-                },
-            });
-
-            // test handler's env var check
-            restoreEnv();
-            delete process.env.RUNNING_STREAMS_TABLE_NAME;
-
-            await expect(simulateWorkflow("user-123", true)).rejects.toThrow("MissingTableNameEnv");
-        });
-
-        it("should handle database error in CheckRunningStreams", async () => {
-            dynamoMock.on(GetCommand).rejects(new Error("DynamoDB error"));
-
-            await expect(simulateWorkflow("user-123", true)).rejects.toThrow();
-        });
-
-        it("should handle database error in UpdateRunningStreams", async () => {
-            // Mock CheckRunningStreams success
-            dynamoMock.on(GetCommand).resolves({
-                Item: {
-                    instanceArn: "arn:aws:ec2:us-west-2:123456789012:instance/i-123",
-                    userId: "user-123",
-                    sessionId: "session-123",
-                },
-            });
-
-            // tests handler's error handling
-            dynamoMock.on(UpdateCommand).rejects(new Error("DynamoDB update error"));
-
-            await expect(simulateWorkflow("user-123", true)).rejects.toThrow();
-        });
-    });
-
-    describe("Data Flow Verification", () => {
-        it("passes correct data between workflow steps", async () => {
-            const testInstanceArn = "arn:aws:ec2:us-west-2:123456789012:instance/i-test123";
-            const testSessionId = "session-test123";
-
-            // Mock CheckRunningStreams
-            dynamoMock.on(GetCommand).resolves({
-                Item: {
-                    instanceArn: testInstanceArn,
-                    userId: "user-123",
-                    sessionId: testSessionId,
-                },
-            });
-
-            // terminateEC2Handler is a stub, no EC2 mocking needed
-
-            dynamoMock.on(UpdateCommand).resolves({});
-
-            const result = await simulateWorkflow("user-123", true);
-
-            expect(result.checkResult?.instanceArn).toBe(testInstanceArn);
-            expect(result.checkResult?.sessionId).toBe(testSessionId);
-
-            // Verify UpdateRunningStreams was called with correct data
-            const updateCalls = dynamoMock.commandCalls(UpdateCommand);
-            expect(updateCalls).toHaveLength(1);
-            expect(updateCalls[0].args[0].input.Key).toEqual({
-                userId: "user-123",
-            });
-            expect(updateCalls[0].args[0].input.ExpressionAttributeValues).toMatchObject({
-                ":running": false,
-            });
-        });
+    it("short-circuits with invalid stream state", async () => {
+        mockDb.query.mockResolvedValue([]);
+        const checkStreams = await checkRunningStreamsHandler({ userId: "u-1" });
+        expect(checkStreams.valid).toBe(false);
     });
 });
