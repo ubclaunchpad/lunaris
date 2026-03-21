@@ -10,11 +10,11 @@ const config: LambdaFunctionConfig = {
         "RUNNING_INSTANCES_TABLE_NAME",
         "RUNNING_STREAMS_TABLE_NAME",
         "STRIPE_SECRET_KEY",
-        "STRIPE_PRICE_STARTER",
-        "STRIPE_PRICE_BASIC",
-        "STRIPE_PRICE_STANDARD",
-        "STRIPE_PRICE_PREMIUM",
-        "STRIPE_PRICE_PRO",
+        "STRIPE_PRICE_ID_STARTER",
+        "STRIPE_PRICE_ID_BASIC",
+        "STRIPE_PRICE_ID_STANDARD",
+        "STRIPE_PRICE_ID_PREMIUM",
+        "STRIPE_PRICE_ID_PRO",
     ],
 };
 

@@ -63,11 +63,11 @@ export class LambdaFunctions extends Construct {
             SECURITY_GROUP_ID: props.dcvSecurityGroupId ?? "",
             LAMBDA_REGION: process.env.AWS_REGION ?? "us-west-2",
             STRIPE_SECRET_KEY: props.stripeSecretKey,
-            STRIPE_PRICE_STARTER: props.stripePriceStarter,
-            STRIPE_PRICE_BASIC: props.stripePriceBasic,
-            STRIPE_PRICE_STANDARD: props.stripePriceStandard,
-            STRIPE_PRICE_PREMIUM: props.stripePricePremium,
-            STRIPE_PRICE_PRO: props.stripePricePro,
+            STRIPE_PRICE_ID_STARTER: props.stripePriceStarter,
+            STRIPE_PRICE_ID_BASIC: props.stripePriceBasic,
+            STRIPE_PRICE_ID_STANDARD: props.stripePriceStandard,
+            STRIPE_PRICE_ID_PREMIUM: props.stripePricePremium,
+            STRIPE_PRICE_ID_PRO: props.stripePricePro,
         };
     }
 }
