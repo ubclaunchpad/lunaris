@@ -8,7 +8,6 @@ export interface PaymentPlan {
     stripePriceId: string | undefined; // TODO: maybe should throw error if undefined env
 }
 
-
 export const PAYMENT_PLANS = {
     STARTER: {
         id: "STARTER",

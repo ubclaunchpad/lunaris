@@ -47,11 +47,7 @@ function ReturnContent() {
     }, [sessionId, router]);
 
     if (loading) {
-        return (
-            <p className="text-white/70 font-space-grotesk text-center">
-                Verifying payment…
-            </p>
-        );
+        return <p className="text-white/70 font-space-grotesk text-center">Verifying payment…</p>;
     }
 
     if (!sessionId || !session) {
@@ -132,9 +128,7 @@ export default function ReturnPage() {
             <div className="max-w-3xl mx-auto">
                 <Suspense
                     fallback={
-                        <p className="text-white/70 font-space-grotesk text-center">
-                            Loading…
-                        </p>
+                        <p className="text-white/70 font-space-grotesk text-center">Loading…</p>
                     }
                 >
                     <ReturnContent />
