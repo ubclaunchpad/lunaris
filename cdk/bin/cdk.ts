@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import * as cdk from "aws-cdk-lib";
+import dotenv from "dotenv";
 import { WorkflowRegistry } from "../lib/workflows";
 import { LambdaRegistry } from "../lib/constructs/compute/lambda-registry";
 import { IAMStack } from "../lib/iam-stack";
@@ -7,6 +8,8 @@ import { AuthStack } from "../lib/auth-stack";
 import { StorageStack } from "../lib/storage-stack";
 import { ComputeStack } from "../lib/compute-stack";
 import { ApiStack } from "../lib/api-stack";
+
+dotenv.config({ path: "../lambda/.env.local" }); // ensures env vars are available for lambda config during stack synthesis
 
 // Discover and register workflows and lambdas before creating the stacks
 WorkflowRegistry.discoverWorkflows();

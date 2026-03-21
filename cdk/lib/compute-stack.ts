@@ -4,7 +4,6 @@ import { Construct } from "constructs";
 import { PolicyStatement, Effect } from "aws-cdk-lib/aws-iam";
 import { ITable } from "aws-cdk-lib/aws-dynamodb";
 import { Function } from "aws-cdk-lib/aws-lambda";
-import { StringParameter } from "aws-cdk-lib/aws-ssm";
 import { LambdaFunctions } from "./constructs/compute/lambda-functions";
 import { StepFunctions } from "./constructs/compute/step-functions";
 import { DCVSecurityGroup } from "./constructs/compute/dcv-security-group";
@@ -32,20 +31,18 @@ export class ComputeStack extends Stack {
 
         const dcvSecurityGroup = new DCVSecurityGroup(this, "DCVSecurityGroup");
 
-        const stripeConfig = this.resolveStripeConfig();
-
         const lambdaFunctions = new LambdaFunctions(this, "LambdaFunctions", {
             runningInstancesTable,
             runningStreamsTable,
             ec2InstanceProfileArn: props.ec2InstanceProfileArn,
             ec2InstanceProfileName: props.ec2InstanceProfileName,
             dcvSecurityGroupId: dcvSecurityGroup.securityGroupId,
-            stripeSecretKey: stripeConfig.stripeSecretKey,
-            stripePriceStarter: stripeConfig.stripePriceStarter,
-            stripePriceBasic: stripeConfig.stripePriceBasic,
-            stripePriceStandard: stripeConfig.stripePriceStandard,
-            stripePricePremium: stripeConfig.stripePricePremium,
-            stripePricePro: stripeConfig.stripePricePro,
+            stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+            stripePriceStarter: process.env.STRIPE_PRICE_ID_STARTER,
+            stripePriceBasic: process.env.STRIPE_PRICE_ID_BASIC,
+            stripePriceStandard: process.env.STRIPE_PRICE_ID_STANDARD,
+            stripePricePremium: process.env.STRIPE_PRICE_ID_PREMIUM,
+            stripePricePro: process.env.STRIPE_PRICE_ID_PRO,
         });
 
         this.grantDynamoDbPermissions(lambdaFunctions, runningInstancesTable, runningStreamsTable);
@@ -105,38 +102,6 @@ export class ComputeStack extends Stack {
         );
 
         this.apiFunction = lambdaFunctions.apiFunction;
-    }
-
-    private resolveStripeConfig(): {
-        stripeSecretKey: string;
-        stripePriceStarter: string;
-        stripePriceBasic: string;
-        stripePriceStandard: string;
-        stripePricePremium: string;
-        stripePricePro: string;
-    } {
-        // resolve stripe config keys from deploy time env vars when present,
-        // otherwise use SSM parameters so values are managed via infrastructure
-        return {
-            stripeSecretKey:
-                process.env.STRIPE_SECRET_KEY ??
-                cdk.SecretValue.ssmSecure("/lunaris/stripe/secret-key").toString(),
-            stripePriceStarter:
-                process.env.STRIPE_PRICE_ID_STARTER ??
-                StringParameter.valueForStringParameter(this, "/lunaris/stripe/price_id/starter"),
-            stripePriceBasic:
-                process.env.STRIPE_PRICE_ID_BASIC ??
-                StringParameter.valueForStringParameter(this, "/lunaris/stripe/price_id/basic"),
-            stripePriceStandard:
-                process.env.STRIPE_PRICE_ID_STANDARD ??
-                StringParameter.valueForStringParameter(this, "/lunaris/stripe/price_id/standard"),
-            stripePricePremium:
-                process.env.STRIPE_PRICE_ID_PREMIUM ??
-                StringParameter.valueForStringParameter(this, "/lunaris/stripe/price_id/premium"),
-            stripePricePro:
-                process.env.STRIPE_PRICE_ID_PRO ??
-                StringParameter.valueForStringParameter(this, "/lunaris/stripe/price_id/pro"),
-        };
     }
 
     private grantDynamoDbPermissions(
