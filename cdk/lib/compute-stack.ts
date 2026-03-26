@@ -17,7 +17,6 @@ export interface ComputeStackProps extends StackProps {
     readonly runningStreamsTable: ITable;
     readonly userPaymentsTable: ITable;
     readonly userBalancesTable: ITable;
-    readonly gamesTable: ITable;
 }
 
 export class ComputeStack extends Stack {
@@ -32,21 +31,14 @@ export class ComputeStack extends Stack {
             },
         });
 
-        const {
-            runningInstancesTable,
-            runningStreamsTable,
-            userPaymentsTable,
-            userBalancesTable,
-            gamesTable,
-        } = props;
+        const { runningInstancesTable, runningStreamsTable, userPaymentsTable, userBalancesTable } =
+            props;
 
         const dcvSecurityGroup = new DCVSecurityGroup(this, "DCVSecurityGroup");
 
         const lambdaFunctions = new LambdaFunctions(this, "LambdaFunctions", {
             runningInstancesTable,
             runningStreamsTable,
-            gamesTable,
-            baseEbsSnapshotId: process.env.BASE_EBS_SNAPSHOT_ID,
             ec2InstanceProfileArn: props.ec2InstanceProfileArn,
             ec2InstanceProfileName: props.ec2InstanceProfileName,
             dcvSecurityGroupId: dcvSecurityGroup.securityGroupId,
@@ -68,7 +60,6 @@ export class ComputeStack extends Stack {
             runningStreamsTable,
             userPaymentsTable,
             userBalancesTable,
-            gamesTable,
         );
         this.setupOperationalMetricsScheduler(lambdaFunctions);
 
@@ -135,14 +126,12 @@ export class ComputeStack extends Stack {
         runningStreamsTable: ITable,
         userPaymentsTable: ITable,
         userBalancesTable: ITable,
-        gamesTable: ITable,
     ): void {
         // API Lambda
         runningInstancesTable.grantReadWriteData(lambdaFunctions.apiFunction);
         runningStreamsTable.grantReadData(lambdaFunctions.apiFunction);
         userPaymentsTable.grantReadWriteData(lambdaFunctions.apiFunction);
         userBalancesTable.grantReadWriteData(lambdaFunctions.apiFunction);
-        gamesTable.grantReadData(lambdaFunctions.apiFunction);
 
         // Deploy workflow
         runningInstancesTable.grantReadWriteData(lambdaFunctions.getFunction("deployEC2Function"));
@@ -156,7 +145,7 @@ export class ComputeStack extends Stack {
         runningInstancesTable.grantReadData(
             lambdaFunctions.getFunction("checkRunningInstancesFunction"),
         );
-        runningInstancesTable.grantReadWriteData(
+        runningInstancesTable.grantWriteData(
             lambdaFunctions.getFunction("updateRunningInstancesFunction"),
         );
 
@@ -174,7 +163,7 @@ export class ComputeStack extends Stack {
         runningInstancesTable.grantReadData(
             lambdaFunctions.getFunction("checkRunningInstancesTerminateFunction"),
         );
-        runningInstancesTable.grantReadWriteData(
+        runningInstancesTable.grantWriteData(
             lambdaFunctions.getFunction("updateRunningInstancesTerminateFunction"),
         );
 
@@ -190,8 +179,7 @@ export class ComputeStack extends Stack {
         );
 
         new Rule(this, "PublishActiveInstancesMetricSchedule", {
-            description:
-                "Publishes ActiveInstancesReconciled (DynamoDB snapshot) to CloudWatch every 5 minutes",
+            description: "Publishes ActiveInstances metric to CloudWatch every 5 minutes",
             schedule: Schedule.rate(cdk.Duration.minutes(5)),
             targets: [new LambdaFunction(publishActiveInstancesMetricFunction)],
         });
