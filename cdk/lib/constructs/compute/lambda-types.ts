@@ -5,7 +5,8 @@ export type LambdaPolicy =
     | "configureDcv"
     | "terminateEC2"
     | "stopEC2"
-    | "stopDcv";
+    | "stopDcv"
+    | "lunarisMetrics";
 
 /**
  * Provider for CDK token values and static config needed to populate Lambda env vars.

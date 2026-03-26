@@ -1,5 +1,21 @@
 import { PolicyStatement, Effect } from "aws-cdk-lib/aws-iam";
 
+/** Custom metrics for namespace Lunaris (PutMetricData). */
+export function getLunarisCustomMetricsPolicies(): PolicyStatement[] {
+    return [
+        new PolicyStatement({
+            effect: Effect.ALLOW,
+            actions: ["cloudwatch:PutMetricData"],
+            resources: ["*"],
+            conditions: {
+                StringEquals: {
+                    "cloudwatch:namespace": "Lunaris",
+                },
+            },
+        }),
+    ];
+}
+
 export function getDeployEC2Policies(): PolicyStatement[] {
     return [
         new PolicyStatement({

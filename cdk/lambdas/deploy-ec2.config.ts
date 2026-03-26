@@ -12,7 +12,7 @@ const config: LambdaFunctionConfig = {
         "EC2_INSTANCE_PROFILE_NAME",
         "SECURITY_GROUP_ID",
     ],
-    policies: ["deployEC2"],
+    policies: ["deployEC2", "lunarisMetrics"],
 };
 
 export default config;
