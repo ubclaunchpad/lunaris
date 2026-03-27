@@ -51,9 +51,44 @@ async function putCountMetric(metricName: string, value: number, cw?: CloudWatch
     );
 }
 
+async function putNumericMetric(
+    metricName: string,
+    value: number,
+    unit: StandardUnit,
+    cw?: CloudWatchClient,
+): Promise<void> {
+    const c = cw ?? getClient();
+    await c.send(
+        new PutMetricDataCommand({
+            Namespace: LUNARIS_METRICS_NAMESPACE,
+            MetricData: [
+                {
+                    MetricName: metricName,
+                    Value: value,
+                    Unit: unit,
+                    Timestamp: new Date(),
+                },
+            ],
+        }),
+    );
+}
+
 async function putCountMetricSafe(metricName: string, value: number, cw?: CloudWatchClient): Promise<void> {
     try {
         await putCountMetric(metricName, value, cw);
+    } catch (err: unknown) {
+        console.error(`CloudWatch PutMetricData failed (${metricName}):`, err);
+    }
+}
+
+async function putNumericMetricSafe(
+    metricName: string,
+    value: number,
+    unit: StandardUnit,
+    cw?: CloudWatchClient,
+): Promise<void> {
+    try {
+        await putNumericMetric(metricName, value, unit, cw);
     } catch (err: unknown) {
         console.error(`CloudWatch PutMetricData failed (${metricName}):`, err);
     }
@@ -78,4 +113,17 @@ export async function publishDeploymentFailed(cw?: CloudWatchClient): Promise<vo
 export async function publishActiveInstancesDelta(delta: number, cw?: CloudWatchClient): Promise<void> {
     if (delta === 0) return;
     await putCountMetricSafe(LunarisMetricName.ActiveInstances, delta, cw);
+}
+
+export async function publishAverageSessionDuration(
+    minutes: number,
+    cw?: CloudWatchClient,
+): Promise<void> {
+    if (!Number.isFinite(minutes) || minutes < 0) return;
+    await putNumericMetricSafe(LunarisMetricName.AverageSessionDuration, minutes, StandardUnit.None, cw);
+}
+
+export async function publishTotalCostEstimate(costUsd: number, cw?: CloudWatchClient): Promise<void> {
+    if (!Number.isFinite(costUsd) || costUsd < 0) return;
+    await putNumericMetricSafe(LunarisMetricName.TotalCostEstimate, costUsd, StandardUnit.None, cw);
 }

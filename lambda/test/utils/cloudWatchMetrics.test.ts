@@ -5,9 +5,11 @@ import {
     LUNARIS_METRICS_NAMESPACE,
     LunarisMetricName,
     publishActiveInstancesDelta,
+    publishAverageSessionDuration,
     publishDeploymentFailed,
     publishDeploymentStarted,
     publishDeploymentSucceeded,
+    publishTotalCostEstimate,
     resetCloudWatchClientForTests,
 } from "../../src/utils/cloudWatchMetrics";
 
@@ -29,7 +31,7 @@ describe("cloudWatchMetrics", () => {
         expect(cwMock.calls()).toHaveLength(1);
         const call = cwMock.call(0);
         expect(call.args[0]).toBeInstanceOf(PutMetricDataCommand);
-        const input = call.args[0].input;
+        const input = (call.args[0] as PutMetricDataCommand).input;
         expect(input.Namespace).toBe(LUNARIS_METRICS_NAMESPACE);
         expect(input.MetricData).toHaveLength(1);
         expect(input.MetricData![0].MetricName).toBe(LunarisMetricName.DeploymentsStarted);
@@ -38,13 +40,13 @@ describe("cloudWatchMetrics", () => {
 
     it("publishDeploymentSucceeded sends DeploymentsSucceeded", async () => {
         await publishDeploymentSucceeded();
-        const input = cwMock.call(0).args[0].input;
+        const input = (cwMock.call(0).args[0] as PutMetricDataCommand).input;
         expect(input.MetricData![0].MetricName).toBe(LunarisMetricName.DeploymentsSucceeded);
     });
 
     it("publishDeploymentFailed sends DeploymentsFailed", async () => {
         await publishDeploymentFailed();
-        const input = cwMock.call(0).args[0].input;
+        const input = (cwMock.call(0).args[0] as PutMetricDataCommand).input;
         expect(input.MetricData![0].MetricName).toBe(LunarisMetricName.DeploymentsFailed);
     });
 
@@ -55,9 +57,23 @@ describe("cloudWatchMetrics", () => {
 
     it("publishActiveInstancesDelta sends ActiveInstances with given delta", async () => {
         await publishActiveInstancesDelta(-1);
-        const input = cwMock.call(0).args[0].input;
+        const input = (cwMock.call(0).args[0] as PutMetricDataCommand).input;
         expect(input.MetricData![0].MetricName).toBe(LunarisMetricName.ActiveInstances);
         expect(input.MetricData![0].Value).toBe(-1);
+    });
+
+    it("publishAverageSessionDuration sends minutes metric", async () => {
+        await publishAverageSessionDuration(42.5);
+        const input = (cwMock.call(0).args[0] as PutMetricDataCommand).input;
+        expect(input.MetricData![0].MetricName).toBe(LunarisMetricName.AverageSessionDuration);
+        expect(input.MetricData![0].Value).toBe(42.5);
+    });
+
+    it("publishTotalCostEstimate sends cost metric", async () => {
+        await publishTotalCostEstimate(1.2345);
+        const input = (cwMock.call(0).args[0] as PutMetricDataCommand).input;
+        expect(input.MetricData![0].MetricName).toBe(LunarisMetricName.TotalCostEstimate);
+        expect(input.MetricData![0].Value).toBe(1.2345);
     });
 
     it("swallows errors from PutMetricData and logs", async () => {
