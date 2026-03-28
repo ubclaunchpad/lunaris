@@ -238,6 +238,7 @@ class ApiClient {
         );
     }
 
+    // TODO: use this method when implementing checkout flow for frontend
     async createCheckoutSession(
         request: CreateCheckoutSessionRequest,
     ): Promise<CreateCheckoutSessionResponse> {
@@ -247,6 +248,7 @@ class ApiClient {
         });
     }
 
+    // TODO: use this method when implementing checkout flow for frontend
     async getCheckoutSession(
         request: GetCheckoutSessionRequest,
     ): Promise<GetCheckoutSessionResponse> {

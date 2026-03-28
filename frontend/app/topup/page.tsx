@@ -1,15 +1,16 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+// import { useRouter } from "next/navigation";
 import { PageHeader, PricingCard, SubscriptionCard } from "./components";
 import { PAYMENT_PLANS } from "../../../lambda/src/shared/payment-plans";
 
 export default function TopUpPage() {
-    const router = useRouter();
+    // const router = useRouter();
 
-    const handleClaim = (planId: string) => {
-        router.push(`/topup/checkout?planId=${planId}`);
-    };
+    // TODO: implement the checkout page for this route
+    // const handleClaim = (planId: string) => {
+    //     router.push(`/topup/checkout?planId=${planId}`);
+    // };
 
     return (
         <main>
@@ -26,7 +27,7 @@ export default function TopUpPage() {
                                 price={`$${(plan.priceCents / 100).toFixed(2)}`}
                                 badge={plan.name}
                                 buttonText="Claim"
-                                onClaim={handleClaim}
+                                // onClaim={handleClaim}
                             />
                         ))}
                     </div>
