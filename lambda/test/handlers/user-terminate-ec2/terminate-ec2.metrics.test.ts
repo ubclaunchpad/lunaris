@@ -33,7 +33,7 @@ describe("terminate-ec2 handler CloudWatch metrics", () => {
         resetCloudWatchClientForTests();
     });
 
-    it("publishes active-instance delta, session duration, and cost on successful terminate", async () => {
+    it("publishes session duration and cost on successful terminate (not ActiveInstancesRealtime)", async () => {
         const mockEC2 = {
             getInstanceDetails: (jest.fn() as jest.Mock).mockResolvedValue({
                 volumes: [{ volumeId: "vol-1" }],
@@ -73,23 +73,13 @@ describe("terminate-ec2 handler CloudWatch metrics", () => {
         });
 
         expect(result.success).toBe(true);
-        expect(cwMock.calls().length).toBeGreaterThanOrEqual(3);
+        expect(cwMock.calls().length).toBe(2);
         const metricNames = cwMock.calls().map((call) => {
             const cmd = call.args[0] as PutMetricDataCommand;
             return cmd.input.MetricData?.[0].MetricName;
         });
-        expect(metricNames).toContain(LunarisMetricName.ActiveInstances);
+        expect(metricNames).not.toContain(LunarisMetricName.ActiveInstancesRealtime);
         expect(metricNames).toContain(LunarisMetricName.AverageSessionDuration);
         expect(metricNames).toContain(LunarisMetricName.TotalCostEstimate);
-
-        const activeDeltaCall = cwMock
-            .calls()
-            .find(
-                (call) =>
-                    (call.args[0] as PutMetricDataCommand).input.MetricData?.[0].MetricName ===
-                    LunarisMetricName.ActiveInstances,
-            );
-        expect(activeDeltaCall).toBeDefined();
-        expect((activeDeltaCall!.args[0] as PutMetricDataCommand).input.MetricData?.[0].Value).toBe(-1);
     });
 });

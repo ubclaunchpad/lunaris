@@ -4,7 +4,8 @@ import { CloudWatchClient, PutMetricDataCommand } from "@aws-sdk/client-cloudwat
 import {
     LUNARIS_METRICS_NAMESPACE,
     LunarisMetricName,
-    publishActiveInstancesDelta,
+    publishActiveInstancesRealtimeCount,
+    publishActiveInstancesReconciledCount,
     publishAverageSessionDuration,
     publishDeploymentFailed,
     publishDeploymentStarted,
@@ -50,16 +51,24 @@ describe("cloudWatchMetrics", () => {
         expect(input.MetricData![0].MetricName).toBe(LunarisMetricName.DeploymentsFailed);
     });
 
-    it("publishActiveInstancesDelta skips when delta is 0", async () => {
-        await publishActiveInstancesDelta(0);
+    it("publishActiveInstancesRealtimeCount skips invalid counts", async () => {
+        await publishActiveInstancesRealtimeCount(-1);
+        await publishActiveInstancesRealtimeCount(Number.NaN);
         expect(cwMock.calls()).toHaveLength(0);
     });
 
-    it("publishActiveInstancesDelta sends ActiveInstances with given delta", async () => {
-        await publishActiveInstancesDelta(-1);
+    it("publishActiveInstancesRealtimeCount sends ActiveInstancesRealtime", async () => {
+        await publishActiveInstancesRealtimeCount(7);
         const input = (cwMock.call(0).args[0] as PutMetricDataCommand).input;
-        expect(input.MetricData![0].MetricName).toBe(LunarisMetricName.ActiveInstances);
-        expect(input.MetricData![0].Value).toBe(-1);
+        expect(input.MetricData![0].MetricName).toBe(LunarisMetricName.ActiveInstancesRealtime);
+        expect(input.MetricData![0].Value).toBe(7);
+    });
+
+    it("publishActiveInstancesReconciledCount sends ActiveInstancesReconciled", async () => {
+        await publishActiveInstancesReconciledCount(7);
+        const input = (cwMock.call(0).args[0] as PutMetricDataCommand).input;
+        expect(input.MetricData![0].MetricName).toBe(LunarisMetricName.ActiveInstancesReconciled);
+        expect(input.MetricData![0].Value).toBe(7);
     });
 
     it("publishAverageSessionDuration sends minutes metric", async () => {

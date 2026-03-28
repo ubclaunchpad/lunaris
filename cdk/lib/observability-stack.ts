@@ -22,10 +22,17 @@ export class ObservabilityStack extends Stack {
             },
         });
 
-        const activeInstancesMetric = new Metric({
+        const activeInstancesReconciledMetric = new Metric({
             namespace: NAMESPACE,
-            metricName: "ActiveInstances",
+            metricName: "ActiveInstancesReconciled",
             period: Duration.minutes(5),
+            statistic: "Maximum",
+        });
+
+        const activeInstancesRealtimeMetric = new Metric({
+            namespace: NAMESPACE,
+            metricName: "ActiveInstancesRealtime",
+            period: Duration.minutes(1),
             statistic: "Maximum",
         });
 
@@ -54,13 +61,14 @@ export class ObservabilityStack extends Stack {
         });
 
         new Alarm(this, "ActiveInstancesHighAlarm", {
-            metric: activeInstancesMetric,
+            metric: activeInstancesReconciledMetric,
             threshold: 10,
             evaluationPeriods: 1,
             datapointsToAlarm: 1,
             comparisonOperator: ComparisonOperator.GREATER_THAN_THRESHOLD,
             treatMissingData: TreatMissingData.NOT_BREACHING,
-            alarmDescription: "Triggers when active instances exceed 10",
+            alarmDescription:
+                "Triggers when reconciled active instance count (DynamoDB) exceeds 10 over 5 minutes",
         });
 
         new Alarm(this, "DeploymentFailureRateHighAlarm", {
@@ -79,9 +87,9 @@ export class ObservabilityStack extends Stack {
 
         dashboard.addWidgets(
             new GraphWidget({
-                title: "Active Instances",
+                title: "Active Instances (Reconciled vs Realtime)",
                 width: 12,
-                left: [activeInstancesMetric],
+                left: [activeInstancesReconciledMetric, activeInstancesRealtimeMetric],
             }),
             new GraphWidget({
                 title: "Deployments (Hourly)",

@@ -32,7 +32,7 @@ describe("deploy-ec2 handler CloudWatch metrics", () => {
         resetCloudWatchClientForTests();
     });
 
-    it("publishes Started, Succeeded, and ActiveInstances +1 on successful deploy", async () => {
+    it("publishes Started and Succeeded on successful deploy (realtime fleet count is published after RunningInstances update)", async () => {
         const mockSSM = {
             getParamFromParamStore: jest.fn<() => Promise<string>>().mockResolvedValue("ami-abc"),
         };
@@ -62,11 +62,7 @@ describe("deploy-ec2 handler CloudWatch metrics", () => {
         expect(metricNames).toEqual([
             LunarisMetricName.DeploymentsStarted,
             LunarisMetricName.DeploymentsSucceeded,
-            LunarisMetricName.ActiveInstances,
         ]);
-        expect(
-            (cwMock.call(2).args[0] as PutMetricDataCommand).input.MetricData![0].Value,
-        ).toBe(1);
     });
 
     it("publishes Started and Failed when deployment throws", async () => {

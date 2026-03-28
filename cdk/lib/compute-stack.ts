@@ -163,7 +163,7 @@ export class ComputeStack extends Stack {
         );
 
         new Rule(this, "PublishActiveInstancesMetricSchedule", {
-            description: "Publishes ActiveInstances metric to CloudWatch every 5 minutes",
+            description: "Publishes ActiveInstancesReconciled (DynamoDB snapshot) to CloudWatch every 5 minutes",
             schedule: Schedule.rate(cdk.Duration.minutes(5)),
             targets: [new LambdaFunction(publishActiveInstancesMetricFunction)],
         });

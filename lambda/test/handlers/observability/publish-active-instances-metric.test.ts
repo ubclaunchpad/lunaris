@@ -18,7 +18,7 @@ describe("publish-active-instances-metric handler", () => {
         process.env = { ...originalEnv, RUNNING_INSTANCES_TABLE_NAME: "RunningInstances" };
     });
 
-    it("publishes ActiveInstances gauge from running + pending records", async () => {
+    it("publishes ActiveInstancesReconciled gauge from running + pending records", async () => {
         const mockWrapper = {
             queryByStatus: jest.fn((status: string) =>
                 status === "running" ? Promise.resolve([{}, {}, {}]) : Promise.resolve([{}]),
@@ -34,7 +34,7 @@ describe("publish-active-instances-metric handler", () => {
 
         const cmd = cloudWatchMock.call(0).args[0] as PutMetricDataCommand;
         expect(cmd.input.Namespace).toBe(LUNARIS_METRICS_NAMESPACE);
-        expect(cmd.input.MetricData?.[0].MetricName).toBe(LunarisMetricName.ActiveInstances);
+        expect(cmd.input.MetricData?.[0].MetricName).toBe(LunarisMetricName.ActiveInstancesReconciled);
         expect(cmd.input.MetricData?.[0].Value).toBe(4);
     });
 

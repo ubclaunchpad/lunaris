@@ -2,11 +2,7 @@ import EC2Wrapper from "../../utils/ec2Wrapper";
 import EBSWrapper from "../../utils/ebsWrapper";
 import DCVWrapper from "../../utils/dcvWrapper";
 import DynamoDBWrapper from "../../utils/dynamoDbWrapper";
-import {
-    publishActiveInstancesDelta,
-    publishAverageSessionDuration,
-    publishTotalCostEstimate,
-} from "../../utils/cloudWatchMetrics";
+import { publishAverageSessionDuration, publishTotalCostEstimate } from "../../utils/cloudWatchMetrics";
 
 const INSTANCE_HOURLY_COST_USD: Record<string, number> = {
     "t3.small": 0.0208,
@@ -153,7 +149,8 @@ export const handler = async (event: TerminateEc2Event): Promise<TerminateEc2Res
 
         const result = await terminateWorkflow(resolvedInstanceId, userId, runningInstancesTable);
         if (result.success) {
-            await publishActiveInstancesDelta(-1);
+            // ActiveInstancesRealtime is published from update-running-instances (deploy/terminate SFNs);
+            // this handler is used e.g. deploy rollback — fleet gauge is covered by ActiveInstancesReconciled.
 
             const sessionEndedAt = new Date();
             const creationTime = existingRecord?.creationTime;

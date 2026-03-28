@@ -8,7 +8,10 @@ import {
 export const LUNARIS_METRICS_NAMESPACE = "Lunaris";
 
 export const LunarisMetricName = {
-    ActiveInstances: "ActiveInstances",
+    /** DynamoDB count published on deploy/terminate (event-sampled “live” gauge). */
+    ActiveInstancesRealtime: "ActiveInstancesRealtime",
+    /** DynamoDB count published on a schedule (periodic reconciler / source of truth). */
+    ActiveInstancesReconciled: "ActiveInstancesReconciled",
     DeploymentsStarted: "DeploymentsStarted",
     DeploymentsSucceeded: "DeploymentsSucceeded",
     DeploymentsFailed: "DeploymentsFailed",
@@ -106,13 +109,20 @@ export async function publishDeploymentFailed(cw?: CloudWatchClient): Promise<vo
     await putCountMetricSafe(LunarisMetricName.DeploymentsFailed, 1, cw);
 }
 
-/**
- * Delta for fleet changes (+1 deploy, -1 terminate). True “current running” count for alarms
- * usually needs a periodic reconciler publishing an absolute gauge, or matching math on this metric.
- */
-export async function publishActiveInstancesDelta(delta: number, cw?: CloudWatchClient): Promise<void> {
-    if (delta === 0) return;
-    await putCountMetricSafe(LunarisMetricName.ActiveInstances, delta, cw);
+export async function publishActiveInstancesRealtimeCount(
+    count: number,
+    cw?: CloudWatchClient,
+): Promise<void> {
+    if (!Number.isFinite(count) || count < 0) return;
+    await putCountMetricSafe(LunarisMetricName.ActiveInstancesRealtime, count, cw);
+}
+
+export async function publishActiveInstancesReconciledCount(
+    count: number,
+    cw?: CloudWatchClient,
+): Promise<void> {
+    if (!Number.isFinite(count) || count < 0) return;
+    await putCountMetricSafe(LunarisMetricName.ActiveInstancesReconciled, count, cw);
 }
 
 export async function publishAverageSessionDuration(
