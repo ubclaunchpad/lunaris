@@ -5,7 +5,7 @@ export interface PaymentPlan {
     priceCents: number;
     description: string;
     durationMinutes: number;
-    stripePriceId: string | undefined; // TODO: maybe should throw error if undefined env
+    stripePriceId?: string;
 }
 
 export const PAYMENT_PLANS = {

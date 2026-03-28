@@ -25,7 +25,10 @@ export class LambdaFactory {
         this.scope = scope;
     }
 
-    public createFunction(config: LambdaFunctionConfig, provider: LambdaEnvVarProvider): NodejsFunction {
+    public createFunction(
+        config: LambdaFunctionConfig,
+        provider: LambdaEnvVarProvider,
+    ): NodejsFunction {
         const { entry, handler } = this.resolveEntryAndHandler(config.handler);
 
         const fn = new NodejsFunction(this.scope, config.constructId, {
