@@ -20,7 +20,6 @@ interface EndpointDefinition {
     method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
     statusCodes: string[];
     queryParams?: string[];
-    queryParamsRequiredWithAuth?: boolean;
 }
 
 const ENDPOINTS: EndpointDefinition[] = [
