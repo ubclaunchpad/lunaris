@@ -725,15 +725,14 @@ const handleCreateCheckoutSession = async (
         if (!plan) {
             return createResponse(400, { message: `Unknown plan: ${planId}` });
         }
-        
+
         if (!plan.stripePriceId) {
             return createResponse(500, {
                 message: `Stripe Price ID not configured for plan ${planId}. Set STRIPE_PRICE_${planId} env var.`,
             });
         }
 
-        const URL = "http://localhost:3000"; // TODO: this should be changed, do we have an env var for the local vs prod url?
-        const returnUrl = `${URL}/topup/return?sessionId={CHECKOUT_SESSION_ID}`;
+        const returnUrl = `${process.env.FRONTEND_URL}/topup/return?sessionId={CHECKOUT_SESSION_ID}`;
 
         const { clientSecret, sessionId } = await createCheckoutSession({
             priceId: plan.stripePriceId,

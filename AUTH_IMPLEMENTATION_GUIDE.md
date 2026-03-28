@@ -97,7 +97,7 @@ COGNITO_ISSUER=<LunarisCognitoIssuer>
 NEXTAUTH_SECRET=<from openssl command>
 
 # Local development
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=https://localhost:3000
 
 # From CDK outputs
 NEXT_PUBLIC_API_GATEWAY_URL=<your-api-gateway-url>

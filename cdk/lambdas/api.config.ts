@@ -9,6 +9,7 @@ const config: LambdaFunctionConfig = {
     envVars: [
         "RUNNING_INSTANCES_TABLE_NAME",
         "RUNNING_STREAMS_TABLE_NAME",
+        "FRONTEND_URL",
         "STRIPE_SECRET_KEY",
         "STRIPE_PRICE_ID_STARTER",
         "STRIPE_PRICE_ID_BASIC",
