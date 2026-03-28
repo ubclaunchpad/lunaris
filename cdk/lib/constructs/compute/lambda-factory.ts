@@ -1,6 +1,6 @@
 import * as path from "path";
 import { Construct } from "constructs";
-import { Function, Runtime } from "aws-cdk-lib/aws-lambda";
+import { Runtime } from "aws-cdk-lib/aws-lambda";
 import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { Duration } from "aws-cdk-lib";
 import { LambdaFunctionConfig, LambdaEnvVarProvider, LambdaPolicy } from "./lambda-types";
@@ -25,7 +25,7 @@ export class LambdaFactory {
         this.scope = scope;
     }
 
-    public createFunction(config: LambdaFunctionConfig, provider: LambdaEnvVarProvider): Function {
+    public createFunction(config: LambdaFunctionConfig, provider: LambdaEnvVarProvider): NodejsFunction {
         const { entry, handler } = this.resolveEntryAndHandler(config.handler);
 
         const fn = new NodejsFunction(this.scope, config.constructId, {
@@ -57,7 +57,7 @@ export class LambdaFactory {
             );
         }
 
-        // cdk commands are executed from cdk/, so lambda sources are at ../lambda/src.
+        // cdk commands are executed from root cdk folder, so lambda functions are relatively located within ../lambda/src.
         const entry = path.resolve(process.cwd(), "../lambda/src", `${modulePath}.ts`);
         return { entry, handler };
     }
@@ -76,7 +76,7 @@ export class LambdaFactory {
         return environment;
     }
 
-    private attachPolicies(fn: Function, policies: LambdaPolicy[] | undefined): void {
+    private attachPolicies(fn: NodejsFunction, policies: LambdaPolicy[] | undefined): void {
         for (const policy of policies ?? []) {
             for (const statement of this.getPolicyStatements(policy)) {
                 fn.addToRolePolicy(statement);

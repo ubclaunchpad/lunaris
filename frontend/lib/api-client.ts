@@ -44,11 +44,11 @@ export interface CreateCheckoutSessionResponse {
     sessionId: string;
 }
 
-export interface GetCheckoutSessionStatusRequest {
+export interface GetCheckoutSessionRequest {
     sessionId: string;
 }
 
-export interface GetCheckoutSessionStatusResponse {
+export interface GetCheckoutSessionResponse {
     message: string;
     status: string | null;
     paymentStatus: string;
@@ -241,22 +241,19 @@ class ApiClient {
     async createCheckoutSession(
         request: CreateCheckoutSessionRequest,
     ): Promise<CreateCheckoutSessionResponse> {
-        return this.request<CreateCheckoutSessionResponse>("/create-checkout-session", {
+        return this.request<CreateCheckoutSessionResponse>("/checkout-session", {
             method: "POST",
             body: JSON.stringify(request),
         });
     }
 
-    async getCheckoutSessionStatus(
-        request: GetCheckoutSessionStatusRequest,
-    ): Promise<GetCheckoutSessionStatusResponse> {
-        const params = new URLSearchParams({ session_id: request.sessionId });
-        return this.request<GetCheckoutSessionStatusResponse>(
-            `/checkout-session-status?${params.toString()}`,
-            {
-                method: "GET",
-            },
-        );
+    async getCheckoutSession(
+        request: GetCheckoutSessionRequest,
+    ): Promise<GetCheckoutSessionResponse> {
+        const params = new URLSearchParams({ sessionId: request.sessionId });
+        return this.request<GetCheckoutSessionResponse>(`/checkout-session?${params.toString()}`, {
+            method: "GET",
+        });
     }
 }
 

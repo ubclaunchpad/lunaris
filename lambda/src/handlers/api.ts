@@ -708,7 +708,7 @@ const handleDeploymentStatus = async (
     }
 };
 
-// POST /create-checkout-session
+// POST /checkout-session
 // creates stripe checkout session in embedded mode and returns the client_secret
 const handleCreateCheckoutSession = async (
     event: APIGatewayProxyEvent,
@@ -725,13 +725,7 @@ const handleCreateCheckoutSession = async (
         if (!plan) {
             return createResponse(400, { message: `Unknown plan: ${planId}` });
         }
-
-        // if (plan.priceCents === 0) {
-        //     return createResponse(400, {
-        //         message: "This plan is free and does not require checkout",
-        //     });
-        // }
-
+        
         if (!plan.stripePriceId) {
             return createResponse(500, {
                 message: `Stripe Price ID not configured for plan ${planId}. Set STRIPE_PRICE_${planId} env var.`,
@@ -739,7 +733,7 @@ const handleCreateCheckoutSession = async (
         }
 
         const URL = "http://localhost:3000"; // TODO: this should be changed, do we have an env var for the local vs prod url?
-        const returnUrl = `${URL}/topup/return?session_id={CHECKOUT_SESSION_ID}`;
+        const returnUrl = `${URL}/topup/return?sessionId={CHECKOUT_SESSION_ID}`;
 
         const { clientSecret, sessionId } = await createCheckoutSession({
             priceId: plan.stripePriceId,
@@ -764,15 +758,15 @@ const handleCreateCheckoutSession = async (
     }
 };
 
-// GET /checkout-session-status?session_id=xxxxx
+// GET /checkout-session?sessionId=xxxxx
 // retrieves status of stripe checkout session so the return page can show success / failure
-const handleCheckoutSessionStatus = async (
+const handleGetCheckoutSession = async (
     event: APIGatewayProxyEvent,
 ): Promise<APIGatewayProxyResult> => {
     try {
-        const sessionId = event.queryStringParameters?.session_id;
+        const sessionId = event.queryStringParameters?.sessionId;
         if (!sessionId) {
-            return createResponse(400, { message: "session_id query parameter is required" });
+            return createResponse(400, { message: "sessionId query parameter is required" });
         }
         const session = await getCheckoutSession(sessionId);
 
@@ -809,10 +803,10 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             return await handleStreamingLink(event);
         } else if (path === "/deployment-status" && method === "GET") {
             return await handleDeploymentStatus(event);
-        } else if (path === "/create-checkout-session" && method === "POST") {
+        } else if (path === "/checkout-session" && method === "POST") {
             return await handleCreateCheckoutSession(event);
-        } else if (path === "/checkout-session-status" && method === "GET") {
-            return await handleCheckoutSessionStatus(event);
+        } else if (path === "/checkout-session" && method === "GET") {
+            return await handleGetCheckoutSession(event);
         } else {
             return createResponse(404, {
                 error: "Not Found",

@@ -47,16 +47,15 @@ const ENDPOINTS: EndpointDefinition[] = [
         queryParams: ["method.request.querystring.userId"],
     },
     {
-        path: "create-checkout-session",
+        path: "checkout-session",
         method: "POST",
         statusCodes: ["200", "400"],
     },
     {
-        path: "checkout-session-status",
+        path: "checkout-session",
         method: "GET",
         statusCodes: ["200", "400"],
-        queryParams: ["method.request.querystring.session_id"],
-        queryParamsRequiredWithAuth: true,
+        queryParams: ["method.request.querystring.sessionId"],
     },
 ];
 
@@ -107,7 +106,10 @@ export class ApiGateway extends Construct {
     }
 
     private addEndpoint(integration: LambdaIntegration, endpoint: EndpointDefinition): void {
-        const resource = this.restApi.root.addResource(endpoint.path);
+        const resource =
+            // doing this getResource check first to avoid creating duplicate resources if multiple endpoint share the same path name (e.g. /checkout-session GET and POST)
+            this.restApi.root.getResource(endpoint.path) ??
+            this.restApi.root.addResource(endpoint.path);
 
         const statusCodes = this.authorizer
             ? [...endpoint.statusCodes, "401"]
@@ -115,12 +117,7 @@ export class ApiGateway extends Construct {
 
         // With authorizer, userId comes from the token so query params are optional
         const requestParameters = endpoint.queryParams?.length
-            ? Object.fromEntries(
-                  endpoint.queryParams.map((param) => [
-                      param,
-                      !this.authorizer || endpoint.queryParamsRequiredWithAuth === true,
-                  ]),
-              )
+            ? Object.fromEntries(endpoint.queryParams.map((param) => [param, !this.authorizer]))
             : undefined;
 
         const methodOptions: MethodOptions = {

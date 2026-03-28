@@ -9,7 +9,7 @@ import { StorageStack } from "../lib/storage-stack";
 import { ComputeStack } from "../lib/compute-stack";
 import { ApiStack } from "../lib/api-stack";
 
-dotenv.config({ path: "../lambda/.env.local" }); // ensures env vars are available for lambda config during stack synthesis
+dotenv.config({ path: "../lambda/.env.local" }); // ensures local env vars are available to lambda function during stack synthesis
 
 // Discover and register workflows and lambdas before creating the stacks
 WorkflowRegistry.discoverWorkflows();

@@ -15,7 +15,7 @@ interface SessionInfo {
 function ReturnContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
-    const sessionId = searchParams.get("session_id");
+    const sessionId = searchParams.get("sessionId");
     const [session, setSession] = useState<SessionInfo | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -26,7 +26,7 @@ function ReturnContent() {
         }
 
         apiClient
-            .getCheckoutSessionStatus({ sessionId })
+            .getCheckoutSession({ sessionId })
             .then((data) => {
                 setSession({
                     status: data.status,
