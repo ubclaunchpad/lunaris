@@ -17,6 +17,9 @@ const config: LambdaFunctionConfig = {
         "STRIPE_PRICE_ID_STANDARD",
         "STRIPE_PRICE_ID_PREMIUM",
         "STRIPE_PRICE_ID_PRO",
+        "USER_PAYMENTS_TABLE_NAME",
+        "USER_BALANCES_TABLE_NAME",
+        "STRIPE_WH_SECRET",
     ],
 };
 

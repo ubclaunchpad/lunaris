@@ -15,6 +15,8 @@ export interface ComputeStackProps extends StackProps {
     readonly ec2InstanceProfileName: string;
     readonly runningInstancesTable: ITable;
     readonly runningStreamsTable: ITable;
+    readonly userPaymentsTable: ITable;
+    readonly userBalancesTable: ITable;
     readonly gamesTable: ITable;
 }
 
@@ -30,7 +32,13 @@ export class ComputeStack extends Stack {
             },
         });
 
-        const { runningInstancesTable, runningStreamsTable, gamesTable } = props;
+        const {
+            runningInstancesTable,
+            runningStreamsTable,
+            userPaymentsTable,
+            userBalancesTable,
+            gamesTable,
+        } = props;
 
         const dcvSecurityGroup = new DCVSecurityGroup(this, "DCVSecurityGroup");
 
@@ -49,12 +57,17 @@ export class ComputeStack extends Stack {
             stripePriceStandard: process.env.STRIPE_PRICE_ID_STANDARD,
             stripePricePremium: process.env.STRIPE_PRICE_ID_PREMIUM,
             stripePricePro: process.env.STRIPE_PRICE_ID_PRO,
+            userPaymentsTable,
+            userBalancesTable,
+            stripeWhSecret: process.env.STRIPE_WH_SECRET,
         });
 
         this.grantDynamoDbPermissions(
             lambdaFunctions,
             runningInstancesTable,
             runningStreamsTable,
+            userPaymentsTable,
+            userBalancesTable,
             gamesTable,
         );
         this.setupOperationalMetricsScheduler(lambdaFunctions);
@@ -120,11 +133,15 @@ export class ComputeStack extends Stack {
         lambdaFunctions: LambdaFunctions,
         runningInstancesTable: ITable,
         runningStreamsTable: ITable,
+        userPaymentsTable: ITable,
+        userBalancesTable: ITable,
         gamesTable: ITable,
     ): void {
         // API Lambda
         runningInstancesTable.grantReadWriteData(lambdaFunctions.apiFunction);
         runningStreamsTable.grantReadData(lambdaFunctions.apiFunction);
+        userPaymentsTable.grantReadWriteData(lambdaFunctions.apiFunction);
+        userBalancesTable.grantReadWriteData(lambdaFunctions.apiFunction);
         gamesTable.grantReadData(lambdaFunctions.apiFunction);
 
         // Deploy workflow
