@@ -11,7 +11,13 @@ export interface LambdaFunctionsProps {
     readonly ec2InstanceProfileArn?: string;
     readonly ec2InstanceProfileName?: string;
     readonly dcvSecurityGroupId?: string;
+    readonly frontendUrl?: string;
     readonly stripeSecretKey?: string;
+    readonly stripePriceStarter?: string;
+    readonly stripePriceBasic?: string;
+    readonly stripePriceStandard?: string;
+    readonly stripePricePremium?: string;
+    readonly stripePricePro?: string;
 }
 
 export class LambdaFunctions extends Construct {
@@ -57,7 +63,13 @@ export class LambdaFunctions extends Construct {
             EC2_INSTANCE_PROFILE_NAME: props.ec2InstanceProfileName ?? "",
             SECURITY_GROUP_ID: props.dcvSecurityGroupId ?? "",
             LAMBDA_REGION: process.env.AWS_REGION ?? "us-west-2",
+            FRONTEND_URL: props.frontendUrl,
             STRIPE_SECRET_KEY: props.stripeSecretKey,
+            STRIPE_PRICE_ID_STARTER: props.stripePriceStarter,
+            STRIPE_PRICE_ID_BASIC: props.stripePriceBasic,
+            STRIPE_PRICE_ID_STANDARD: props.stripePriceStandard,
+            STRIPE_PRICE_ID_PREMIUM: props.stripePricePremium,
+            STRIPE_PRICE_ID_PRO: props.stripePricePro,
         };
     }
 }

@@ -1,5 +1,7 @@
+import * as path from "path";
 import { Construct } from "constructs";
-import { Code, Function, Runtime } from "aws-cdk-lib/aws-lambda";
+import { Runtime } from "aws-cdk-lib/aws-lambda";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { Duration } from "aws-cdk-lib";
 import { LambdaFunctionConfig, LambdaEnvVarProvider, LambdaPolicy } from "./lambda-types";
 import {
@@ -23,20 +25,44 @@ export class LambdaFactory {
         this.scope = scope;
     }
 
-    public createFunction(config: LambdaFunctionConfig, provider: LambdaEnvVarProvider): Function {
-        const fn = new Function(this.scope, config.constructId, {
+    public createFunction(
+        config: LambdaFunctionConfig,
+        provider: LambdaEnvVarProvider,
+    ): NodejsFunction {
+        const { entry, handler } = this.resolveEntryAndHandler(config.handler);
+
+        const fn = new NodejsFunction(this.scope, config.constructId, {
             runtime: Runtime.NODEJS_22_X,
-            code: Code.fromAsset("../lambda/dist"),
-            handler: config.handler,
+            entry,
+            handler,
             description: config.description,
             timeout: Duration.seconds(config.timeoutSeconds ?? 30),
             memorySize: config.memorySize ?? 256,
             environment: this.resolveEnvVars(config.envVars, provider),
+            bundling: {
+                externalModules: ["@aws-sdk/*"],
+                target: "node22",
+                sourceMap: true,
+                minify: false,
+            },
         });
 
         this.attachPolicies(fn, config.policies);
 
         return fn;
+    }
+
+    private resolveEntryAndHandler(lambdaHandler: string): { entry: string; handler: string } {
+        const [modulePath, handler] = lambdaHandler.split(".");
+        if (!modulePath || !handler) {
+            throw new Error(
+                `Invalid handler format '${lambdaHandler}'. Expected '<path>.<export>'`,
+            );
+        }
+
+        // cdk commands are executed from root cdk folder, so lambda functions are relatively located within ../lambda/src.
+        const entry = path.resolve(process.cwd(), "../lambda/src", `${modulePath}.ts`);
+        return { entry, handler };
     }
 
     private resolveEnvVars(
@@ -53,7 +79,7 @@ export class LambdaFactory {
         return environment;
     }
 
-    private attachPolicies(fn: Function, policies: LambdaPolicy[] | undefined): void {
+    private attachPolicies(fn: NodejsFunction, policies: LambdaPolicy[] | undefined): void {
         for (const policy of policies ?? []) {
             for (const statement of this.getPolicyStatements(policy)) {
                 fn.addToRolePolicy(statement);

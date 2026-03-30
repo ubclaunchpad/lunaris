@@ -36,4 +36,5 @@ pids
 ehthumbs.db
 Thumbs.db
 
-.env
+.env*
+!.env.example

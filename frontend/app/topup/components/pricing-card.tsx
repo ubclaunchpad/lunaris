@@ -9,6 +9,7 @@ interface PricingCardProps {
     badge: string;
     isHighlight?: boolean;
     buttonText: string;
+    planId: string;
 }
 
 export function PricingCard({
