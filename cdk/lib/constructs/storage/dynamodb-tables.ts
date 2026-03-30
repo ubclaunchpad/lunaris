@@ -12,12 +12,16 @@ import { RemovalPolicy } from "aws-cdk-lib";
 export class DynamoDbTables extends Construct {
     public readonly runningStreamsTable: ITable;
     public readonly runningInstancesTable: ITable;
+    public readonly userPaymentsTable: ITable;
+    public readonly userBalancesTable: ITable;
     public readonly gamesTable: ITable;
 
     constructor(scope: Construct, id: string) {
         super(scope, id);
         this.runningStreamsTable = this.setUpRunningStreamsTable();
         this.runningInstancesTable = this.setupRunningInstances();
+        this.userPaymentsTable = this.setupUserPayments();
+        this.userBalancesTable = this.setupUserBalances();
         this.gamesTable = this.setupGamesTable();
     }
 
@@ -87,6 +91,33 @@ export class DynamoDbTables extends Construct {
             partitionKey: { name: "userId", type: AttributeType.STRING },
             sortKey: { name: "creationTime", type: AttributeType.STRING },
             projectionType: ProjectionType.ALL,
+        });
+
+        return table;
+    }
+
+    setupUserPayments(): ITable {
+        const table = new Table(this, "UserPayments", {
+            partitionKey: { name: "userId", type: AttributeType.STRING },
+            sortKey: { name: "createdAt", type: AttributeType.STRING },
+            billingMode: BillingMode.PAY_PER_REQUEST,
+            removalPolicy: RemovalPolicy.RETAIN,
+        });
+
+        table.addGlobalSecondaryIndex({
+            indexName: "StripeSessionIndex",
+            partitionKey: { name: "stripeSessionId", type: AttributeType.STRING },
+            projectionType: ProjectionType.ALL,
+        });
+
+        return table;
+    }
+
+    setupUserBalances(): ITable {
+        const table = new Table(this, "UserBalances", {
+            partitionKey: { name: "userId", type: AttributeType.STRING },
+            billingMode: BillingMode.PAY_PER_REQUEST,
+            removalPolicy: RemovalPolicy.RETAIN,
         });
 
         return table;
