@@ -20,6 +20,9 @@ export interface LambdaFunctionsProps {
     readonly stripePriceStandard?: string;
     readonly stripePricePremium?: string;
     readonly stripePricePro?: string;
+    readonly userPaymentsTable?: ITable;
+    readonly userBalancesTable?: ITable;
+    readonly stripeWhSecret?: string;
 }
 
 export class LambdaFunctions extends Construct {
@@ -74,6 +77,9 @@ export class LambdaFunctions extends Construct {
             STRIPE_PRICE_ID_STANDARD: props.stripePriceStandard,
             STRIPE_PRICE_ID_PREMIUM: props.stripePricePremium,
             STRIPE_PRICE_ID_PRO: props.stripePricePro,
+            USER_PAYMENTS_TABLE_NAME: props.userPaymentsTable?.tableName,
+            USER_BALANCES_TABLE_NAME: props.userBalancesTable?.tableName,
+            STRIPE_WH_SECRET: props.stripeWhSecret,
         };
     }
 }
