@@ -100,8 +100,8 @@ export const findOrCreateCustomer = async (userId: string, email?: string): Prom
     if (existing.data.length > 0) return existing.data[0].id;
 
     const customer = await stripe.customers.create({
-        metadata: {userId},
-        ... (email ? {email}: {})
+        metadata: { userId },
+        ...(email ? { email } : {}),
     });
 
     return customer.id;

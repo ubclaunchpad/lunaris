@@ -932,8 +932,8 @@ const handleStripeWebhook = async (event: APIGatewayProxyEvent): Promise<APIGate
             : event.body || "";
 
         // extract stripe signature
-        const signature = event.headers["stripe-signature"] 
-            || event.headers["Stripe-Signature"] || "";
+        const signature =
+            event.headers["stripe-signature"] || event.headers["Stripe-Signature"] || "";
 
         if (!signature) {
             return createResponse(400, { message: "Missing stripe-signature header" });

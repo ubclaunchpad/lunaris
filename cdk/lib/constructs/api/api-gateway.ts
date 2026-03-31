@@ -119,9 +119,7 @@ export class ApiGateway extends Construct {
 
         const useAuth = this.authorizer && !endpoint.noAuth;
 
-        const statusCodes = useAuth
-            ? [...endpoint.statusCodes, "401"]
-            : endpoint.statusCodes;
+        const statusCodes = useAuth ? [...endpoint.statusCodes, "401"] : endpoint.statusCodes;
 
         // With authorizer, userId comes from the token so query params are optional
         const requestParameters = endpoint.queryParams?.length
