@@ -18,14 +18,15 @@ import {
     LambdaFunctionFailedEventDetails,
 } from "@aws-sdk/client-sfn";
 
-interface EventDetails {
-    error?: string;
-    cause?: string;
-}
 import { SFNClientConfig } from "@aws-sdk/client-sfn";
 import { DynamoDBClientConfig } from "@aws-sdk/client-dynamodb";
 import DynamoDBWrapper from "../utils/dynamoDbWrapper";
-import { createCheckoutSession, getCheckoutSession } from "../utils/stripeWrapper";
+import {
+    createCheckoutSession,
+    getCheckoutSession,
+    constructWebhookEvent,
+    findOrCreateCustomer,
+} from "../utils/stripeWrapper";
 import { getPaymentPlanById, validatePlanId } from "../shared/payment-plans";
 
 // Configure clients to use local endpoints when available (for local testing)
@@ -49,6 +50,9 @@ const RUNNING_INSTANCES_TABLE_NAME = process.env.RUNNING_INSTANCES_TABLE_NAME ||
 const RUNNING_STREAMS_TABLE_NAME = process.env.RUNNING_STREAMS_TABLE_NAME || "";
 const USER_DEPLOY_EC2_WORKFLOW_ARN = process.env.USER_DEPLOY_EC2_WORKFLOW_ARN || "";
 const TERMINATE_WORKFLOW_ARN = process.env.TERMINATE_WORKFLOW_ARN || "";
+const USER_PAYMENTS_TABLE_NAME = process.env.USER_PAYMENTS_TABLE_NAME || "";
+const USER_BALANCES_TABLE_NAME = process.env.USER_BALANCES_TABLE_NAME || "";
+const STRIPE_WH_SECRET = process.env.STRIPE_WH_SECRET || "";
 
 interface GameItem {
     gameId: string;
@@ -99,6 +103,18 @@ const createResponse = (statusCode: number, body: ResponseBody): APIGatewayProxy
     },
     body: JSON.stringify(body),
 });
+
+const verifyUserBalance = async (
+    userId: string,
+): Promise<{ hasBalance: boolean; coins: number }> => {
+    if (!USER_BALANCES_TABLE_NAME) {
+        throw new Error("MissingUserBalancesTable");
+    }
+    const dbWrapper = new DynamoDBWrapper(USER_BALANCES_TABLE_NAME);
+    const balance = await dbWrapper.getItem({ userId });
+    const coins = (balance?.coins as number) ?? 0;
+    return { hasBalance: coins > 0, coins };
+};
 
 /**
  * List all games from the Games table
@@ -208,6 +224,15 @@ const handleDeployInstance = async (
 
         if (!userId) {
             return createResponse(400, { message: "User ID is required" });
+        }
+
+        // Payment guard: user must have coins to deploy
+        const { hasBalance } = await verifyUserBalance(userId);
+        if (!hasBalance) {
+            return createResponse(402, {
+                message: "Insufficient balance. Please purchase a coin pack to deploy.",
+                status: "payment_required",
+            });
         }
 
         // Start the UserDeployEC2 Step Function
@@ -839,6 +864,11 @@ const handleCreateCheckoutSession = async (
             });
         }
 
+        let stripeCustomerId: string | undefined;
+        if (userId) {
+            stripeCustomerId = await findOrCreateCustomer(userId);
+        }
+
         const returnUrl = `${process.env.FRONTEND_URL}/topup/return?sessionId={CHECKOUT_SESSION_ID}`;
 
         const { clientSecret, sessionId } = await createCheckoutSession({
@@ -848,6 +878,7 @@ const handleCreateCheckoutSession = async (
                 planId,
                 ...(userId ? { userId } : {}),
             },
+            ...(stripeCustomerId ? { customer: stripeCustomerId } : {}),
         });
 
         return createResponse(200, {
@@ -892,6 +923,124 @@ const handleGetCheckoutSession = async (
     }
 };
 
+const handleStripeWebhook = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+        // api gateway may decode it -> safety lines here
+        const rawBody = event.isBase64Encoded
+            ? Buffer.from(event.body || "", "base64").toString("utf8")
+            : event.body || "";
+
+        // extract stripe signature
+        const signature = event.headers["stripe-signature"] 
+            || event.headers["Stripe-Signature"] || "";
+
+        if (!signature) {
+            return createResponse(400, { message: "Missing stripe-signature header" });
+        }
+
+        if (!STRIPE_WH_SECRET) {
+            console.error("STRIPE_WH_SECRET environment variable is not set");
+            return createResponse(500, { message: "Webhook secret not configured" });
+        }
+
+        let stripeEvent: { type: string; data: { object: Record<string, unknown> } };
+        try {
+            stripeEvent = constructWebhookEvent(
+                rawBody,
+                signature,
+                STRIPE_WH_SECRET,
+            ) as unknown as typeof stripeEvent;
+        } catch (err) {
+            console.error("Webhook signature verification failed:", err);
+            return createResponse(400, { message: "Invalid signature" });
+        }
+
+        switch (stripeEvent.type) {
+            case "checkout.session.completed":
+                await handleCheckoutCompleted(stripeEvent.data.object);
+                break;
+            default:
+                console.log(`Unhandled webhook event type: ${stripeEvent.type}`);
+        }
+
+        // ack all other stripe events with a 200 -> ROOM FOR EXPANSION HERE
+        return createResponse(200, { message: "Webhook processed" });
+    } catch (error) {
+        console.error("Webhook handler error:", error);
+        return createResponse(500, {
+            message: "Webhook processing failed",
+            error: error instanceof Error ? error.message : "Unknown error",
+        });
+    }
+};
+
+const handleCheckoutCompleted = async (session: Record<string, unknown>): Promise<void> => {
+    // ------------------------------------------------------------------
+    // Step 1: Extract fields from the Stripe session object
+    // ------------------------------------------------------------------
+    const stripeSessionId = session.id as string;
+    const stripeCustomerId = (session.customer as string) || undefined;
+    const metadata = (session.metadata as Record<string, string>) || {};
+    const { planId, userId } = metadata;
+    const customerEmail = (session.customer_details as Record<string, unknown>)?.email as
+        | string
+        | undefined;
+
+    if (!planId || !userId) {
+        console.warn("Webhook missing planId or userId in metadata:", metadata);
+        return;
+    }
+
+    // idempotency check
+    const paymentsDb = new DynamoDBWrapper(USER_PAYMENTS_TABLE_NAME);
+    const existing = await paymentsDb.query({
+        IndexName: "StripeSessionIndex",
+        KeyConditionExpression: "stripeSessionId = :sid",
+        ExpressionAttributeValues: { ":sid": stripeSessionId },
+    });
+    if (existing.length > 0) {
+        console.log(`Payment already recorded for session ${stripeSessionId}, skipping`);
+        return;
+    }
+
+    // record plan in log
+    const plan = getPaymentPlanById(planId);
+    if (!plan) {
+        console.error(`Unknown planId in webhook: ${planId}`);
+        return;
+    }
+
+    const now = new Date().toISOString();
+
+    await paymentsDb.putItem({
+        userId,
+        createdAt: now,
+        stripeSessionId,
+        stripeCustomerId: stripeCustomerId || "unknown",
+        planId,
+        coins: plan.coins,
+        priceCents: plan.priceCents,
+        status: "completed",
+        customerEmail: customerEmail || "unknown",
+    });
+
+    // actually grant coins to end user
+    const balancesDb = new DynamoDBWrapper(USER_BALANCES_TABLE_NAME);
+    await balancesDb.updateItem(
+        { userId },
+        {
+            UpdateExpression: "ADD coins :c SET updatedAt = :t, stripeCustomerId = :s",
+            ExpressionAttributeValues: {
+                ":c": plan.coins,
+                ":t": now,
+                ":s": stripeCustomerId || "unknown",
+            },
+        },
+    );
+
+    console.log(`Payment recorded: ${userId} bought ${plan.name} (${plan.coins} coins)`);
+};
+
 // Main handler that routes to the appropriate function
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     console.log("Event:", JSON.stringify(event, null, 2));
@@ -913,6 +1062,8 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             return await handleCreateCheckoutSession(event);
         } else if (path === "/checkout-session" && method === "GET") {
             return await handleGetCheckoutSession(event);
+        } else if (path === "/stripe-webhook" && method === "POST") {
+            return await handleStripeWebhook(event);
         } else if (path === "/games" && method === "GET") {
             return await handleListGames(event);
         } else if (path?.startsWith("/games/") && method === "GET") {
