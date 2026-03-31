@@ -92,6 +92,65 @@ async function createRunningStreamsTable() {
     }
 }
 
+async function createUserPaymentsTable() {
+    const tableParams: CreateTableCommandInput = {
+        TableName: "UserPayments",
+
+        KeySchema: [
+            { AttributeName: "userId", KeyType: "HASH" },
+            { AttributeName: "createdAt", KeyType: "RANGE" },
+        ],
+
+        AttributeDefinitions: [
+            { AttributeName: "userId", AttributeType: "S" },
+            { AttributeName: "createdAt", AttributeType: "S" },
+            { AttributeName: "stripeSessionId", AttributeType: "S" },
+        ],
+
+        GlobalSecondaryIndexes: [
+            {
+                IndexName: "StripeSessionIndex",
+                KeySchema: [{ AttributeName: "stripeSessionId", KeyType: "HASH" }],
+                Projection: { ProjectionType: "ALL" },
+            },
+        ],
+
+        BillingMode: "PAY_PER_REQUEST",
+    };
+
+    try {
+        await client.send(new CreateTableCommand(tableParams));
+    } catch (error: unknown) {
+        if (error instanceof Error && error.name === "ResourceInUseException") {
+            console.log("UserPayments table already exists (skipping)");
+        } else {
+            throw error;
+        }
+    }
+}
+
+async function createUserBalancesTable() {
+    const tableParams: CreateTableCommandInput = {
+        TableName: "UserBalances",
+
+        KeySchema: [{ AttributeName: "userId", KeyType: "HASH" }],
+
+        AttributeDefinitions: [{ AttributeName: "userId", AttributeType: "S" }],
+
+        BillingMode: "PAY_PER_REQUEST",
+    };
+
+    try {
+        await client.send(new CreateTableCommand(tableParams));
+    } catch (error: unknown) {
+        if (error instanceof Error && error.name === "ResourceInUseException") {
+            console.log("UserBalances table already exists (skipping)");
+        } else {
+            throw error;
+        }
+    }
+}
+
 async function createGamesTable() {
     const tableParams: CreateTableCommandInput = {
         TableName: "Games",
@@ -145,7 +204,13 @@ async function verifyTables() {
 
     console.log("Existing tables:", tables.join(", "));
 
-    const requiredTables = ["RunningInstances", "RunningStreams", "Games"];
+    const requiredTables = [
+        "RunningInstances",
+        "RunningStreams",
+        "UserPayments",
+        "UserBalances",
+        "Games",
+    ];
     const allExist = requiredTables.every((table) => tables.includes(table));
 
     if (!allExist) {
@@ -159,6 +224,8 @@ async function verifyTables() {
 
         await createRunningInstancesTable();
         await createRunningStreamsTable();
+        await createUserPaymentsTable();
+        await createUserBalancesTable();
         await createGamesTable();
         await seedGamesTable();
 
