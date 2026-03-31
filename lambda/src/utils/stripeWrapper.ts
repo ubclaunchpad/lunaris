@@ -93,7 +93,7 @@ export const constructWebhookEvent = (
 export const findOrCreateCustomer = async (userId: string, email?: string): Promise<string> => {
     const stripe = getStripe();
     const existing = await stripe.customers.search({
-        query: `metadata['userId]: '${userId}'`,
+        query: `metadata['userId']:'${userId}'`,
         limit: 1,
     });
 
