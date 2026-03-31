@@ -22,8 +22,7 @@ process.env.USER_PAYMENTS_TABLE_NAME = process.env.USER_PAYMENTS_TABLE_NAME || "
 process.env.USER_BALANCES_TABLE_NAME = process.env.USER_BALANCES_TABLE_NAME || "UserBalances";
 process.env.RUNNING_INSTANCES_TABLE_NAME =
     process.env.RUNNING_INSTANCES_TABLE_NAME || "RunningInstances";
-process.env.RUNNING_STREAMS_TABLE_NAME =
-    process.env.RUNNING_STREAMS_TABLE_NAME || "RunningStreams";
+process.env.RUNNING_STREAMS_TABLE_NAME = process.env.RUNNING_STREAMS_TABLE_NAME || "RunningStreams";
 process.env.FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 
 import http from "http";
@@ -73,7 +72,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
     console.log(`\nStripe dev server: http://localhost:${PORT}`);
-    console.log(
-        `stripe listen --forward-to localhost:${PORT}/stripe-webhook\n`,
-    );
+    console.log(`stripe listen --forward-to localhost:${PORT}/stripe-webhook\n`);
 });
