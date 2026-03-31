@@ -15,12 +15,11 @@ describe("user-terminate-ec2/update-running-streams", () => {
         restoreEnv();
     });
 
-    it("marks the streaming session as not running", async () => {
+    it("marks streaming record as stopped", async () => {
         dynamoMock.on(UpdateCommand).resolves({});
 
         const result = await handler({
             userId: "user-123",
-            sessionId: "session-456",
             instanceArn: "arn:aws:ec2:region:acct:instance/i-abc",
         });
 
@@ -29,9 +28,9 @@ describe("user-terminate-ec2/update-running-streams", () => {
         const calls = dynamoMock.commandCalls(UpdateCommand);
         expect(calls).toHaveLength(1);
         const input = calls[0].args[0].input;
-
+        expect(input.Key).toEqual({ instanceArn: "arn:aws:ec2:region:acct:instance/i-abc" });
         expect(input.ExpressionAttributeValues).toMatchObject({
-            ":running": false,
+            ":status": "stopped",
         });
         expect(typeof input.ExpressionAttributeValues?.[":updatedAt"]).toBe("string");
     });
@@ -43,7 +42,6 @@ describe("user-terminate-ec2/update-running-streams", () => {
         await expect(
             handler({
                 userId: "user-123",
-                sessionId: "session-456",
                 instanceArn: "arn",
             }),
         ).rejects.toThrow("MissingTableNameEnv");
@@ -55,7 +53,6 @@ describe("user-terminate-ec2/update-running-streams", () => {
         await expect(
             handler({
                 userId: "user-123",
-                sessionId: "session-456",
                 instanceArn: "arn",
             }),
         ).rejects.toThrow("ddb-update");

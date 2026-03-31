@@ -78,13 +78,13 @@ describe("EC2Wrapper", () => {
         jest.clearAllMocks();
     });
 
-    // TODO: test creating with ami
     describe("createInstance", () => {
         it("should create EC2 instance with all required fields", async () => {
             const mockInstanceId = "i-test123";
             const mockConfig: EC2InstanceConfig = {
                 userId: "test-user-123",
                 instanceType: "t3.medium",
+                amiId: "ami-test123",
             };
 
             mockEC2Success(mockInstanceId);
@@ -112,10 +112,11 @@ describe("EC2Wrapper", () => {
             expect(userIdTag?.Value).toBe("test-user-123");
         });
 
-        it("should use BasicDCV launch template", async () => {
+        it("should use provided AMI ID when creating instance", async () => {
             const mockConfig: EC2InstanceConfig = {
                 userId: "test-user",
                 instanceType: "t3.micro",
+                amiId: "ami-test123",
             };
 
             mockEC2Success();
@@ -125,13 +126,14 @@ describe("EC2Wrapper", () => {
 
             const calls = ec2Mock.commandCalls(RunInstancesCommand);
             const input = calls[0].args[0].input;
-            expect(input.LaunchTemplate?.LaunchTemplateName).toBe("BasicDCV");
+            expect(input.ImageId).toBe("ami-test123");
         });
 
         it("should throw error when instance limit exceeded", async () => {
             const mockConfig: EC2InstanceConfig = {
                 userId: "test-user",
                 instanceType: "t3.micro",
+                amiId: "ami-test123",
             };
 
             ec2Mock.on(RunInstancesCommand).rejects({
@@ -151,6 +153,7 @@ describe("EC2Wrapper", () => {
             const mockConfig: EC2InstanceConfig = {
                 userId: "",
                 instanceType: "t3.micro",
+                amiId: "ami-test123",
             };
 
             const ec2Wrapper = new EC2Wrapper();
@@ -165,6 +168,7 @@ describe("EC2Wrapper", () => {
                 userId: "test-user",
                 instanceType: "t3.micro",
                 subnetId: "subnet-invalid",
+                amiId: "ami-test123",
             };
 
             ec2Mock.on(RunInstancesCommand).rejects({
@@ -185,6 +189,7 @@ describe("EC2Wrapper", () => {
                 userId: "test-user",
                 instanceType: "t3.micro",
                 securityGroupIds: ["sg-invalid"],
+                amiId: "ami-test123",
             };
 
             ec2Mock.on(RunInstancesCommand).rejects({
@@ -205,6 +210,7 @@ describe("EC2Wrapper", () => {
                 userId: "test-user",
                 instanceType: "t3.micro",
                 keyName: "invalid-keypair",
+                amiId: "ami-test123",
             };
 
             ec2Mock.on(RunInstancesCommand).rejects({
@@ -289,6 +295,7 @@ describe("EC2Wrapper", () => {
             const mockConfig: EC2InstanceConfig = {
                 userId: "test-user",
                 instanceType: "t3.micro",
+                amiId: "ami-test123",
             };
 
             mockEC2Success("i-create-wait");
@@ -307,6 +314,7 @@ describe("EC2Wrapper", () => {
             const mockConfig: EC2InstanceConfig = {
                 userId: "test-user",
                 instanceType: "t3.micro",
+                amiId: "ami-test123",
             };
 
             mockEC2Success("i-no-wait");
@@ -323,6 +331,7 @@ describe("EC2Wrapper", () => {
             const mockConfig: EC2InstanceConfig = {
                 userId: "test-user",
                 instanceType: "t3.micro",
+                amiId: "ami-test123",
             };
 
             ec2Mock.on(RunInstancesCommand).rejects(new Error("Network error"));
@@ -690,13 +699,16 @@ describe("EC2Wrapper", () => {
                 });
 
                 // Mock the handleStoppingState to resolve successfully
-                jest.spyOn(EC2Wrapper.prototype, "handleStoppingState").mockResolvedValue(true);
+                const handleStoppingStateSpy = jest
+                    .spyOn(EC2Wrapper.prototype, "handleStoppingState")
+                    .mockResolvedValue(true);
 
                 const ec2Wrapper = new EC2Wrapper();
                 const result = await ec2Wrapper.canTerminate(mockInstanceId);
 
                 expect(result).toBe(true);
                 expect(ec2Wrapper.handleStoppingState).toHaveBeenCalledWith(mockInstanceId);
+                handleStoppingStateSpy.mockRestore();
             });
 
             it("should return false if the instance is already in shutting-down state", async () => {
