@@ -52,7 +52,8 @@ const USER_DEPLOY_EC2_WORKFLOW_ARN = process.env.USER_DEPLOY_EC2_WORKFLOW_ARN ||
 const TERMINATE_WORKFLOW_ARN = process.env.TERMINATE_WORKFLOW_ARN || "";
 const USER_PAYMENTS_TABLE_NAME = process.env.USER_PAYMENTS_TABLE_NAME || "";
 const USER_BALANCES_TABLE_NAME = process.env.USER_BALANCES_TABLE_NAME || "";
-const STRIPE_WH_SECRET = process.env.STRIPE_WH_SECRET || "";
+// NOTE: Read at request time so tests can override via process.env
+const getStripeWhSecret = (): string => process.env.STRIPE_WH_SECRET || "";
 
 interface GameItem {
     gameId: string;
@@ -938,7 +939,8 @@ const handleStripeWebhook = async (event: APIGatewayProxyEvent): Promise<APIGate
             return createResponse(400, { message: "Missing stripe-signature header" });
         }
 
-        if (!STRIPE_WH_SECRET) {
+        const whSecret = getStripeWhSecret();
+        if (!whSecret) {
             console.error("STRIPE_WH_SECRET environment variable is not set");
             return createResponse(500, { message: "Webhook secret not configured" });
         }
@@ -948,7 +950,7 @@ const handleStripeWebhook = async (event: APIGatewayProxyEvent): Promise<APIGate
             stripeEvent = constructWebhookEvent(
                 rawBody,
                 signature,
-                STRIPE_WH_SECRET,
+                whSecret,
             ) as unknown as typeof stripeEvent;
         } catch (err) {
             console.error("Webhook signature verification failed:", err);
