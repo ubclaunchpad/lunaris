@@ -34,7 +34,9 @@ describe("publish-active-instances-metric handler", () => {
 
         const cmd = cloudWatchMock.call(0).args[0] as PutMetricDataCommand;
         expect(cmd.input.Namespace).toBe(LUNARIS_METRICS_NAMESPACE);
-        expect(cmd.input.MetricData?.[0].MetricName).toBe(LunarisMetricName.ActiveInstancesReconciled);
+        expect(cmd.input.MetricData?.[0].MetricName).toBe(
+            LunarisMetricName.ActiveInstancesReconciled,
+        );
         expect(cmd.input.MetricData?.[0].Value).toBe(4);
     });
 

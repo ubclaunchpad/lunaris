@@ -1,8 +1,4 @@
-import {
-    CloudWatchClient,
-    PutMetricDataCommand,
-    StandardUnit,
-} from "@aws-sdk/client-cloudwatch";
+import { CloudWatchClient, PutMetricDataCommand, StandardUnit } from "@aws-sdk/client-cloudwatch";
 
 /** Custom metrics namespace for Lunaris operational visibility */
 export const LUNARIS_METRICS_NAMESPACE = "Lunaris";
@@ -37,7 +33,11 @@ export function resetCloudWatchClientForTests(): void {
     client = undefined;
 }
 
-async function putCountMetric(metricName: string, value: number, cw?: CloudWatchClient): Promise<void> {
+async function putCountMetric(
+    metricName: string,
+    value: number,
+    cw?: CloudWatchClient,
+): Promise<void> {
     const c = cw ?? getClient();
     await c.send(
         new PutMetricDataCommand({
@@ -76,7 +76,11 @@ async function putNumericMetric(
     );
 }
 
-async function putCountMetricSafe(metricName: string, value: number, cw?: CloudWatchClient): Promise<void> {
+async function putCountMetricSafe(
+    metricName: string,
+    value: number,
+    cw?: CloudWatchClient,
+): Promise<void> {
     try {
         await putCountMetric(metricName, value, cw);
     } catch (err: unknown) {
@@ -130,10 +134,18 @@ export async function publishAverageSessionDuration(
     cw?: CloudWatchClient,
 ): Promise<void> {
     if (!Number.isFinite(minutes) || minutes < 0) return;
-    await putNumericMetricSafe(LunarisMetricName.AverageSessionDuration, minutes, StandardUnit.None, cw);
+    await putNumericMetricSafe(
+        LunarisMetricName.AverageSessionDuration,
+        minutes,
+        StandardUnit.None,
+        cw,
+    );
 }
 
-export async function publishTotalCostEstimate(costUsd: number, cw?: CloudWatchClient): Promise<void> {
+export async function publishTotalCostEstimate(
+    costUsd: number,
+    cw?: CloudWatchClient,
+): Promise<void> {
     if (!Number.isFinite(costUsd) || costUsd < 0) return;
     await putNumericMetricSafe(LunarisMetricName.TotalCostEstimate, costUsd, StandardUnit.None, cw);
 }

@@ -6,7 +6,9 @@ export const ACTIVE_INSTANCE_STATUSES = ["running", "pending"] as const;
 /**
  * Current active instance count from DynamoDB (source of truth for gauge metrics).
  */
-export async function countActiveInstances(runningInstancesTable: DynamoDBWrapper): Promise<number> {
+export async function countActiveInstances(
+    runningInstancesTable: DynamoDBWrapper,
+): Promise<number> {
     const counts = await Promise.all(
         ACTIVE_INSTANCE_STATUSES.map((status) => runningInstancesTable.queryByStatus(status)),
     );

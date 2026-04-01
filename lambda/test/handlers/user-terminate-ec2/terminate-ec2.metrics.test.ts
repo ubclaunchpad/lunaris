@@ -43,12 +43,14 @@ describe("terminate-ec2 handler CloudWatch metrics", () => {
             } as never),
         };
         const mockEBS = {
-            detachEBSVolume: (jest.fn() as jest.Mock).mockResolvedValue({ state: "detached" } as never),
+            detachEBSVolume: (jest.fn() as jest.Mock).mockResolvedValue({
+                state: "detached",
+            } as never),
         };
         const mockDCV = {
-            stopDCVSession: (jest.fn() as jest.Mock).mockResolvedValue(
-                { stoppedSuccessfully: true } as never,
-            ),
+            stopDCVSession: (jest.fn() as jest.Mock).mockResolvedValue({
+                stoppedSuccessfully: true,
+            } as never),
         };
         const mockDynamo = {
             getItem: (jest.fn() as jest.Mock).mockResolvedValue({
@@ -59,9 +61,15 @@ describe("terminate-ec2 handler CloudWatch metrics", () => {
             updateItem: (jest.fn() as jest.Mock).mockResolvedValue(undefined as never),
         };
 
-        (EC2Wrapper as unknown as jest.Mock).mockImplementation(() => mockEC2 as unknown as EC2Wrapper);
-        (EBSWrapper as unknown as jest.Mock).mockImplementation(() => mockEBS as unknown as EBSWrapper);
-        (DCVWrapper as unknown as jest.Mock).mockImplementation(() => mockDCV as unknown as DCVWrapper);
+        (EC2Wrapper as unknown as jest.Mock).mockImplementation(
+            () => mockEC2 as unknown as EC2Wrapper,
+        );
+        (EBSWrapper as unknown as jest.Mock).mockImplementation(
+            () => mockEBS as unknown as EBSWrapper,
+        );
+        (DCVWrapper as unknown as jest.Mock).mockImplementation(
+            () => mockDCV as unknown as DCVWrapper,
+        );
         (DynamoDBWrapper as unknown as jest.Mock).mockImplementation(
             () => mockDynamo as unknown as DynamoDBWrapper,
         );

@@ -2,7 +2,10 @@ import EC2Wrapper from "../../utils/ec2Wrapper";
 import EBSWrapper from "../../utils/ebsWrapper";
 import DCVWrapper from "../../utils/dcvWrapper";
 import DynamoDBWrapper from "../../utils/dynamoDbWrapper";
-import { publishAverageSessionDuration, publishTotalCostEstimate } from "../../utils/cloudWatchMetrics";
+import {
+    publishAverageSessionDuration,
+    publishTotalCostEstimate,
+} from "../../utils/cloudWatchMetrics";
 
 const INSTANCE_HOURLY_COST_USD: Record<string, number> = {
     "t3.small": 0.0208,
@@ -161,7 +164,10 @@ export const handler = async (event: TerminateEc2Event): Promise<TerminateEc2Res
                     await publishAverageSessionDuration(durationMinutes);
 
                     if (instanceType) {
-                        const estimatedCostUsd = estimateSessionCostUsd(instanceType, durationMinutes);
+                        const estimatedCostUsd = estimateSessionCostUsd(
+                            instanceType,
+                            durationMinutes,
+                        );
                         if (estimatedCostUsd !== undefined) {
                             await publishTotalCostEstimate(estimatedCostUsd);
                         }
