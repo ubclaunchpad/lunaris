@@ -6,6 +6,7 @@ import { DynamoDbTables } from "./constructs/storage/dynamodb-tables";
 export class StorageStack extends Stack {
     public readonly runningInstancesTable: ITable;
     public readonly runningStreamsTable: ITable;
+    public readonly gamesTable: ITable;
 
     constructor(scope: Construct, id: string, props?: StackProps) {
         super(scope, id, {
@@ -19,5 +20,6 @@ export class StorageStack extends Stack {
         const dynamoDbTables = new DynamoDbTables(this, "DynamoDbTables");
         this.runningInstancesTable = dynamoDbTables.runningInstancesTable;
         this.runningStreamsTable = dynamoDbTables.runningStreamsTable;
+        this.gamesTable = dynamoDbTables.gamesTable;
     }
 }

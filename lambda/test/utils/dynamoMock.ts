@@ -47,3 +47,9 @@ export const ensureStreamsTableEnv = (tableName = "test-running-streams"): Resto
  */
 export const ensureInstancesTableEnv = (tableName = "test-running-instances"): RestoreEnvFn =>
     withEnv({ RUNNING_INSTANCES_TABLE_NAME: tableName });
+
+/**
+ * Convenience helper that ensures GAMES_TABLE_NAME is set for a test.
+ */
+export const ensureGamesTableEnv = (tableName = "test-games"): RestoreEnvFn =>
+    withEnv({ GAMES_TABLE_NAME: tableName });

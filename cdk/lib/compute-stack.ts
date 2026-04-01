@@ -15,6 +15,7 @@ export interface ComputeStackProps extends StackProps {
     readonly ec2InstanceProfileName: string;
     readonly runningInstancesTable: ITable;
     readonly runningStreamsTable: ITable;
+    readonly gamesTable: ITable;
 }
 
 export class ComputeStack extends Stack {
@@ -29,13 +30,14 @@ export class ComputeStack extends Stack {
             },
         });
 
-        const { runningInstancesTable, runningStreamsTable } = props;
+        const { runningInstancesTable, runningStreamsTable, gamesTable } = props;
 
         const dcvSecurityGroup = new DCVSecurityGroup(this, "DCVSecurityGroup");
 
         const lambdaFunctions = new LambdaFunctions(this, "LambdaFunctions", {
             runningInstancesTable,
             runningStreamsTable,
+            gamesTable,
             ec2InstanceProfileArn: props.ec2InstanceProfileArn,
             ec2InstanceProfileName: props.ec2InstanceProfileName,
             dcvSecurityGroupId: dcvSecurityGroup.securityGroupId,
@@ -48,7 +50,12 @@ export class ComputeStack extends Stack {
             stripePricePro: process.env.STRIPE_PRICE_ID_PRO,
         });
 
-        this.grantDynamoDbPermissions(lambdaFunctions, runningInstancesTable, runningStreamsTable);
+        this.grantDynamoDbPermissions(
+            lambdaFunctions,
+            runningInstancesTable,
+            runningStreamsTable,
+            gamesTable,
+        );
         this.setupOperationalMetricsScheduler(lambdaFunctions);
 
         const stepFunctions = new StepFunctions(this, "StepFunctions", {
@@ -112,10 +119,12 @@ export class ComputeStack extends Stack {
         lambdaFunctions: LambdaFunctions,
         runningInstancesTable: ITable,
         runningStreamsTable: ITable,
+        gamesTable: ITable,
     ): void {
         // API Lambda
         runningInstancesTable.grantReadWriteData(lambdaFunctions.apiFunction);
         runningStreamsTable.grantReadData(lambdaFunctions.apiFunction);
+        gamesTable.grantReadData(lambdaFunctions.apiFunction);
 
         // Deploy workflow
         runningInstancesTable.grantReadWriteData(lambdaFunctions.getFunction("deployEC2Function"));

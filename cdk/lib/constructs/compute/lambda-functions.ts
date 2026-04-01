@@ -8,6 +8,7 @@ import { LambdaEnvVarProvider } from "./lambda-types";
 export interface LambdaFunctionsProps {
     readonly runningInstancesTable: ITable;
     readonly runningStreamsTable: ITable;
+    readonly gamesTable: ITable;
     readonly ec2InstanceProfileArn?: string;
     readonly ec2InstanceProfileName?: string;
     readonly dcvSecurityGroupId?: string;
@@ -59,6 +60,7 @@ export class LambdaFunctions extends Construct {
         return {
             RUNNING_INSTANCES_TABLE_NAME: props.runningInstancesTable.tableName,
             RUNNING_STREAMS_TABLE_NAME: props.runningStreamsTable.tableName,
+            GAMES_TABLE_NAME: props.gamesTable.tableName,
             EC2_INSTANCE_PROFILE_ARN: props.ec2InstanceProfileArn ?? "",
             EC2_INSTANCE_PROFILE_NAME: props.ec2InstanceProfileName ?? "",
             SECURITY_GROUP_ID: props.dcvSecurityGroupId ?? "",

@@ -3,7 +3,12 @@ import {
     CreateTableCommand,
     ListTablesCommand,
     CreateTableCommandInput,
+    PutItemCommand,
 } from "@aws-sdk/client-dynamodb";
+
+import { marshall } from "@aws-sdk/util-dynamodb";
+
+import gameData from "../frontend/lib/data.json";
 
 const client = new DynamoDBClient({
     region: "us-east-1", // arbitrary region for local testing
@@ -87,6 +92,51 @@ async function createRunningStreamsTable() {
     }
 }
 
+async function createGamesTable() {
+    const tableParams: CreateTableCommandInput = {
+        TableName: "Games",
+        KeySchema: [{ AttributeName: "gameId", KeyType: "HASH" }],
+        AttributeDefinitions: [{ AttributeName: "gameId", AttributeType: "S" }],
+        BillingMode: "PAY_PER_REQUEST",
+    };
+
+    try {
+        await client.send(new CreateTableCommand(tableParams));
+        console.log("Games table created");
+    } catch (error: unknown) {
+        if (error instanceof Error && error.name === "ResourceInUseException") {
+            console.log("Games table already exists (skipping)");
+        } else {
+            throw error;
+        }
+    }
+}
+
+async function seedGamesTable() {
+    console.log("Seeding Games table...");
+    for (const game of gameData.games) {
+        try {
+            // data.json uses 'id' instead of 'gameId'
+            const { id, image, playable, ...rest } = game;
+            const dynamoItem = {
+                gameId: id,
+                imageUrl: image,
+                ebsSnapshotId: "dummy-ebs-id",
+                minInstanceType: "g4dn.xlarge",
+                ...rest,
+            };
+            await client.send(
+                new PutItemCommand({
+                    TableName: "Games",
+                    Item: marshall(dynamoItem),
+                }),
+            );
+        } catch (error) {
+            console.error(`Failed to insert game ${game.gameId}`, error);
+        }
+    }
+}
+
 async function verifyTables() {
     console.log("Verifying tables...");
 
@@ -95,7 +145,7 @@ async function verifyTables() {
 
     console.log("Existing tables:", tables.join(", "));
 
-    const requiredTables = ["RunningInstances", "RunningStreams"];
+    const requiredTables = ["RunningInstances", "RunningStreams", "Games"];
     const allExist = requiredTables.every((table) => tables.includes(table));
 
     if (!allExist) {
@@ -109,6 +159,8 @@ async function verifyTables() {
 
         await createRunningInstancesTable();
         await createRunningStreamsTable();
+        await createGamesTable();
+        await seedGamesTable();
 
         // await to prevent race conditions in local DynamoDB
         await verifyTables();
