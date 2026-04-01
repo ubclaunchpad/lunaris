@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useCallback } from "react";
+import { use, useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ChevronLeft, Gamepad2, Keyboard } from "lucide-react";
@@ -18,15 +18,56 @@ interface GamePageProps {
     }>;
 }
 
+interface StreamingCredentials {
+    serverUrl: string;
+    username: string;
+    password: string;
+    instanceId?: string;
+}
+
 export default function GamePage({ params }: GamePageProps) {
     const router = useRouter();
     const { id } = use(params);
     const game = gamesData.games.find((g) => g.id === id);
 
-    const [userId, setUserId] = useState("test123"); // TODO: Get from auth context
+    const [userId] = useState("test123"); // TODO: Get from auth context
     const [isDeploying, setIsDeploying] = useState(false);
     const [deploymentStatus, setDeploymentStatus] = useState<string>("");
     const [lastLoggedStep, setLastLoggedStep] = useState<string | null>(null);
+    const [credentials, setCredentials] = useState<StreamingCredentials | null>(null);
+    const [isFetchingCredentials, setIsFetchingCredentials] = useState(false);
+    const [isCheckingExisting, setIsCheckingExisting] = useState(true);
+    const deployStartedAtRef = useRef<string | null>(null);
+
+    // Check for existing streaming session on mount
+    useEffect(() => {
+        const checkExistingStream = async () => {
+            try {
+                const streamData = await apiClient.getStreamingLink({ userId });
+                const session = streamData as {
+                    streamingLink?: string;
+                    dcvUser?: string;
+                    dcvPassword?: string;
+                    instanceId?: string;
+                };
+
+                if (session.streamingLink && session.dcvUser && session.dcvPassword) {
+                    setCredentials({
+                        serverUrl: session.streamingLink,
+                        username: session.dcvUser,
+                        password: session.dcvPassword,
+                        instanceId: session.instanceId,
+                    });
+                }
+            } catch {
+                // No existing stream
+            } finally {
+                setIsCheckingExisting(false);
+            }
+        };
+
+        checkExistingStream();
+    }, [userId]);
 
     // Handle deployment status changes
     const handleStatusChange = useCallback(
@@ -57,15 +98,22 @@ export default function GamePage({ params }: GamePageProps) {
         [lastLoggedStep],
     );
 
-    // Handle deployment success - poll for streaming credentials
+    // Handle deployment success - auto-fetch streaming credentials
     const handleDeploymentSuccess = useCallback(
         async (response: GetDeploymentStatusResponse) => {
+            // Ignore stale SUCCEEDED from a previous deployment
+            if (deployStartedAtRef.current && response.startedAt) {
+                if (new Date(response.startedAt) < new Date(deployStartedAtRef.current)) {
+                    return;
+                }
+            }
+
             setDeploymentStatus("Instance ready! Getting credentials...");
+            setIsFetchingCredentials(true);
 
             try {
-                // Poll for streaming credentials
                 let retries = 0;
-                const maxRetries = 30; // 30 retries = ~1 minute with 2 second intervals
+                const maxRetries = 30;
 
                 while (retries < maxRetries) {
                     try {
@@ -74,41 +122,42 @@ export default function GamePage({ params }: GamePageProps) {
                             streamingLink?: string;
                             dcvUser?: string;
                             dcvPassword?: string;
+                            instanceId?: string;
                         };
 
                         if (session.streamingLink && session.dcvUser && session.dcvPassword) {
-                            // Credentials ready, redirect to streaming page
-                            const params = new URLSearchParams({
+                            setCredentials({
                                 serverUrl: session.streamingLink,
                                 username: session.dcvUser,
                                 password: session.dcvPassword,
-                                gameId: id,
-                                gameName: game?.name || "",
+                                instanceId: session.instanceId || response.instanceId,
                             });
-
-                            router.push(`/streaming?${params.toString()}`);
+                            setDeploymentStatus("Ready to stream!");
+                            setIsDeploying(false);
+                            setIsFetchingCredentials(false);
                             return;
                         }
-                    } catch (error) {
-                        // Credentials not ready yet, continue polling
+                    } catch {
+                        // Credentials not ready yet
                     }
 
                     retries++;
                     setDeploymentStatus(`Getting credentials... (${retries}/${maxRetries})`);
-                    await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds
+                    await new Promise((resolve) => setTimeout(resolve, 2000));
                 }
 
-                // Timeout
                 setDeploymentStatus("Failed to get credentials. Please try again.");
                 setIsDeploying(false);
+                setIsFetchingCredentials(false);
             } catch (error) {
                 setDeploymentStatus(
                     `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
                 );
                 setIsDeploying(false);
+                setIsFetchingCredentials(false);
             }
         },
-        [userId, id, game?.name, router],
+        [userId],
     );
 
     // Handle deployment error
@@ -118,7 +167,7 @@ export default function GamePage({ params }: GamePageProps) {
     }, []);
 
     // Set up deployment status polling
-    const { startPolling, stopPolling } = useDeploymentStatus({
+    const { startPolling } = useDeploymentStatus({
         userId,
         pollInterval: 5000,
         onStatusChange: handleStatusChange,
@@ -133,12 +182,12 @@ export default function GamePage({ params }: GamePageProps) {
         setIsDeploying(true);
         setDeploymentStatus("Starting deployment...");
         setLastLoggedStep(null);
+        setCredentials(null);
+        deployStartedAtRef.current = new Date().toISOString();
 
         try {
             const response = await apiClient.deployInstance({ userId });
             setDeploymentStatus(`Deployment started: ${response.message}`);
-
-            // Start polling for deployment status
             startPolling();
         } catch (error) {
             setDeploymentStatus(
@@ -146,6 +195,22 @@ export default function GamePage({ params }: GamePageProps) {
             );
             setIsDeploying(false);
         }
+    };
+
+    const handleStartStreaming = () => {
+        if (!credentials) return;
+
+        const params = new URLSearchParams({
+            serverUrl: credentials.serverUrl,
+            username: credentials.username,
+            password: credentials.password,
+            instanceId: credentials.instanceId || "",
+            userId,
+            gameId: id,
+            gameName: game?.name || "",
+        });
+
+        router.push(`/streaming?${params.toString()}`);
     };
 
     if (!game) {
@@ -205,40 +270,74 @@ export default function GamePage({ params }: GamePageProps) {
                 </div>
             </div>
 
-            {/* Play Button */}
+            {/* Play / Stream Button */}
             <div className="mb-12">
-                <button
-                    onClick={handlePlayClick}
-                    disabled={!game.playable || isDeploying}
-                    className={`border border-[#e6daf6] font-space-grotesk font-medium text-xl px-5 py-3 rounded-xl shadow-[8px_7px_20px_0px_rgba(0,0,0,0.12)] transition-colors ${
-                        game.playable && !isDeploying
-                            ? "bg-[#e1ff9a] text-[#12191d] hover:bg-[#d1ef8a] cursor-pointer"
-                            : "bg-gray-500 text-gray-300 cursor-not-allowed opacity-50"
-                    }`}
-                >
-                    {isDeploying ? (
-                        <span className="flex items-center gap-2">
-                            <div className="animate-spin h-5 w-5 border-2 border-gray-300 border-t-transparent rounded-full"></div>
-                            Deploying...
-                        </span>
-                    ) : game.playable ? (
-                        "Play"
-                    ) : (
-                        "Not Available"
-                    )}
-                </button>
+                {credentials ? (
+                    <button
+                        onClick={handleStartStreaming}
+                        className="border border-[#e6daf6] font-space-grotesk font-medium text-xl px-5 py-3 rounded-xl shadow-[8px_7px_20px_0px_rgba(0,0,0,0.12)] transition-colors bg-[#e1ff9a] text-[#12191d] hover:bg-[#d1ef8a] cursor-pointer"
+                    >
+                        Start Streaming
+                    </button>
+                ) : (
+                    <button
+                        onClick={handlePlayClick}
+                        disabled={
+                            !game.playable ||
+                            isDeploying ||
+                            isFetchingCredentials ||
+                            isCheckingExisting
+                        }
+                        className={`border border-[#e6daf6] font-space-grotesk font-medium text-xl px-5 py-3 rounded-xl shadow-[8px_7px_20px_0px_rgba(0,0,0,0.12)] transition-colors ${
+                            game.playable &&
+                            !isDeploying &&
+                            !isFetchingCredentials &&
+                            !isCheckingExisting
+                                ? "bg-[#e1ff9a] text-[#12191d] hover:bg-[#d1ef8a] cursor-pointer"
+                                : "bg-gray-500 text-gray-300 cursor-not-allowed opacity-50"
+                        }`}
+                    >
+                        {isFetchingCredentials ? (
+                            <span className="flex items-center gap-2">
+                                <div className="animate-spin h-5 w-5 border-2 border-gray-300 border-t-transparent rounded-full"></div>
+                                Getting credentials...
+                            </span>
+                        ) : isDeploying ? (
+                            <span className="flex items-center gap-2">
+                                <div className="animate-spin h-5 w-5 border-2 border-gray-300 border-t-transparent rounded-full"></div>
+                                Deploying...
+                            </span>
+                        ) : game.playable ? (
+                            "Play"
+                        ) : (
+                            "Not Available"
+                        )}
+                    </button>
+                )}
 
                 {/* Deployment Status */}
-                {isDeploying && deploymentStatus && (
+                {(isDeploying || isFetchingCredentials) && deploymentStatus && (
                     <div className="mt-4 bg-blue-900/50 border border-blue-700 rounded-lg p-4">
                         <div className="flex items-center gap-2">
                             <div className="animate-spin h-4 w-4 border-2 border-blue-400 border-t-transparent rounded-full"></div>
                             <span className="text-blue-300 text-sm">{deploymentStatus}</span>
                         </div>
                         <p className="text-xs text-blue-400 mt-2">
-                            This may take 2-3 minutes. You'll be automatically redirected when
-                            ready.
+                            This may take 2-3 minutes. The button will change to "Start Streaming"
+                            when ready.
                         </p>
+                    </div>
+                )}
+
+                {/* Ready indicator */}
+                {credentials && (
+                    <div className="mt-4 bg-green-900/50 border border-green-700 rounded-lg p-4">
+                        <div className="flex items-center gap-2">
+                            <span className="text-green-400">&#10003;</span>
+                            <span className="text-green-300 text-sm">
+                                Instance ready! Click "Start Streaming" to launch fullscreen.
+                            </span>
+                        </div>
                     </div>
                 )}
             </div>

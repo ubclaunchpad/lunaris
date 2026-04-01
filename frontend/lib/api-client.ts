@@ -110,7 +110,7 @@ class ApiClient {
         this.baseUrl =
             process.env.NEXT_PUBLIC_API_GATEWAY_URL ||
             process.env.NEXT_PUBLIC_API_URL ||
-            "https://snmonwfes7.execute-api.us-west-2.amazonaws.com/prod";
+            "https://bw6fr5u0dc.execute-api.us-west-2.amazonaws.com/prod";
         this.isDevelopment = process.env.NODE_ENV === "development";
 
         if (!this.baseUrl) {
@@ -151,18 +151,10 @@ class ApiClient {
 
     private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
         const url = `${this.baseUrl}${endpoint}`;
-
-        // Import getSession dynamically to avoid issues with server-side rendering
-        const { getSession } = await import("next-auth/react");
-        const session = await getSession();
-
         const requestOptions: RequestInit = {
             ...options,
             headers: {
                 "Content-Type": "application/json",
-                ...(session?.idToken && {
-                    Authorization: `Bearer ${session.idToken}`,
-                }),
                 ...options.headers,
             },
         };
