@@ -1,57 +1,166 @@
-import { describe, expect, it } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
+import { mockClient } from "aws-sdk-client-mock";
+import { CloudWatchClient, PutMetricDataCommand } from "@aws-sdk/client-cloudwatch";
 import { handler } from "../../../src/handlers/user-terminate-ec2/update-running-instances";
 import DynamoDBWrapper from "../../../src/utils/dynamoDbWrapper";
-import { ensureInstancesTableEnv } from "../../utils/dynamoMock";
+import {
+    LunarisMetricName,
+    resetCloudWatchClientForTests,
+} from "../../../src/utils/cloudWatchMetrics";
+import { withEnv } from "../../utils/dynamoMock";
 
 jest.mock("../../../src/utils/dynamoDbWrapper");
 
+const cwMock = mockClient(CloudWatchClient);
+
+const BASE_EVENT = {
+    instanceId: "i-0abc123def456789",
+    status: "stopped",
+};
+
 describe("user-terminate-ec2/update-running-instances", () => {
+    let mockDynamoDBWrapper: jest.Mocked<DynamoDBWrapper>;
     let restoreEnv: () => void;
-    let mockDb: jest.Mocked<DynamoDBWrapper>;
 
     beforeEach(() => {
         jest.clearAllMocks();
-        restoreEnv = ensureInstancesTableEnv();
-        mockDb = new DynamoDBWrapper("table") as jest.Mocked<DynamoDBWrapper>;
+        cwMock.reset();
+        resetCloudWatchClientForTests();
+
+        mockDynamoDBWrapper = new DynamoDBWrapper("test") as jest.Mocked<DynamoDBWrapper>;
         (DynamoDBWrapper as jest.MockedClass<typeof DynamoDBWrapper>).mockImplementation(
-            () => mockDb,
+            () => mockDynamoDBWrapper,
         );
-        mockDb.updateItem.mockResolvedValue(undefined);
+        mockDynamoDBWrapper.updateItem = jest.fn().mockResolvedValue(undefined);
+        mockDynamoDBWrapper.queryByStatus = jest.fn((status: string) =>
+            status === "running" ? Promise.resolve([{}]) : Promise.resolve([{}]),
+        );
+
+        restoreEnv = withEnv({ RUNNING_INSTANCES_TABLE_NAME: "test-running-instances" });
     });
 
-    afterEach(() => restoreEnv());
+    afterEach(() => {
+        restoreEnv();
+        resetCloudWatchClientForTests();
+    });
 
-    it("throws when table env is missing", async () => {
+    // ── Environment ───────────────────────────────────────────────────────────
+
+    it("throws MissingTableNameEnv when RUNNING_INSTANCES_TABLE_NAME is not set", async () => {
         restoreEnv();
         delete process.env.RUNNING_INSTANCES_TABLE_NAME;
-        await expect(handler({ instanceId: "i-1", status: "stopped" })).rejects.toThrow(
-            "MissingTableNameEnv",
-        );
+
+        await expect(handler(BASE_EVENT)).rejects.toThrow("MissingTableNameEnv");
     });
 
-    it("throws when required fields are missing", async () => {
-        await expect(handler({ instanceId: "", status: "stopped" })).rejects.toThrow(
+    // ── Input validation ──────────────────────────────────────────────────────
+
+    it("throws when instanceId is missing", async () => {
+        await expect(handler({ ...BASE_EVENT, instanceId: "" })).rejects.toThrow(
             "Missing required fields: instanceId, status",
         );
-        await expect(handler({ instanceId: "i-1", status: "" })).rejects.toThrow(
+    });
+
+    it("throws when status is missing", async () => {
+        await expect(handler({ ...BASE_EVENT, status: "" })).rejects.toThrow(
             "Missing required fields: instanceId, status",
         );
     });
 
-    it("forces stored status to stopped and returns success", async () => {
-        const result = await handler({ instanceId: "i-1", status: "running" });
-        expect(result).toEqual({ success: true, instanceId: "i-1" });
-
-        const [key, config] = mockDb.updateItem.mock.calls[0];
-        expect(key).toEqual({ instanceId: "i-1" });
-        expect(config?.ExpressionAttributeValues).toMatchObject({ ":status": "stopped" });
-        expect(typeof config?.ExpressionAttributeValues?.[":lastModifiedTime"]).toBe("string");
+    it("throws when both instanceId and status are missing", async () => {
+        await expect(handler({ instanceId: "", status: "" })).rejects.toThrow(
+            "Missing required fields: instanceId, status",
+        );
     });
 
-    it("propagates update errors", async () => {
-        mockDb.updateItem.mockRejectedValue(new Error("ddb-update"));
-        await expect(handler({ instanceId: "i-1", status: "stopped" })).rejects.toThrow(
-            "ddb-update",
+    // ── Success path ──────────────────────────────────────────────────────────
+
+    it("returns { success: true, instanceId } on a valid event", async () => {
+        const result = await handler(BASE_EVENT);
+
+        expect(result).toEqual({ success: true, instanceId: BASE_EVENT.instanceId });
+    });
+
+    it("publishes ActiveInstancesRealtime after RunningInstances is set to stopped", async () => {
+        await handler(BASE_EVENT);
+
+        expect(cwMock.calls()).toHaveLength(1);
+        const cmd = cwMock.call(0).args[0] as PutMetricDataCommand;
+        expect(cmd.input.MetricData?.[0].MetricName).toBe(
+            LunarisMetricName.ActiveInstancesRealtime,
         );
+        expect(cmd.input.MetricData?.[0].Value).toBe(2);
+    });
+
+    it("constructs DynamoDBWrapper with the table name from the environment", async () => {
+        await handler(BASE_EVENT);
+
+        expect(DynamoDBWrapper).toHaveBeenCalledWith("test-running-instances");
+    });
+
+    // ── updateItem call arguments ─────────────────────────────────────────────
+
+    it("calls updateItem exactly once with the correct Key", async () => {
+        await handler(BASE_EVENT);
+
+        expect(mockDynamoDBWrapper.updateItem).toHaveBeenCalledTimes(1);
+        const key = (mockDynamoDBWrapper.updateItem as jest.Mock).mock.calls[0][0] as Record<
+            string,
+            unknown
+        >;
+        expect(key).toEqual({ instanceId: BASE_EVENT.instanceId });
+    });
+
+    it("sets status to stopped in ExpressionAttributeValues", async () => {
+        await handler(BASE_EVENT);
+
+        const options = (mockDynamoDBWrapper.updateItem as jest.Mock).mock.calls[0][1] as Record<
+            string,
+            unknown
+        >;
+        const eav = options.ExpressionAttributeValues as Record<string, string>;
+        expect(eav[":status"]).toBe("stopped");
+    });
+
+    it("always persists stopped status regardless of event status value", async () => {
+        await handler({ ...BASE_EVENT, status: "terminated" });
+
+        const options = (mockDynamoDBWrapper.updateItem as jest.Mock).mock.calls[0][1] as Record<
+            string,
+            unknown
+        >;
+        const eav = options.ExpressionAttributeValues as Record<string, string>;
+        expect(eav[":status"]).toBe("stopped");
+    });
+
+    it("sets a non-empty string lastModifiedTime in ExpressionAttributeValues", async () => {
+        await handler(BASE_EVENT);
+
+        const options = (mockDynamoDBWrapper.updateItem as jest.Mock).mock.calls[0][1] as Record<
+            string,
+            unknown
+        >;
+        const eav = options.ExpressionAttributeValues as Record<string, string>;
+        expect(typeof eav[":lastModifiedTime"]).toBe("string");
+        expect(eav[":lastModifiedTime"]).toBeTruthy();
+    });
+
+    it("aliases #status to 'status' via ExpressionAttributeNames to avoid reserved-word conflicts", async () => {
+        await handler(BASE_EVENT);
+
+        const options = (mockDynamoDBWrapper.updateItem as jest.Mock).mock.calls[0][1] as Record<
+            string,
+            unknown
+        >;
+        const ean = options.ExpressionAttributeNames as Record<string, string>;
+        expect(ean["#status"]).toBe("status");
+    });
+
+    // ── Error propagation ─────────────────────────────────────────────────────
+
+    it("re-throws DynamoDB errors", async () => {
+        mockDynamoDBWrapper.updateItem = jest.fn().mockRejectedValue(new Error("ddb-update-error"));
+
+        await expect(handler(BASE_EVENT)).rejects.toThrow("ddb-update-error");
     });
 });

@@ -12,6 +12,7 @@ import {
     getStopDCVInstancePolicies,
     getStartEC2Policies,
     getStartDcvInstancePolicies,
+    getLunarisCustomMetricsPolicies,
 } from "../iam/lambda-policies";
 
 /**
@@ -103,6 +104,8 @@ export class LambdaFactory {
                 return getStopEC2Policies();
             case "stopDcv":
                 return getStopDCVInstancePolicies();
+            case "lunarisMetrics":
+                return getLunarisCustomMetricsPolicies();
         }
     }
 }

@@ -4,6 +4,8 @@ import { Construct } from "constructs";
 import { PolicyStatement, Effect } from "aws-cdk-lib/aws-iam";
 import { ITable } from "aws-cdk-lib/aws-dynamodb";
 import { Function } from "aws-cdk-lib/aws-lambda";
+import { Rule, Schedule } from "aws-cdk-lib/aws-events";
+import { LambdaFunction } from "aws-cdk-lib/aws-events-targets";
 import { LambdaFunctions } from "./constructs/compute/lambda-functions";
 import { StepFunctions } from "./constructs/compute/step-functions";
 import { DCVSecurityGroup } from "./constructs/compute/dcv-security-group";
@@ -47,6 +49,7 @@ export class ComputeStack extends Stack {
         });
 
         this.grantDynamoDbPermissions(lambdaFunctions, runningInstancesTable, runningStreamsTable);
+        this.setupOperationalMetricsScheduler(lambdaFunctions);
 
         const stepFunctions = new StepFunctions(this, "StepFunctions", {
             functions: lambdaFunctions.functions,
@@ -147,5 +150,23 @@ export class ComputeStack extends Stack {
         runningInstancesTable.grantWriteData(
             lambdaFunctions.getFunction("updateRunningInstancesTerminateFunction"),
         );
+
+        // Scheduled operational metric publisher
+        runningInstancesTable.grantReadData(
+            lambdaFunctions.getFunction("publishActiveInstancesMetricFunction"),
+        );
+    }
+
+    private setupOperationalMetricsScheduler(lambdaFunctions: LambdaFunctions): void {
+        const publishActiveInstancesMetricFunction = lambdaFunctions.getFunction(
+            "publishActiveInstancesMetricFunction",
+        );
+
+        new Rule(this, "PublishActiveInstancesMetricSchedule", {
+            description:
+                "Publishes ActiveInstancesReconciled (DynamoDB snapshot) to CloudWatch every 5 minutes",
+            schedule: Schedule.rate(cdk.Duration.minutes(5)),
+            targets: [new LambdaFunction(publishActiveInstancesMetricFunction)],
+        });
     }
 }

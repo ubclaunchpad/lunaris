@@ -2,6 +2,33 @@ import EC2Wrapper from "../../utils/ec2Wrapper";
 import EBSWrapper from "../../utils/ebsWrapper";
 import DCVWrapper from "../../utils/dcvWrapper";
 import DynamoDBWrapper from "../../utils/dynamoDbWrapper";
+import {
+    publishAverageSessionDuration,
+    publishTotalCostEstimate,
+} from "../../utils/cloudWatchMetrics";
+
+const INSTANCE_HOURLY_COST_USD: Record<string, number> = {
+    "t3.small": 0.0208,
+};
+
+type RunningInstanceRecord = {
+    creationTime?: string;
+    instanceType?: string;
+};
+
+function getSessionDurationMinutes(creationTime: string, endedAt: Date): number | undefined {
+    const startedAtMs = Date.parse(creationTime);
+    if (Number.isNaN(startedAtMs)) return undefined;
+    const minutes = (endedAt.getTime() - startedAtMs) / (1000 * 60);
+    return minutes >= 0 ? minutes : undefined;
+}
+
+function estimateSessionCostUsd(instanceType: string, sessionMinutes: number): number | undefined {
+    const hourlyCost = INSTANCE_HOURLY_COST_USD[instanceType];
+    if (hourlyCost === undefined) return undefined;
+    const cost = (sessionMinutes / 60) * hourlyCost;
+    return Math.round(cost * 10000) / 10000;
+}
 
 export interface TerminateEc2Event {
     userId: string;
@@ -116,11 +143,39 @@ export const handler = async (event: TerminateEc2Event): Promise<TerminateEc2Res
         const runningInstancesTable = new DynamoDBWrapper(
             process.env.RUNNING_INSTANCES_TABLE_NAME || "RunningInstances",
         );
+        const existingRecord = (await runningInstancesTable.getItem({
+            instanceId: resolvedInstanceId,
+        })) as RunningInstanceRecord | null;
 
         // Skip validation - the CheckRunningStreams step already verified the instance exists
         // and belongs to the user via the RunningStreams table
 
-        return await terminateWorkflow(resolvedInstanceId, userId, runningInstancesTable);
+        const result = await terminateWorkflow(resolvedInstanceId, userId, runningInstancesTable);
+        if (result.success) {
+            // ActiveInstancesRealtime is published from update-running-instances (deploy/terminate SFNs);
+            // this handler is used e.g. deploy rollback — fleet gauge is covered by ActiveInstancesReconciled.
+
+            const sessionEndedAt = new Date();
+            const creationTime = existingRecord?.creationTime;
+            const instanceType = existingRecord?.instanceType;
+            if (creationTime) {
+                const durationMinutes = getSessionDurationMinutes(creationTime, sessionEndedAt);
+                if (durationMinutes !== undefined) {
+                    await publishAverageSessionDuration(durationMinutes);
+
+                    if (instanceType) {
+                        const estimatedCostUsd = estimateSessionCostUsd(
+                            instanceType,
+                            durationMinutes,
+                        );
+                        if (estimatedCostUsd !== undefined) {
+                            await publishTotalCostEstimate(estimatedCostUsd);
+                        }
+                    }
+                }
+            }
+        }
+        return result;
     } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : String(error);
         console.error("Terminate error:", errorMessage);

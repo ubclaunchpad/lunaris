@@ -1,4 +1,6 @@
 import DynamoDBWrapper from "../../utils/dynamoDbWrapper";
+import { countActiveInstances } from "../../utils/activeInstanceCount";
+import { publishActiveInstancesRealtimeCount } from "../../utils/cloudWatchMetrics";
 
 type updateRunningInstancesEvent = {
     instanceId: string;
@@ -57,6 +59,9 @@ export const handler = async (
                 ExpressionAttributeValues: expressionAttributeValues,
             },
         );
+
+        const activeCount = await countActiveInstances(db);
+        await publishActiveInstancesRealtimeCount(activeCount);
 
         return {
             success: true,

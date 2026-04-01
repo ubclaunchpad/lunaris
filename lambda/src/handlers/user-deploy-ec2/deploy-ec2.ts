@@ -1,5 +1,10 @@
 import EC2Wrapper, { type EC2InstanceConfig } from "../../utils/ec2Wrapper";
 import SSMWrapper from "../../utils/ssmWrapper";
+import {
+    publishDeploymentFailed,
+    publishDeploymentStarted,
+    publishDeploymentSucceeded,
+} from "../../utils/cloudWatchMetrics";
 import { randomBytes } from "crypto";
 
 type DeployEc2Event = {
@@ -91,6 +96,8 @@ try {
 export const handler = async (
     event: DeployEc2Event,
 ): Promise<DeployEC2Success | DeployEC2Error> => {
+    await publishDeploymentStarted();
+
     try {
         const ssmWrapper = new SSMWrapper(process.env.LAMBDA_REGION || "us-west-2");
         const amiId = await ssmWrapper.getParamFromParamStore("ami_id");
@@ -122,6 +129,8 @@ export const handler = async (
         const instance = await ec2Wrapper.createAndWaitForInstance(instanceConfig);
         const now = new Date().toISOString();
 
+        await publishDeploymentSucceeded();
+
         return {
             success: true,
             instanceId: instance.instanceId,
@@ -133,6 +142,8 @@ export const handler = async (
             creationTime: now,
         };
     } catch (err: unknown) {
+        await publishDeploymentFailed();
+
         if (err instanceof Error) {
             console.error("Instance deployment failed:", err);
             return {

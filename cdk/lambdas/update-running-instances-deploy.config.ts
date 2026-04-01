@@ -6,6 +6,7 @@ const config: LambdaFunctionConfig = {
     handler: "handlers/user-deploy-ec2/update-running-instances.handler",
     description: "Updates running instances table with new session information",
     envVars: ["RUNNING_INSTANCES_TABLE_NAME", "LAMBDA_REGION"],
+    policies: ["lunarisMetrics"],
 };
 
 export default config;
