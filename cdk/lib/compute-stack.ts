@@ -56,7 +56,7 @@ export class ComputeStack extends Stack {
             runningStreamsTable,
             gamesTable,
         );
-    this.setupOperationalMetricsScheduler(lambdaFunctions);
+        this.setupOperationalMetricsScheduler(lambdaFunctions);
 
         const stepFunctions = new StepFunctions(this, "StepFunctions", {
             functions: lambdaFunctions.functions,
