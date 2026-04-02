@@ -139,7 +139,7 @@ export class ComputeStack extends Stack {
         runningInstancesTable.grantReadData(
             lambdaFunctions.getFunction("checkRunningInstancesFunction"),
         );
-        runningInstancesTable.grantWriteData(
+        runningInstancesTable.grantReadWriteData(
             lambdaFunctions.getFunction("updateRunningInstancesFunction"),
         );
 
@@ -157,7 +157,7 @@ export class ComputeStack extends Stack {
         runningInstancesTable.grantReadData(
             lambdaFunctions.getFunction("checkRunningInstancesTerminateFunction"),
         );
-        runningInstancesTable.grantWriteData(
+        runningInstancesTable.grantReadWriteData(
             lambdaFunctions.getFunction("updateRunningInstancesTerminateFunction"),
         );
 
