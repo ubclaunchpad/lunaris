@@ -6,6 +6,7 @@ import { publishActiveInstancesRealtimeCount } from "../../utils/cloudWatchMetri
 type UpdateRunningInstancesEvent = {
     instanceId: string;
     instanceArn: string;
+    ebsVolumeId?: string;
     userId: string;
     creationTime: string;
 };
@@ -35,6 +36,7 @@ export const handler = async (
         const payload = {
             instanceId: event.instanceId,
             instanceArn: event.instanceArn,
+            ebsVolumeId: event.ebsVolumeId,
             userId: event.userId,
             creationTime: event.creationTime,
             status: "running",
@@ -53,16 +55,22 @@ export const handler = async (
             ":instanceType": payload.instanceType,
         };
 
-        const updateExpression = `
-            SET
-                instanceArn = :instanceArn,
-                userId = :userId,
-                creationTime = if_not_exists(creationTime, :creationTime),
-                #status = :status,
-                lastModifiedTime = :lastModifiedTime,
-                #region = :region,
-                instanceType = :instanceType
-        `;
+        const setExpressions = [
+            "instanceArn = :instanceArn",
+            "userId = :userId",
+            "creationTime = if_not_exists(creationTime, :creationTime)",
+            "#status = :status",
+            "lastModifiedTime = :lastModifiedTime",
+            "#region = :region",
+            "instanceType = :instanceType",
+        ];
+
+        if (payload.ebsVolumeId) {
+            expressionAttributeValues[":ebsVolumeId"] = payload.ebsVolumeId;
+            setExpressions.push("ebsVolumeId = :ebsVolumeId");
+        }
+
+        const updateExpression = `SET ${setExpressions.join(", ")}`;
 
         await db.updateItem(
             { instanceId: event.instanceId },

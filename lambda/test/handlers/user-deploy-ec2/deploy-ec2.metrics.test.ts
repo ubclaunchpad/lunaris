@@ -3,6 +3,7 @@ import { mockClient } from "aws-sdk-client-mock";
 import { CloudWatchClient, PutMetricDataCommand } from "@aws-sdk/client-cloudwatch";
 import { handler } from "../../../src/handlers/user-deploy-ec2/deploy-ec2";
 import EC2Wrapper from "../../../src/utils/ec2Wrapper";
+import EBSWrapper, { EBSStatusEnum } from "../../../src/utils/ebsWrapper";
 import SSMWrapper from "../../../src/utils/ssmWrapper";
 import {
     LunarisMetricName,
@@ -10,6 +11,7 @@ import {
 } from "../../../src/utils/cloudWatchMetrics";
 
 jest.mock("../../../src/utils/ec2Wrapper");
+jest.mock("../../../src/utils/ebsWrapper");
 jest.mock("../../../src/utils/ssmWrapper");
 
 const cwMock = mockClient(CloudWatchClient);
@@ -25,6 +27,7 @@ describe("deploy-ec2 handler CloudWatch metrics", () => {
         process.env.SECURITY_GROUP_ID = "sg-test";
         process.env.SUBNET_ID = "subnet-test";
         process.env.EC2_INSTANCE_PROFILE_NAME = "lunaris-profile";
+        process.env.BASE_EBS_SNAPSHOT_ID = "snap-123";
     });
 
     afterEach(() => {
@@ -41,6 +44,17 @@ describe("deploy-ec2 handler CloudWatch metrics", () => {
                 instanceId: "i-abc",
                 instanceArn: "arn:aws:ec2:us-east-1:123456789012:instance/i-abc",
                 publicIp: "1.2.3.4",
+                availabilityZone: "us-east-1a",
+            }),
+        };
+        const mockEBS = {
+            createAndWaitForEBSVolume: jest.fn().mockResolvedValue({
+                volumeId: "vol-abc",
+                status: EBSStatusEnum.AVAILABLE,
+            }),
+            attachAndWaitForEBSVolume: jest.fn().mockResolvedValue({
+                volumeId: "vol-abc",
+                status: EBSStatusEnum.IN_USE,
             }),
         };
         (SSMWrapper as unknown as jest.Mock).mockImplementation(
@@ -48,6 +62,9 @@ describe("deploy-ec2 handler CloudWatch metrics", () => {
         );
         (EC2Wrapper as unknown as jest.Mock).mockImplementation(
             () => mockEC2 as unknown as EC2Wrapper,
+        );
+        (EBSWrapper as unknown as jest.Mock).mockImplementation(
+            () => mockEBS as unknown as EBSWrapper,
         );
 
         const result = await handler({ userId: "user-1" });
@@ -74,11 +91,18 @@ describe("deploy-ec2 handler CloudWatch metrics", () => {
                 .fn()
                 .mockRejectedValue(new Error("Instance limit exceeded")),
         };
+        const mockEBS = {
+            createAndWaitForEBSVolume: jest.fn(),
+            attachAndWaitForEBSVolume: jest.fn(),
+        };
         (SSMWrapper as unknown as jest.Mock).mockImplementation(
             () => mockSSM as unknown as SSMWrapper,
         );
         (EC2Wrapper as unknown as jest.Mock).mockImplementation(
             () => mockEC2 as unknown as EC2Wrapper,
+        );
+        (EBSWrapper as unknown as jest.Mock).mockImplementation(
+            () => mockEBS as unknown as EBSWrapper,
         );
 
         const result = await handler({ userId: "user-1" });

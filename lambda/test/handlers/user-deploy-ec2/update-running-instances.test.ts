@@ -173,6 +173,19 @@ describe("user-deploy-ec2/update-running-instances", () => {
         expect(eav[":lastModifiedTime"]).toBeTruthy();
     });
 
+    it("includes ebsVolumeId in update expression when provided", async () => {
+        await handler({ ...BASE_EVENT, ebsVolumeId: "vol-123" });
+
+        const options = (mockDynamoDBWrapper.updateItem as jest.Mock).mock.calls[0][1] as Record<
+            string,
+            unknown
+        >;
+        const eav = options.ExpressionAttributeValues as Record<string, string>;
+
+        expect(options.UpdateExpression).toContain("ebsVolumeId = :ebsVolumeId");
+        expect(eav[":ebsVolumeId"]).toBe("vol-123");
+    });
+
     it("uses 'if_not_exists' for creationTime in the UpdateExpression", async () => {
         await handler(BASE_EVENT);
 

@@ -34,6 +34,7 @@ export interface EC2InstanceResult {
     instanceId: string;
     publicIp?: string;
     privateIp?: string;
+    availabilityZone?: string;
     state: string;
     createdAt: string;
     instanceArn: string;
@@ -181,6 +182,7 @@ class EC2Wrapper {
                 instanceId: instanceId,
                 publicIp: instance.PublicIpAddress,
                 privateIp: instance.PrivateIpAddress,
+                availabilityZone: instance.Placement?.AvailabilityZone,
                 state: instance.State?.Name || "unknown",
                 createdAt: new Date().toISOString(),
                 instanceArn: generateArn(this.region, instanceId),
@@ -237,6 +239,7 @@ class EC2Wrapper {
                 instanceId: id,
                 publicIp: instance.PublicIpAddress,
                 privateIp: instance.PrivateIpAddress,
+                availabilityZone: instance.Placement?.AvailabilityZone,
                 state: instance.State?.Name || "running",
                 createdAt: createdAt,
                 instanceArn: generateArn(this.region, instanceId),

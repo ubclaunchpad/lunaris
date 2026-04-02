@@ -21,6 +21,7 @@ import DynamoDBWrapper from "./dynamoDbWrapper";
 export interface CreateVolumeCommandConfig {
     userId: string;
     availabilityZone?: string;
+    snapshotId?: string;
     size?: number;
     volumeType?: VolumeType;
     tags?: Record<string, string>;
@@ -149,8 +150,9 @@ class EBSWrapper {
         try {
             const {
                 userId,
-                availabilityZone = this.region,
-                size = this.size,
+                availabilityZone = `${this.region}a`,
+                snapshotId,
+                size,
                 volumeType = this.type,
                 tags = {},
             } = config;
@@ -182,10 +184,19 @@ class EBSWrapper {
 
             const input: CreateVolumeRequest = {
                 AvailabilityZone: availabilityZone,
-                Size: size,
                 VolumeType: volumeType,
                 TagSpecifications: tagSpecs,
             };
+
+            // Snapshot-backed volumes inherit snapshot size unless an explicit size override is provided.
+            if (snapshotId) {
+                input.SnapshotId = snapshotId;
+                if (size !== undefined) {
+                    input.Size = size;
+                }
+            } else {
+                input.Size = size ?? this.size;
+            }
 
             const createVolumeCommand = new CreateVolumeCommand(input);
             const createVolumeResponse = await this.client.send(createVolumeCommand);
