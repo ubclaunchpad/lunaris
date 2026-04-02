@@ -124,6 +124,7 @@
                     "Payload": {
                         "instanceId.$": "$.resumeDeployResult.Payload.instanceId",
                         "instanceArn.$": "$.resumeDeployResult.Payload.instanceArn",
+                        "ebsVolumeId": "",
                         "creationTime.$": "$.resumeDeployResult.Payload.creationTime",
                         "dcvIp.$": "$.dcvConfig.Payload.dcvIp",
                         "dcvPort.$": "$.dcvConfig.Payload.dcvPort",
@@ -242,6 +243,7 @@
                 "userId.$": "$.userId",
                 "instanceId.$": "$.deployResult.Payload.instanceId",
                 "instanceArn.$": "$.deployResult.Payload.instanceArn",
+                "ebsVolumeId.$": "$.deployResult.Payload.ebsVolumeId",
                 "dcvIp.$": "$.deployResult.Payload.dcvIp",
                 "dcvPort.$": "$.deployResult.Payload.dcvPort",
                 "dcvUser.$": "$.deployResult.Payload.dcvUser",
@@ -281,6 +283,7 @@
                     "userId.$": "$.userId",
                     "instanceId.$": "$.updatePayload.instanceId",
                     "instanceArn.$": "$.updatePayload.instanceArn",
+                    "ebsVolumeId.$": "$.updatePayload.ebsVolumeId",
                     "creationTime.$": "$.deployResult.Payload.creationTime"
                 }
             },

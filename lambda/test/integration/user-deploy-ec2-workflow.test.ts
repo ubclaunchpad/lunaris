@@ -6,17 +6,20 @@ import { handler as updateRunningStreamsHandler } from "../../src/handlers/user-
 import { handler as updateRunningInstancesHandler } from "../../src/handlers/user-deploy-ec2/update-running-instances";
 import DynamoDBWrapper from "../../src/utils/dynamoDbWrapper";
 import EC2Wrapper from "../../src/utils/ec2Wrapper";
+import EBSWrapper, { EBSStatusEnum } from "../../src/utils/ebsWrapper";
 import SSMWrapper from "../../src/utils/ssmWrapper";
 import { withEnv } from "../utils/dynamoMock";
 
 jest.mock("../../src/utils/dynamoDbWrapper");
 jest.mock("../../src/utils/ec2Wrapper");
+jest.mock("../../src/utils/ebsWrapper");
 jest.mock("../../src/utils/ssmWrapper");
 
 describe("UserDeployEC2Workflow Integration", () => {
     let restoreEnv: () => void;
     let mockDb: jest.Mocked<DynamoDBWrapper>;
     let mockEc2: jest.Mocked<EC2Wrapper>;
+    let mockEbs: jest.Mocked<EBSWrapper>;
     let mockSsm: jest.Mocked<SSMWrapper>;
 
     beforeEach(() => {
@@ -29,6 +32,7 @@ describe("UserDeployEC2Workflow Integration", () => {
             SUBNET_ID: "subnet-1",
             KEY_PAIR_NAME: "kp-1",
             EC2_INSTANCE_PROFILE_NAME: "profile-1",
+            BASE_EBS_SNAPSHOT_ID: "snap-1",
         });
 
         mockDb = new DynamoDBWrapper("t") as jest.Mocked<DynamoDBWrapper>;
@@ -38,6 +42,17 @@ describe("UserDeployEC2Workflow Integration", () => {
 
         mockEc2 = new EC2Wrapper("us-west-2") as jest.Mocked<EC2Wrapper>;
         (EC2Wrapper as jest.MockedClass<typeof EC2Wrapper>).mockImplementation(() => mockEc2);
+
+        mockEbs = new EBSWrapper("us-west-2") as jest.Mocked<EBSWrapper>;
+        (EBSWrapper as jest.MockedClass<typeof EBSWrapper>).mockImplementation(() => mockEbs);
+        mockEbs.createAndWaitForEBSVolume.mockResolvedValue({
+            volumeId: "vol-1",
+            status: EBSStatusEnum.AVAILABLE,
+        });
+        mockEbs.attachAndWaitForEBSVolume.mockResolvedValue({
+            volumeId: "vol-1",
+            status: EBSStatusEnum.IN_USE,
+        });
 
         mockSsm = new SSMWrapper("us-west-2") as jest.Mocked<SSMWrapper>;
         (SSMWrapper as jest.MockedClass<typeof SSMWrapper>).mockImplementation(() => mockSsm);
@@ -52,8 +67,10 @@ describe("UserDeployEC2Workflow Integration", () => {
             instanceId: "i-1",
             instanceArn: "arn:...:i-1",
             publicIp: "1.2.3.4",
+            availabilityZone: "us-west-2a",
         });
         mockDb.updateItem.mockResolvedValue(undefined);
+        mockDb.queryByStatus.mockResolvedValue([]);
         mockDb.queryByUserId.mockResolvedValue([]);
 
         const streams = await checkRunningStreamsHandler({ userId: "u-1" });
@@ -84,6 +101,7 @@ describe("UserDeployEC2Workflow Integration", () => {
             userId: "u-1",
             instanceId: deploy.instanceId,
             instanceArn: deploy.instanceArn,
+            ebsVolumeId: deploy.ebsVolumeId,
             creationTime: deploy.creationTime,
         });
         expect(updateInstances.success).toBe(true);

@@ -16,6 +16,7 @@ export interface LambdaEnvVarProvider {
     readonly RUNNING_INSTANCES_TABLE_NAME: string;
     readonly RUNNING_STREAMS_TABLE_NAME: string;
     readonly GAMES_TABLE_NAME: string;
+    readonly BASE_EBS_SNAPSHOT_ID?: string;
     readonly EC2_INSTANCE_PROFILE_ARN: string;
     readonly EC2_INSTANCE_PROFILE_NAME: string;
     readonly SECURITY_GROUP_ID: string;

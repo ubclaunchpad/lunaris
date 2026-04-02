@@ -38,6 +38,7 @@ export class ComputeStack extends Stack {
             runningInstancesTable,
             runningStreamsTable,
             gamesTable,
+            baseEbsSnapshotId: process.env.BASE_EBS_SNAPSHOT_ID,
             ec2InstanceProfileArn: props.ec2InstanceProfileArn,
             ec2InstanceProfileName: props.ec2InstanceProfileName,
             dcvSecurityGroupId: dcvSecurityGroup.securityGroupId,
@@ -138,7 +139,7 @@ export class ComputeStack extends Stack {
         runningInstancesTable.grantReadData(
             lambdaFunctions.getFunction("checkRunningInstancesFunction"),
         );
-        runningInstancesTable.grantWriteData(
+        runningInstancesTable.grantReadWriteData(
             lambdaFunctions.getFunction("updateRunningInstancesFunction"),
         );
 
@@ -156,7 +157,7 @@ export class ComputeStack extends Stack {
         runningInstancesTable.grantReadData(
             lambdaFunctions.getFunction("checkRunningInstancesTerminateFunction"),
         );
-        runningInstancesTable.grantWriteData(
+        runningInstancesTable.grantReadWriteData(
             lambdaFunctions.getFunction("updateRunningInstancesTerminateFunction"),
         );
 

@@ -27,9 +27,13 @@ export function getDeployEC2Policies(): PolicyStatement[] {
             effect: Effect.ALLOW,
             actions: [
                 "ec2:RunInstances",
+                "ec2:CreateVolume",
+                "ec2:AttachVolume",
                 "ec2:DescribeInstances",
                 "ec2:DescribeInstanceStatus",
+                "ec2:DescribeVolumes",
                 "ec2:CreateTags",
+                "ec2:ModifyInstanceAttribute",
                 "ec2:DescribeSecurityGroups",
                 "ec2:DescribeSubnets",
                 "ec2:DescribeKeyPairs",
