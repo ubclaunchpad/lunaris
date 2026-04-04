@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Gamepad2, Search, Filter, User, LogOut } from "lucide-react";
 import { Dashboard } from "@/components/dashboard";
-import Link from "next/link";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { GameCard } from "@/components/game-card/game-card";
 import { apiClient, type Game } from "@/lib/api-client";
 import gamesData from "@/lib/data.json";
@@ -39,44 +34,7 @@ export default function BrowsePage() {
     return (
         <>
             <div className="relative z-0 min-h-screen">
-                {/* Header */}
                 <Dashboard />
-                <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                    <div className="container flex h-14 items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <Link href="/browse" className="flex items-center gap-2">
-                                <Gamepad2 className="h-6 w-6" />
-                                <span className="font-bold">Lunaris</span>
-                            </Link>
-                        </div>
-
-                        {/* Search Bar */}
-                        <div className="flex flex-1 items-center justify-center gap-4 px-6">
-                            <div className="relative flex-1 max-w-md">
-                                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                                <Input placeholder="Search games..." className="pl-9" />
-                            </div>
-                            <Button variant="outline" size="sm">
-                                <Filter className="h-4 w-4 mr-2" />
-                                Filters
-                            </Button>
-                        </div>
-
-                        {/* User Menu */}
-                        <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm">
-                                <User className="h-4 w-4 mr-2" />
-                                Profile
-                            </Button>
-                            <Link href="/login">
-                                <Button variant="ghost" size="sm">
-                                    <LogOut className="h-4 w-4 mr-2" />
-                                    Logout
-                                </Button>
-                            </Link>
-                        </div>
-                    </div>
-                </header>
 
                 {/* Main Content */}
                 <main className="container py-8">
