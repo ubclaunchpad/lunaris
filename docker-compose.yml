@@ -13,6 +13,7 @@ services:
             context: .
             dockerfile: lambda/Dockerfile
         container_name: lunaris-lambda
+        command: ["handlers/api.handler"]
         ports:
             - "9000:8080"
         environment:
@@ -22,6 +23,16 @@ services:
             - DYNAMODB_ENDPOINT=http://dynamodb:8000
             - RUNNING_INSTANCES_TABLE_NAME=RunningInstances
             - RUNNING_STREAMS_TABLE_NAME=RunningStreams
+            - USER_PAYMENTS_TABLE_NAME=UserPayments
+            - USER_BALANCES_TABLE_NAME=UserBalances
+            - FRONTEND_URL=http://localhost:3000
+            - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+            - STRIPE_WH_SECRET=${STRIPE_WH_SECRET:-}
+            - STRIPE_PRICE_ID_STARTER=${STRIPE_PRICE_ID_STARTER:-}
+            - STRIPE_PRICE_ID_BASIC=${STRIPE_PRICE_ID_BASIC:-}
+            - STRIPE_PRICE_ID_STANDARD=${STRIPE_PRICE_ID_STANDARD:-}
+            - STRIPE_PRICE_ID_PREMIUM=${STRIPE_PRICE_ID_PREMIUM:-}
+            - STRIPE_PRICE_ID_PRO=${STRIPE_PRICE_ID_PRO:-}
         depends_on:
             - dynamodb
         networks:

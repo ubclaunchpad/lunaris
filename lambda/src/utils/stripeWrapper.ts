@@ -38,6 +38,7 @@ export const createCheckoutSession = async (
         mode: "payment",
         return_url: options.returnUrl,
         metadata: options.metadata,
+        ...(options.customer ? { customer: options.customer } : {}),
     });
 
     if (!session.client_secret) {
@@ -70,6 +71,7 @@ interface CreateCheckoutSessionProps {
     quantity?: number;
     returnUrl: string;
     metadata?: Record<string, string>;
+    customer?: string;
 }
 
 interface CheckoutSessionStatusProps {
@@ -78,3 +80,29 @@ interface CheckoutSessionStatusProps {
     paymentStatus: string;
     amountTotal: number | null;
 }
+
+export const constructWebhookEvent = (
+    rawBody: string,
+    signature: string,
+    webhookSecret: string,
+): Stripe.Event => {
+    const stripe = getStripe();
+    return stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
+};
+
+export const findOrCreateCustomer = async (userId: string, email?: string): Promise<string> => {
+    const stripe = getStripe();
+    const existing = await stripe.customers.search({
+        query: `metadata['userId']:'${userId}'`,
+        limit: 1,
+    });
+
+    if (existing.data.length > 0) return existing.data[0].id;
+
+    const customer = await stripe.customers.create({
+        metadata: { userId },
+        ...(email ? { email } : {}),
+    });
+
+    return customer.id;
+};

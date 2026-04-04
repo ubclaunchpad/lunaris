@@ -20,6 +20,7 @@ interface EndpointDefinition {
     method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
     statusCodes: string[];
     queryParams?: string[];
+    noAuth?: boolean;
 }
 
 const ENDPOINTS: EndpointDefinition[] = [
@@ -55,6 +56,12 @@ const ENDPOINTS: EndpointDefinition[] = [
         method: "GET",
         statusCodes: ["200", "400"],
         queryParams: ["method.request.querystring.sessionId"],
+    },
+    {
+        path: "stripe-webhook",
+        method: "POST",
+        statusCodes: ["200", "400"],
+        noAuth: true,
     },
 ];
 
@@ -110,13 +117,13 @@ export class ApiGateway extends Construct {
             this.restApi.root.getResource(endpoint.path) ??
             this.restApi.root.addResource(endpoint.path);
 
-        const statusCodes = this.authorizer
-            ? [...endpoint.statusCodes, "401"]
-            : endpoint.statusCodes;
+        const useAuth = this.authorizer && !endpoint.noAuth;
+
+        const statusCodes = useAuth ? [...endpoint.statusCodes, "401"] : endpoint.statusCodes;
 
         // With authorizer, userId comes from the token so query params are optional
         const requestParameters = endpoint.queryParams?.length
-            ? Object.fromEntries(endpoint.queryParams.map((param) => [param, !this.authorizer]))
+            ? Object.fromEntries(endpoint.queryParams.map((param) => [param, !useAuth]))
             : undefined;
 
         const methodOptions: MethodOptions = {
@@ -125,7 +132,7 @@ export class ApiGateway extends Construct {
                 responseModels: RESPONSE_MODELS[code],
             })),
             ...(requestParameters && { requestParameters }),
-            ...(this.authorizer && {
+            ...(useAuth && {
                 authorizer: this.authorizer,
                 authorizationType: AuthorizationType.COGNITO,
             }),

@@ -1,7 +1,7 @@
 import EC2Wrapper, { type EC2InstanceConfig } from "../../utils/ec2Wrapper";
-import EBSWrapper from "../../utils/ebsWrapper";
 import SSMWrapper from "../../utils/ssmWrapper";
 import {
+    publishActiveInstancesRealtimeCount,
     publishDeploymentFailed,
     publishDeploymentStarted,
     publishDeploymentSucceeded,
@@ -16,7 +16,6 @@ type DeployEC2Success = {
     success: boolean;
     instanceId: string;
     instanceArn: string;
-    ebsVolumeId: string;
     dcvIp: string;
     dcvPort: number;
     dcvUser: string;
@@ -129,33 +128,15 @@ export const handler = async (
         };
 
         const instance = await ec2Wrapper.createAndWaitForInstance(instanceConfig);
-        const baseSnapshotId = process.env.BASE_EBS_SNAPSHOT_ID;
-
-        if (!baseSnapshotId) {
-            throw new Error("BASE_EBS_SNAPSHOT_ID is not configured");
-        }
-
-        if (!instance.availabilityZone) {
-            throw new Error("Failed to resolve instance availability zone for EBS volume creation");
-        }
-
-        const ebsWrapper = new EBSWrapper(process.env.LAMBDA_REGION || "us-west-2");
-        const ebsVolume = await ebsWrapper.createAndWaitForEBSVolume({
-            userId: event.userId,
-            availabilityZone: instance.availabilityZone,
-            snapshotId: baseSnapshotId,
-        });
-        await ebsWrapper.attachAndWaitForEBSVolume(instance.instanceId, ebsVolume.volumeId);
-
         const now = new Date().toISOString();
 
         await publishDeploymentSucceeded();
+        await publishActiveInstancesRealtimeCount(1);
 
         return {
             success: true,
             instanceId: instance.instanceId,
             instanceArn: instance.instanceArn,
-            ebsVolumeId: ebsVolume.volumeId,
             dcvIp: instance.publicIp || "",
             dcvPort: 8443,
             dcvUser: "Administrator",

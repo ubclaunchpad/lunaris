@@ -26,6 +26,8 @@ const computeStack = new ComputeStack(app, "ComputeStack", {
     ec2InstanceProfileName: iamStack.ec2InstanceProfileName,
     runningInstancesTable: storageStack.runningInstancesTable,
     runningStreamsTable: storageStack.runningStreamsTable,
+    userPaymentsTable: storageStack.userPaymentsTable,
+    userBalancesTable: storageStack.userBalancesTable,
     gamesTable: storageStack.gamesTable,
 });
 const apiStack = new ApiStack(app, "ApiStack", {

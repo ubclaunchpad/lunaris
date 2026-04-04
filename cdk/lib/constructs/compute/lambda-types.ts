@@ -28,6 +28,9 @@ export interface LambdaEnvVarProvider {
     readonly STRIPE_PRICE_ID_STANDARD?: string;
     readonly STRIPE_PRICE_ID_PREMIUM?: string;
     readonly STRIPE_PRICE_ID_PRO?: string;
+    readonly USER_PAYMENTS_TABLE_NAME?: string;
+    readonly USER_BALANCES_TABLE_NAME?: string;
+    readonly STRIPE_WH_SECRET?: string;
 }
 
 /**
