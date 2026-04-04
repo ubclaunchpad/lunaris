@@ -191,7 +191,7 @@ async function seedGamesTable() {
                 }),
             );
         } catch (error) {
-            console.error(`Failed to insert game ${game.gameId}`, error);
+            console.error(`Failed to insert game ${game.id}`, error);
         }
     }
 }

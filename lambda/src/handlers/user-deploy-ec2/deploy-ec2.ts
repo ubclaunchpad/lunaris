@@ -1,7 +1,7 @@
 import EC2Wrapper, { type EC2InstanceConfig } from "../../utils/ec2Wrapper";
 import SSMWrapper from "../../utils/ssmWrapper";
 import {
-    publishActiveInstancesDelta,
+    publishActiveInstancesRealtimeCount,
     publishDeploymentFailed,
     publishDeploymentStarted,
     publishDeploymentSucceeded,
@@ -131,7 +131,7 @@ export const handler = async (
         const now = new Date().toISOString();
 
         await publishDeploymentSucceeded();
-        await publishActiveInstancesDelta(1);
+        await publishActiveInstancesRealtimeCount(1);
 
         return {
             success: true,
