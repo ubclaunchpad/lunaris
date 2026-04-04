@@ -6,8 +6,8 @@ const config: LambdaFunctionConfig = {
     handler: "handlers/user-terminate-ec2/terminate-ec2.handler",
     description: "Terminates EC2 instance as part of user termination workflow",
     timeoutSeconds: 60,
-    envVars: ["RUNNING_INSTANCES_TABLE"],
-    policies: ["terminateEC2"],
+    envVars: ["RUNNING_INSTANCES_TABLE_NAME"],
+    policies: ["terminateEC2", "lunarisMetrics"],
 };
 
 export default config;

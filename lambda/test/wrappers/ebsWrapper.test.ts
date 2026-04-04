@@ -208,6 +208,45 @@ describe("EBSWrapper", () => {
             expect(input.VolumeType).toBe("gp3");
         });
 
+        it("should create volume from snapshot without forcing a size override", async () => {
+            mockCreateVolumeSuccess();
+
+            const config: CreateVolumeCommandConfig = {
+                userId: mockUserId,
+                snapshotId: "snap-123",
+                availabilityZone: "us-east-1a",
+            };
+
+            await ebsWrapper.createEBSVolume(config);
+
+            const calls = ec2Mock.commandCalls(CreateVolumeCommand);
+            expect(calls).toHaveLength(1);
+
+            const input = calls[0].args[0].input;
+            expect(input.SnapshotId).toBe("snap-123");
+            expect(input.Size).toBeUndefined();
+        });
+
+        it("should create volume from snapshot with explicit size override when provided", async () => {
+            mockCreateVolumeSuccess();
+
+            const config: CreateVolumeCommandConfig = {
+                userId: mockUserId,
+                snapshotId: "snap-123",
+                availabilityZone: "us-east-1a",
+                size: 150,
+            };
+
+            await ebsWrapper.createEBSVolume(config);
+
+            const calls = ec2Mock.commandCalls(CreateVolumeCommand);
+            expect(calls).toHaveLength(1);
+
+            const input = calls[0].args[0].input;
+            expect(input.SnapshotId).toBe("snap-123");
+            expect(input.Size).toBe(150);
+        });
+
         it("should handle InsufficientVolumeCapacity error", async () => {
             const error = new Error("Insufficient capacity");
             error.name = "InsufficientVolumeCapacity";

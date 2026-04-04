@@ -20,14 +20,34 @@ const config: WorkflowConfig = {
             placeholder: "${CheckRunningStreamsArn}",
             required: true,
         },
-        terminateEC2: {
-            functionName: "terminateEC2Function",
-            placeholder: "${TerminateEC2Arn}",
-            required: true,
-        },
+        // terminateEC2: {
+        //     functionName: "terminateEC2Function",
+        //     placeholder: "${TerminateEC2Arn}",
+        //     required: true,
+        // },
         updateRunningStreams: {
             functionName: "updateRunningStreamsTerminateFunction",
             placeholder: "${UpdateRunningStreamsArn}",
+            required: true,
+        },
+        stopDCV: {
+            functionName: "stopDcvInstanceFunction",
+            placeholder: "${StopDcvInstanceArn}",
+            required: true,
+        },
+        stopEC2: {
+            functionName: "stopEC2Function",
+            placeholder: "${StopEC2Arn}",
+            required: true,
+        },
+        checkRunningInstances: {
+            functionName: "checkRunningInstancesTerminateFunction",
+            placeholder: "${CheckRunningInstancesArn}",
+            required: true,
+        },
+        updateRunningInstances: {
+            functionName: "updateRunningInstancesTerminateFunction",
+            placeholder: "${UpdateRunningInstancesArn}",
             required: true,
         },
     },
@@ -42,7 +62,11 @@ const config: WorkflowConfig = {
             MissingTableNameEnv: "HandleMissingTableName",
             DatabaseError: "HandleDatabaseError",
             InvalidStreamError: "HandleInvalidStreamError",
-            TerminationFailedError: "HandleFailedTermination",
+            // TerminationFailedError: "HandleFailedTermination",
+            MissingFieldsError: "HandleMissingFields",
+            InvalidInstanceError: "HandleInvalidInstanceError",
+            StopFailedError: "HandleFailedStop",
+            DcvStopFailedError: "HandleFailedDcvStop",
         },
     },
 };

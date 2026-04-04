@@ -41,3 +41,27 @@ export const withEnv = (overrides: EnvOverrides): RestoreEnvFn => {
  */
 export const ensureStreamsTableEnv = (tableName = "test-running-streams"): RestoreEnvFn =>
     withEnv({ RUNNING_STREAMS_TABLE_NAME: tableName });
+
+/**
+ * Convenience helper that ensures RUNNING_INSTANCES_TABLE_NAME is set for a test.
+ */
+export const ensureInstancesTableEnv = (tableName = "test-running-instances"): RestoreEnvFn =>
+    withEnv({ RUNNING_INSTANCES_TABLE_NAME: tableName });
+
+/**
+ * Convenience helper that ensures USER_PAYMENTS_TABLE_NAME is set for a test.
+ */
+export const ensurePaymentsTableEnv = (tableName = "test-user-payments"): RestoreEnvFn =>
+    withEnv({ USER_PAYMENTS_TABLE_NAME: tableName });
+
+/**
+ * Convenience helper that ensures USER_BALANCES_TABLE_NAME is set for a test.
+ */
+export const ensureBalancesTableEnv = (tableName = "test-user-balances"): RestoreEnvFn =>
+    withEnv({ USER_BALANCES_TABLE_NAME: tableName });
+
+/**
+ * Convenience helper that ensures GAMES_TABLE_NAME is set for a test.
+ */
+export const ensureGamesTableEnv = (tableName = "test-games"): RestoreEnvFn =>
+    withEnv({ GAMES_TABLE_NAME: tableName });

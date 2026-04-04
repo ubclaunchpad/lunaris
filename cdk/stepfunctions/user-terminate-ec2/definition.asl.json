@@ -28,28 +28,88 @@
                 {
                     "Variable": "$.checkRunningStreamsResult.Payload.valid",
                     "BooleanEquals": true,
-                    "Next": "TerminateEC2"
+                    "Next": "CheckRunningInstances"
                 }
             ],
             "Default": "InvalidStreamError"
         },
-        "TerminateEC2": {
+        "CheckRunningInstances": {
             "Type": "Task",
             "Resource": "arn:aws:states:::lambda:invoke",
             "Parameters": {
-                "FunctionName": "${TerminateEC2Arn}",
+                "FunctionName": "${CheckRunningInstancesArn}",
+                "Payload": {
+                    "instanceId.$": "$.checkRunningStreamsResult.Payload.instanceId"
+                }
+            },
+            "ResultPath": "$.checkRunningInstancesResult",
+            "Next": "CheckValidInstance",
+            "Catch": [
+                {
+                    "ErrorEquals": ["MissingTableNameEnv"],
+                    "Next": "HandleMissingTableName"
+                },
+                {
+                    "ErrorEquals": ["Missing required fields: instanceId, status"],
+                    "Next": "HandleMissingFields"
+                },
+                {
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "Next": "HandleDatabaseError"
+                }
+            ]
+        },
+        "CheckValidInstance": {
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.checkRunningInstancesResult.Payload.valid",
+                    "BooleanEquals": true,
+                    "Next": "StopDCV"
+                }
+            ],
+            "Default": "InvalidInstanceError"
+        },
+        "StopDCV": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${StopDcvInstanceArn}",
                 "Payload": {
                     "userId.$": "$.userId",
                     "instanceId.$": "$.checkRunningStreamsResult.Payload.instanceId",
                     "instanceArn.$": "$.checkRunningStreamsResult.Payload.instanceArn"
                 }
             },
-            "ResultPath": "$.terminateResult",
+            "ResultPath": "$.stopDcvResult",
+            "Next": "StopEC2",
+            "Catch": [
+                {
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "Next": "HandleFailedDcvStop"
+                }
+            ]
+        },
+        "StopEC2": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${StopEC2Arn}",
+                "Payload": {
+                    "userId.$": "$.userId",
+                    "instanceId.$": "$.checkRunningStreamsResult.Payload.instanceId"
+                }
+            },
+            "ResultPath": "$.stopResult",
             "Next": "UpdateRunningStreams",
             "Catch": [
                 {
                     "ErrorEquals": ["States.TaskFailed"],
-                    "Next": "HandleFailedTermination"
+                    "Next": "HandleFailedStop"
+                },
+                {
+                    "ErrorEquals": ["MissingLambdaRegionEnv", "InvalidStatus"],
+                    "Next": "HandleFailedStop"
                 }
             ]
         },
@@ -61,6 +121,29 @@
                 "Payload": {
                     "userId.$": "$.userId",
                     "instanceArn.$": "$.checkRunningStreamsResult.Payload.instanceArn"
+                }
+            },
+            "ResultPath": "$.updateResult",
+            "Next": "UpdateRunningInstances",
+            "Catch": [
+                {
+                    "ErrorEquals": ["MissingTableNameEnv"],
+                    "Next": "HandleMissingTableName"
+                },
+                {
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "Next": "HandleDatabaseError"
+                }
+            ]
+        },
+        "UpdateRunningInstances": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${UpdateRunningInstancesArn}",
+                "Payload": {
+                    "instanceId.$": "$.checkRunningStreamsResult.Payload.instanceId",
+                    "status.$": "$.stopResult.Payload.status"
                 }
             },
             "ResultPath": "$.updateResult",
@@ -81,6 +164,11 @@
             "Cause": "No valid running stream found for user",
             "Error": "InvalidStreamError"
         },
+        "InvalidInstanceError": {
+            "Type": "Fail",
+            "Cause": "No valid running instance found for user",
+            "Error": "InvalidInstanceError"
+        },
         "HandleMissingTableName": {
             "Type": "Fail",
             "Cause": "RUNNING_STREAMS_TABLE_NAME environment variable was not set",
@@ -91,10 +179,20 @@
             "Cause": "Error occurred while accessing the running streams database",
             "Error": "DatabaseError"
         },
-        "HandleFailedTermination": {
+        "HandleFailedStop": {
             "Type": "Fail",
-            "Cause": "Failed to terminate EC2 instance",
-            "Error": "TerminationFailedError"
+            "Cause": "Failed to stop EC2 instance",
+            "Error": "StopFailedError"
+        },
+        "HandleFailedDcvStop": {
+            "Type": "Fail",
+            "Cause": "Failed to stop Dcv session",
+            "Error": "DcvStopFailedError"
+        },
+        "HandleMissingFields": {
+            "Type": "Fail",
+            "Cause": "Missing fields in input",
+            "Error": "MissingFieldsError"
         },
         "Success": {
             "Type": "Succeed"

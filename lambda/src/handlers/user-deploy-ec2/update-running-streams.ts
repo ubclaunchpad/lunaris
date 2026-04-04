@@ -59,6 +59,7 @@ export const handler = async (
         dcvPassword: event.dcvPassword,
         streamingLink: streamingLink,
         updatedAt: now,
+        status: "running",
     };
 
     const expressionAttributeValues: Record<string, string | number> = {
@@ -71,6 +72,7 @@ export const handler = async (
         ":streamingLink": payload.streamingLink,
         ":updatedAt": payload.updatedAt,
         ":createdAt": now,
+        ":status": payload.status,
     };
 
     const updateExpression = `
@@ -83,11 +85,15 @@ export const handler = async (
         dcvPassword = :dcvPassword,
         streamingLink = :streamingLink,
         updatedAt = :updatedAt,
-        createdAt = if_not_exists(createdAt, :createdAt)
+        createdAt = if_not_exists(createdAt, :createdAt),
+        #status = :status
     `;
 
     const updateConfig = {
         UpdateExpression: updateExpression,
+        ExpressionAttributeNames: {
+            "#status": "status",
+        },
         ExpressionAttributeValues: expressionAttributeValues,
     };
 
@@ -95,7 +101,8 @@ export const handler = async (
 
     // Also update the RunningInstances table to replace the placeholder instanceId with the real one
     // This is crucial for terminate to work correctly
-    const runningInstancesTable = process.env.RUNNING_INSTANCES_TABLE;
+    // I THINK THIS CODE CAN BE REMOVED WITH UPDATE RUNNING INSTANCES????
+    const runningInstancesTable = process.env.RUNNING_INSTANCES_TABLE_NAME;
     if (runningInstancesTable) {
         try {
             // Find the placeholder record for this user

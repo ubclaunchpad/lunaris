@@ -1,4 +1,9 @@
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {
+    DynamoDBClient,
+    CreateTableCommand,
+    DescribeTableCommand,
+    waitUntilTableExists,
+} from "@aws-sdk/client-dynamodb";
 import {
     DynamoDBDocumentClient,
     PutCommand,
@@ -8,6 +13,7 @@ import {
 import DynamoDBWrapper from "../../../src/utils/dynamoDbWrapper";
 
 const testTableName = "RunningInstances";
+const runIntegrationTests = process.env.RUN_DYNAMODB_INTEGRATION === "true";
 
 const getDynamoClient = () => {
     return new DynamoDBClient({
@@ -20,7 +26,7 @@ const getDynamoClient = () => {
     });
 };
 
-describe("deploy-ec2 DynamoDB Integration Tests", () => {
+(runIntegrationTests ? describe : describe.skip)("deploy-ec2 DynamoDB Integration Tests", () => {
     let dynamoClient: DynamoDBClient;
     let docClient: DynamoDBDocumentClient;
     let wrapper: DynamoDBWrapper;
@@ -34,6 +40,38 @@ describe("deploy-ec2 DynamoDB Integration Tests", () => {
 
         dynamoClient = getDynamoClient();
         docClient = DynamoDBDocumentClient.from(dynamoClient);
+
+        try {
+            await dynamoClient.send(new DescribeTableCommand({ TableName: testTableName }));
+        } catch (error) {
+            if ((error as { name?: string }).name !== "ResourceNotFoundException") {
+                throw error;
+            }
+
+            await dynamoClient.send(
+                new CreateTableCommand({
+                    TableName: testTableName,
+                    BillingMode: "PAY_PER_REQUEST",
+                    KeySchema: [{ AttributeName: "instanceId", KeyType: "HASH" }],
+                    AttributeDefinitions: [
+                        { AttributeName: "instanceId", AttributeType: "S" },
+                        { AttributeName: "userId", AttributeType: "S" },
+                    ],
+                    GlobalSecondaryIndexes: [
+                        {
+                            IndexName: "UserIdIndex",
+                            KeySchema: [{ AttributeName: "userId", KeyType: "HASH" }],
+                            Projection: { ProjectionType: "ALL" },
+                        },
+                    ],
+                }),
+            );
+        }
+
+        await waitUntilTableExists(
+            { client: dynamoClient, maxWaitTime: 30 },
+            { TableName: testTableName },
+        );
     });
 
     afterAll(async () => {
@@ -146,7 +184,7 @@ describe("deploy-ec2 DynamoDB Integration Tests", () => {
 
             await new Promise((resolve) => setTimeout(resolve, 2000));
 
-            const results = await wrapper.queryItemsByUserId(userId);
+            const results = await wrapper.queryByUserId(userId);
 
             expect(results.length).toBeGreaterThanOrEqual(2);
             expect(results.some((item) => item.instanceId === instanceId1)).toBe(true);

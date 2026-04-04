@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
-import { GetCommand } from "@aws-sdk/lib-dynamodb";
+import { QueryCommand } from "@aws-sdk/lib-dynamodb";
 import { handler } from "../../../src/handlers/user-deploy-ec2/check-running-streams";
 import { dynamoMock, ensureStreamsTableEnv } from "../../utils/dynamoMock";
 
@@ -15,20 +15,22 @@ describe("user-deploy-ec2/check-running-streams", () => {
         restoreEnv();
     });
 
-    it("returns streamsRunning=false when no active stream", async () => {
-        dynamoMock.on(GetCommand).resolves({ Item: undefined });
+    it("returns streamsRunning=false when there are no records", async () => {
+        dynamoMock.on(QueryCommand).resolves({ Items: [] });
 
-        const result = await handler({ userId: "user-123" });
-
-        expect(result).toEqual({ streamsRunning: false });
+        await expect(handler({ userId: "user-123" })).resolves.toEqual({ streamsRunning: false });
     });
 
-    it("returns streamsRunning=true when an active stream exists", async () => {
-        dynamoMock.on(GetCommand).resolves({ Item: { userId: "user-123" } });
+    it("returns streamsRunning=false when latest stream is not running", async () => {
+        dynamoMock.on(QueryCommand).resolves({ Items: [{ status: "stopped" }] });
 
-        const result = await handler({ userId: "user-123" });
+        await expect(handler({ userId: "user-123" })).resolves.toEqual({ streamsRunning: false });
+    });
 
-        expect(result).toEqual({ streamsRunning: true });
+    it("returns streamsRunning=true when latest stream is running", async () => {
+        dynamoMock.on(QueryCommand).resolves({ Items: [{ status: "running" }] });
+
+        await expect(handler({ userId: "user-123" })).resolves.toEqual({ streamsRunning: true });
     });
 
     it("throws when RUNNING_STREAMS_TABLE_NAME is missing", async () => {
@@ -39,7 +41,7 @@ describe("user-deploy-ec2/check-running-streams", () => {
     });
 
     it("propagates DynamoDB errors", async () => {
-        dynamoMock.on(GetCommand).rejects(new Error("ddb-error"));
+        dynamoMock.on(QueryCommand).rejects(new Error("ddb-error"));
 
         await expect(handler({ userId: "user-123" })).rejects.toThrow("ddb-error");
     });

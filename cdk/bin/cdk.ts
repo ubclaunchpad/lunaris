@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import * as cdk from "aws-cdk-lib";
+import dotenv from "dotenv";
 import { WorkflowRegistry } from "../lib/workflows";
 import { LambdaRegistry } from "../lib/constructs/compute/lambda-registry";
 import { IAMStack } from "../lib/iam-stack";
@@ -7,6 +8,9 @@ import { AuthStack } from "../lib/auth-stack";
 import { StorageStack } from "../lib/storage-stack";
 import { ComputeStack } from "../lib/compute-stack";
 import { ApiStack } from "../lib/api-stack";
+import { ObservabilityStack } from "../lib/observability-stack";
+
+dotenv.config({ path: "../lambda/.env.local" }); // ensures local env vars are available to lambda function during stack synthesis
 
 // Discover and register workflows and lambdas before creating the stacks
 WorkflowRegistry.discoverWorkflows();
@@ -22,7 +26,12 @@ const computeStack = new ComputeStack(app, "ComputeStack", {
     ec2InstanceProfileName: iamStack.ec2InstanceProfileName,
     runningInstancesTable: storageStack.runningInstancesTable,
     runningStreamsTable: storageStack.runningStreamsTable,
+    userPaymentsTable: storageStack.userPaymentsTable,
+    userBalancesTable: storageStack.userBalancesTable,
+    gamesTable: storageStack.gamesTable,
 });
 const apiStack = new ApiStack(app, "ApiStack", {
     apiFunction: computeStack.apiFunction,
+    userPool: authStack.userPool, // Enable Cognito authorization
 });
+const observabilityStack = new ObservabilityStack(app, "ObservabilityStack");

@@ -1,6 +1,12 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, UpdateCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
+import { ConditionalCheckFailedException, DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import {
+    DynamoDBDocumentClient,
+    // UpdateCommand,
+    // PutCommand
+    ScanCommand,
+    GetCommand,
+} from "@aws-sdk/lib-dynamodb";
 import {
     SFNClient,
     StartExecutionCommand,
@@ -12,13 +18,16 @@ import {
     LambdaFunctionFailedEventDetails,
 } from "@aws-sdk/client-sfn";
 
-interface EventDetails {
-    error?: string;
-    cause?: string;
-}
 import { SFNClientConfig } from "@aws-sdk/client-sfn";
 import { DynamoDBClientConfig } from "@aws-sdk/client-dynamodb";
 import DynamoDBWrapper from "../utils/dynamoDbWrapper";
+import {
+    createCheckoutSession,
+    getCheckoutSession,
+    constructWebhookEvent,
+    findOrCreateCustomer,
+} from "../utils/stripeWrapper";
+import { getPaymentPlanById, validatePlanId } from "../shared/payment-plans";
 
 // Configure clients to use local endpoints when available (for local testing)
 const sfnClientConfig: Partial<SFNClientConfig> = {};
@@ -37,10 +46,25 @@ const dynamoClient = new DynamoDBClient(dynamoClientConfig);
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
 // Environment variables
-const RUNNING_INSTANCES_TABLE = process.env.RUNNING_INSTANCES_TABLE || "";
+const RUNNING_INSTANCES_TABLE_NAME = process.env.RUNNING_INSTANCES_TABLE_NAME || "";
 const RUNNING_STREAMS_TABLE_NAME = process.env.RUNNING_STREAMS_TABLE_NAME || "";
 const USER_DEPLOY_EC2_WORKFLOW_ARN = process.env.USER_DEPLOY_EC2_WORKFLOW_ARN || "";
 const TERMINATE_WORKFLOW_ARN = process.env.TERMINATE_WORKFLOW_ARN || "";
+const USER_PAYMENTS_TABLE_NAME = process.env.USER_PAYMENTS_TABLE_NAME || "";
+const USER_BALANCES_TABLE_NAME = process.env.USER_BALANCES_TABLE_NAME || "";
+// NOTE: Read at request time so tests can override via process.env
+const getStripeWhSecret = (): string => process.env.STRIPE_WH_SECRET || "";
+
+interface GameItem {
+    gameId: string;
+    name: string;
+    description: string;
+    imageUrl: string;
+    tags: string[];
+    modes?: string[];
+    ebsSnapshotId: string;
+    minInstanceType: string;
+}
 
 interface DeployInstanceRequest {
     userId: string;
@@ -48,7 +72,12 @@ interface DeployInstanceRequest {
 
 interface TerminateInstanceRequest {
     userId: string;
-    instanceId: string;
+    // instanceId: string;
+}
+
+interface CreateCheckoutRequest {
+    planId: string;
+    userId?: string;
 }
 
 interface ResponseBody {
@@ -76,6 +105,109 @@ const createResponse = (statusCode: number, body: ResponseBody): APIGatewayProxy
     body: JSON.stringify(body),
 });
 
+const verifyUserBalance = async (
+    userId: string,
+): Promise<{ hasBalance: boolean; coins: number }> => {
+    const dbWrapper = new DynamoDBWrapper(USER_BALANCES_TABLE_NAME);
+    const balance = await dbWrapper.getItem({ userId });
+    const coins = (balance?.coins as number) ?? 0;
+    return { hasBalance: coins > 0, coins };
+};
+
+/**
+ * List all games from the Games table
+ * GET /games
+ */
+const handleListGames = async (_event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+        const tableName = process.env.GAMES_TABLE_NAME || "";
+        if (!tableName) {
+            return createResponse(500, {
+                error: "Internal Server Error",
+                message: "Games table not configured",
+            });
+        }
+
+        console.log("Scanning Games table for all games");
+
+        const scanCommand = new ScanCommand({
+            TableName: tableName,
+        });
+
+        const result = await docClient.send(scanCommand);
+        const games = (result.Items || []) as GameItem[];
+
+        console.log(`Retrieved ${games.length} games from database`);
+
+        return createResponse(200, {
+            message: "Games retrieved successfully",
+            data: games,
+        });
+    } catch (error: unknown) {
+        console.error("Error listing games:", error);
+        return createResponse(500, {
+            error: "Internal Server Error",
+            message: error instanceof Error ? error.message : "Unknown error occurred",
+        });
+    }
+};
+
+/**
+ * Get a single game by gameId
+ * GET /games/{gameId}
+ */
+const handleGetGameById = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+        const tableName = process.env.GAMES_TABLE_NAME || "";
+        if (!tableName) {
+            return createResponse(500, {
+                error: "Internal Server Error",
+                message: "Games table not configured",
+            });
+        }
+
+        // Extract gameId from path parameters
+        const gameId = event.pathParameters?.gameId;
+
+        if (!gameId) {
+            return createResponse(400, {
+                error: "Bad Request",
+                message: "gameId path parameter is required",
+            });
+        }
+
+        console.log(`Fetching game with ID: ${gameId}`);
+
+        const getCommand = new GetCommand({
+            TableName: tableName,
+            Key: { gameId },
+        });
+
+        const result = await docClient.send(getCommand);
+        const game = result.Item as GameItem | undefined;
+
+        if (!game) {
+            return createResponse(404, {
+                error: "Not Found",
+                message: `Game with ID '${gameId}' not found`,
+            });
+        }
+
+        console.log(`Retrieved game: ${game.name}`);
+
+        return createResponse(200, {
+            message: "Game retrieved successfully",
+            data: game,
+        });
+    } catch (error: unknown) {
+        console.error("Error fetching game:", error);
+        return createResponse(500, {
+            error: "Internal Server Error",
+            message: error instanceof Error ? error.message : "Unknown error occurred",
+        });
+    }
+};
+
 // Deploy Instance Handler
 const handleDeployInstance = async (
     event: APIGatewayProxyEvent,
@@ -84,12 +216,27 @@ const handleDeployInstance = async (
         const body: DeployInstanceRequest = JSON.parse(event.body || "{}");
         const { userId } = body;
 
-        if (!RUNNING_INSTANCES_TABLE) {
+        if (!RUNNING_INSTANCES_TABLE_NAME) {
             throw new Error("MissingRunningInstancesTable");
         }
 
         if (!userId) {
             return createResponse(400, { message: "User ID is required" });
+        }
+
+        if (!USER_BALANCES_TABLE_NAME) {
+            return createResponse(500, {
+                message: "Internal server error: Balance table not configured",
+            });
+        }
+
+        // Payment guard: user must have coins to deploy
+        const { hasBalance } = await verifyUserBalance(userId);
+        if (!hasBalance) {
+            return createResponse(402, {
+                message: "Insufficient balance. Please purchase a coin pack to deploy.",
+                status: "payment_required",
+            });
         }
 
         // Start the UserDeployEC2 Step Function
@@ -116,7 +263,7 @@ const handleDeployInstance = async (
                 });
                 executionResponse = await sfnClient.send(startExecutionCommand);
                 console.log("Step Function execution started via local endpoint");
-            } catch (error) {
+            } catch {
                 console.log(
                     "Local Step Functions endpoint not available, using mock execution ARN",
                 );
@@ -142,27 +289,27 @@ const handleDeployInstance = async (
 
         // Store execution ARN in DynamoDB immediately so we can track the deployment status
         // Use a placeholder instanceId based on the execution name until the real instance is created
-        const placeholderInstanceId = `pending-${executionName}`;
-        const now = new Date().toISOString();
+        // const placeholderInstanceId = `pending-${executionName}`;
+        // const now = new Date().toISOString();
 
-        try {
-            const putCommand = new PutCommand({
-                TableName: RUNNING_INSTANCES_TABLE,
-                Item: {
-                    instanceId: placeholderInstanceId,
-                    userId: userId,
-                    executionArn: executionResponse.executionArn,
-                    status: "deploying",
-                    creationTime: now, // Match GSI sort key name
-                    lastModifiedTime: now,
-                },
-            });
-            await docClient.send(putCommand);
-            console.log(`Stored execution tracking record for user ${userId}`);
-        } catch (dbError) {
-            console.error("Failed to store execution ARN in DynamoDB:", dbError);
-            // Don't fail the request - the Step Function has already started
-        }
+        // try {
+        //     const putCommand = new PutCommand({
+        //         TableName: RUNNING_INSTANCES_TABLE_NAME,
+        //         Item: {
+        //             instanceId: placeholderInstanceId,
+        //             userId: userId,
+        //             executionArn: executionResponse.executionArn,
+        //             status: "deploying",
+        //             creationTime: now, // Match GSI sort key name
+        //             lastModifiedTime: now,
+        //         },
+        //     });
+        //     await docClient.send(putCommand);
+        //     console.log(`Stored execution tracking record for user ${userId}`);
+        // } catch (dbError) {
+        //     console.error("Failed to store execution ARN in DynamoDB:", dbError);
+        //     // Don't fail the request - the Step Function has already started
+        // }
 
         console.log(
             `Started Step Function execution ${executionResponse.executionArn} for user ${userId}`,
@@ -188,7 +335,7 @@ const handleTerminateInstance = async (
 ): Promise<APIGatewayProxyResult> => {
     try {
         const body: TerminateInstanceRequest = JSON.parse(event.body || "{}");
-        const { userId, instanceId } = body;
+        const { userId } = body;
 
         // Validate input
         if (!userId) {
@@ -198,12 +345,12 @@ const handleTerminateInstance = async (
             });
         }
 
-        if (!instanceId) {
-            return createResponse(400, {
-                status: "error",
-                message: "Instance ID is required",
-            });
-        }
+        // if (!instanceId) {
+        //     return createResponse(400, {
+        //         status: "error",
+        //         message: "Instance ID is required",
+        //     });
+        // }
 
         // Validate environment variables
         if (!TERMINATE_WORKFLOW_ARN) {
@@ -213,7 +360,7 @@ const handleTerminateInstance = async (
             });
         }
 
-        if (!RUNNING_INSTANCES_TABLE) {
+        if (!RUNNING_INSTANCES_TABLE_NAME) {
             return createResponse(500, {
                 status: "error",
                 message: "Internal server error: Database configuration missing",
@@ -271,33 +418,33 @@ const handleTerminateInstance = async (
 
         // Update DynamoDB with execution ARN and status
         // This should not fail the request if it errors (Step Function already started)
-        const timestamp = new Date().toISOString();
-        try {
-            const updateCommand = new UpdateCommand({
-                TableName: RUNNING_INSTANCES_TABLE,
-                Key: {
-                    instanceId: instanceId,
-                },
-                UpdateExpression:
-                    "SET executionArn = :arn, #status = :status, lastModifiedTime = :timestamp",
-                ExpressionAttributeNames: {
-                    "#status": "status",
-                },
-                ExpressionAttributeValues: {
-                    ":arn": executionResponse.executionArn,
-                    ":status": "terminating",
-                    ":timestamp": timestamp,
-                },
-            });
+        // const timestamp = new Date().toISOString();
+        // try {
+        //     const updateCommand = new UpdateCommand({
+        //         TableName: RUNNING_INSTANCES_TABLE_NAME,
+        //         Key: {
+        //             instanceId: instanceId,
+        //         },
+        //         UpdateExpression:
+        //             "SET executionArn = :arn, #status = :status, lastModifiedTime = :timestamp",
+        //         ExpressionAttributeNames: {
+        //             "#status": "status",
+        //         },
+        //         ExpressionAttributeValues: {
+        //             ":arn": executionResponse.executionArn,
+        //             ":status": "terminating",
+        //             ":timestamp": timestamp,
+        //         },
+        //     });
 
-            await docClient.send(updateCommand);
-            console.log(
-                `Updated DynamoDB with execution ARN: ${executionResponse.executionArn} for instance ${instanceId}`,
-            );
-        } catch (dbError) {
-            // Log error but don't fail the request since Step Function was already started
-            console.error("Failed to update DynamoDB:", dbError);
-        }
+        //     await docClient.send(updateCommand);
+        //     console.log(
+        //         `Updated DynamoDB with execution ARN: ${executionResponse.executionArn} for instance ${instanceId}`,
+        //     );
+        // } catch (dbError) {
+        //     // Log error but don't fail the request since Step Function was already started
+        //     console.error("Failed to update DynamoDB:", dbError);
+        // }
 
         console.log(
             `Started Step Function execution ${executionResponse.executionArn} for user ${userId}`,
@@ -547,7 +694,7 @@ const handleDeploymentStatus = async (
             });
         }
 
-        const dbWrapper = new DynamoDBWrapper(RUNNING_INSTANCES_TABLE);
+        const dbWrapper = new DynamoDBWrapper(RUNNING_INSTANCES_TABLE_NAME);
         const instances = await dbWrapper.queryByUserId(userId);
 
         if (!instances || instances.length === 0) {
@@ -697,6 +844,210 @@ const handleDeploymentStatus = async (
     }
 };
 
+// POST /checkout-session
+// creates stripe checkout session in embedded mode and returns the client_secret
+const handleCreateCheckoutSession = async (
+    event: APIGatewayProxyEvent,
+): Promise<APIGatewayProxyResult> => {
+    try {
+        const body: CreateCheckoutRequest = JSON.parse(event.body || "{}");
+        const { planId, userId } = body;
+
+        if (!planId || !validatePlanId(planId)) {
+            return createResponse(400, { message: "A valid planId is required" });
+        }
+
+        const plan = getPaymentPlanById(planId);
+        if (!plan) {
+            return createResponse(400, { message: `Unknown plan: ${planId}` });
+        }
+
+        if (!plan.stripePriceId) {
+            return createResponse(500, {
+                message: `Stripe Price ID not configured for plan ${planId}. Set STRIPE_PRICE_${planId} env var.`,
+            });
+        }
+
+        let stripeCustomerId: string | undefined;
+        if (userId) {
+            stripeCustomerId = await findOrCreateCustomer(userId);
+        }
+
+        const returnUrl = `${process.env.FRONTEND_URL}/topup/return?sessionId={CHECKOUT_SESSION_ID}`;
+
+        const { clientSecret, sessionId } = await createCheckoutSession({
+            priceId: plan.stripePriceId,
+            returnUrl,
+            metadata: {
+                planId,
+                ...(userId ? { userId } : {}),
+            },
+            ...(stripeCustomerId ? { customer: stripeCustomerId } : {}),
+        });
+
+        return createResponse(200, {
+            message: "Checkout session created",
+            clientSecret,
+            sessionId,
+        });
+    } catch (error) {
+        console.error("Error creating checkout session:", error);
+        return createResponse(500, {
+            message: "Failed to create checkout session",
+            error: error instanceof Error ? error.message : "Unknown error",
+        });
+    }
+};
+
+// GET /checkout-session?sessionId=xxxxx
+// retrieves status of stripe checkout session so the return page can show success / failure
+const handleGetCheckoutSession = async (
+    event: APIGatewayProxyEvent,
+): Promise<APIGatewayProxyResult> => {
+    try {
+        const sessionId = event.queryStringParameters?.sessionId;
+        if (!sessionId) {
+            return createResponse(400, { message: "sessionId query parameter is required" });
+        }
+        const session = await getCheckoutSession(sessionId);
+
+        return createResponse(200, {
+            message: "Session retrieved",
+            status: session.status,
+            paymentStatus: session.paymentStatus,
+            customerEmail: session.customerEmail,
+            amountTotal: session.amountTotal,
+        } as unknown as ResponseBody);
+    } catch (error) {
+        console.error("Error retrieving session status:", error);
+        return createResponse(500, {
+            message: "Failed to retrieve session status",
+            error: error instanceof Error ? error.message : "Unknown error",
+        });
+    }
+};
+
+const handleStripeWebhook = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
+    try {
+        // api gateway may decode it -> safety lines here
+        const rawBody = event.isBase64Encoded
+            ? Buffer.from(event.body || "", "base64").toString("utf8")
+            : event.body || "";
+
+        // extract stripe signature
+        const signature =
+            event.headers["stripe-signature"] || event.headers["Stripe-Signature"] || "";
+
+        if (!signature) {
+            return createResponse(400, { message: "Missing stripe-signature header" });
+        }
+
+        const whSecret = getStripeWhSecret();
+        if (!whSecret) {
+            console.error("STRIPE_WH_SECRET environment variable is not set");
+            return createResponse(500, { message: "Webhook secret not configured" });
+        }
+
+        let stripeEvent: { type: string; data: { object: Record<string, unknown> } };
+        try {
+            stripeEvent = constructWebhookEvent(
+                rawBody,
+                signature,
+                whSecret,
+            ) as unknown as typeof stripeEvent;
+        } catch (err) {
+            console.error("Webhook signature verification failed:", err);
+            return createResponse(400, { message: "Invalid signature" });
+        }
+
+        switch (stripeEvent.type) {
+            case "checkout.session.completed":
+                await handleCheckoutCompleted(stripeEvent.data.object);
+                break;
+            default:
+                console.log(`Unhandled webhook event type: ${stripeEvent.type}`);
+        }
+
+        // ack all other stripe events with a 200 -> ROOM FOR EXPANSION HERE
+        return createResponse(200, { message: "Webhook processed" });
+    } catch (error) {
+        console.error("Webhook handler error:", error);
+        return createResponse(500, {
+            message: "Webhook processing failed",
+            error: error instanceof Error ? error.message : "Unknown error",
+        });
+    }
+};
+
+const handleCheckoutCompleted = async (session: Record<string, unknown>): Promise<void> => {
+    // ------------------------------------------------------------------
+    // Step 1: Extract fields from the Stripe session object
+    // ------------------------------------------------------------------
+    const stripeSessionId = session.id as string;
+    const stripeCustomerId = (session.customer as string) || undefined;
+    const metadata = (session.metadata as Record<string, string>) || {};
+    const { planId, userId } = metadata;
+    const customerEmail = (session.customer_details as Record<string, unknown>)?.email as
+        | string
+        | undefined;
+
+    if (!planId || !userId) {
+        console.warn("Webhook missing planId or userId in metadata:", metadata);
+        return;
+    }
+
+    // record plan in log
+    const plan = getPaymentPlanById(planId);
+    if (!plan) {
+        console.error(`Unknown planId in webhook: ${planId}`);
+        return;
+    }
+
+    const now = new Date().toISOString();
+
+    // Atomic idempotency: conditional put keyed by stripeSessionId.
+    // ConditionalCheckFailedException means this session was already processed.
+    const paymentsDb = new DynamoDBWrapper(USER_PAYMENTS_TABLE_NAME);
+    try {
+        await paymentsDb.putItem(
+            {
+                stripeSessionId,
+                userId,
+                createdAt: now,
+                stripeCustomerId: stripeCustomerId || "unknown",
+                planId,
+                coins: plan.coins,
+                priceCents: plan.priceCents,
+                status: "completed",
+                customerEmail: customerEmail || "unknown",
+            },
+            { ConditionExpression: "attribute_not_exists(stripeSessionId)" },
+        );
+    } catch (error) {
+        if (error instanceof ConditionalCheckFailedException) {
+            console.log(`Payment already recorded for session ${stripeSessionId}, skipping`);
+            return;
+        }
+        throw error;
+    }
+
+    // actually grant coins to end user
+    const balancesDb = new DynamoDBWrapper(USER_BALANCES_TABLE_NAME);
+    await balancesDb.updateItem(
+        { userId },
+        {
+            UpdateExpression: "ADD coins :c SET updatedAt = :t, stripeCustomerId = :s",
+            ExpressionAttributeValues: {
+                ":c": plan.coins,
+                ":t": now,
+                ":s": stripeCustomerId || "unknown",
+            },
+        },
+    );
+
+    console.log(`Payment recorded: ${userId} bought ${plan.name} (${plan.coins} coins)`);
+};
+
 // Main handler that routes to the appropriate function
 export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     console.log("Event:", JSON.stringify(event, null, 2));
@@ -714,6 +1065,16 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             return await handleStreamingLink(event);
         } else if (path === "/deployment-status" && method === "GET") {
             return await handleDeploymentStatus(event);
+        } else if (path === "/checkout-session" && method === "POST") {
+            return await handleCreateCheckoutSession(event);
+        } else if (path === "/checkout-session" && method === "GET") {
+            return await handleGetCheckoutSession(event);
+        } else if (path === "/stripe-webhook" && method === "POST") {
+            return await handleStripeWebhook(event);
+        } else if (path === "/games" && method === "GET") {
+            return await handleListGames(event);
+        } else if (path?.startsWith("/games/") && method === "GET") {
+            return await handleGetGameById(event);
         } else {
             return createResponse(404, {
                 error: "Not Found",

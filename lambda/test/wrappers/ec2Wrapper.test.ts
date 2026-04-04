@@ -7,6 +7,8 @@ import {
     CreateImageCommand,
     CreateTagsCommand,
     TerminateInstancesCommand,
+    StartInstancesCommand,
+    StopInstancesCommand,
     InstanceStateName,
 } from "@aws-sdk/client-ec2";
 import EC2Wrapper, { EC2InstanceConfig, ErrorMessages } from "../../src/utils/ec2Wrapper";
@@ -76,13 +78,13 @@ describe("EC2Wrapper", () => {
         jest.clearAllMocks();
     });
 
-    // TODO: test creating with ami
     describe("createInstance", () => {
         it("should create EC2 instance with all required fields", async () => {
             const mockInstanceId = "i-test123";
             const mockConfig: EC2InstanceConfig = {
                 userId: "test-user-123",
                 instanceType: "t3.medium",
+                amiId: "ami-test123",
             };
 
             mockEC2Success(mockInstanceId);
@@ -110,10 +112,11 @@ describe("EC2Wrapper", () => {
             expect(userIdTag?.Value).toBe("test-user-123");
         });
 
-        it("should use BasicDCV launch template", async () => {
+        it("should use provided AMI ID when creating instance", async () => {
             const mockConfig: EC2InstanceConfig = {
                 userId: "test-user",
                 instanceType: "t3.micro",
+                amiId: "ami-test123",
             };
 
             mockEC2Success();
@@ -123,13 +126,14 @@ describe("EC2Wrapper", () => {
 
             const calls = ec2Mock.commandCalls(RunInstancesCommand);
             const input = calls[0].args[0].input;
-            expect(input.LaunchTemplate?.LaunchTemplateName).toBe("BasicDCV");
+            expect(input.ImageId).toBe("ami-test123");
         });
 
         it("should throw error when instance limit exceeded", async () => {
             const mockConfig: EC2InstanceConfig = {
                 userId: "test-user",
                 instanceType: "t3.micro",
+                amiId: "ami-test123",
             };
 
             ec2Mock.on(RunInstancesCommand).rejects({
@@ -149,6 +153,7 @@ describe("EC2Wrapper", () => {
             const mockConfig: EC2InstanceConfig = {
                 userId: "",
                 instanceType: "t3.micro",
+                amiId: "ami-test123",
             };
 
             const ec2Wrapper = new EC2Wrapper();
@@ -163,6 +168,7 @@ describe("EC2Wrapper", () => {
                 userId: "test-user",
                 instanceType: "t3.micro",
                 subnetId: "subnet-invalid",
+                amiId: "ami-test123",
             };
 
             ec2Mock.on(RunInstancesCommand).rejects({
@@ -183,6 +189,7 @@ describe("EC2Wrapper", () => {
                 userId: "test-user",
                 instanceType: "t3.micro",
                 securityGroupIds: ["sg-invalid"],
+                amiId: "ami-test123",
             };
 
             ec2Mock.on(RunInstancesCommand).rejects({
@@ -203,6 +210,7 @@ describe("EC2Wrapper", () => {
                 userId: "test-user",
                 instanceType: "t3.micro",
                 keyName: "invalid-keypair",
+                amiId: "ami-test123",
             };
 
             ec2Mock.on(RunInstancesCommand).rejects({
@@ -287,6 +295,7 @@ describe("EC2Wrapper", () => {
             const mockConfig: EC2InstanceConfig = {
                 userId: "test-user",
                 instanceType: "t3.micro",
+                amiId: "ami-test123",
             };
 
             mockEC2Success("i-create-wait");
@@ -305,6 +314,7 @@ describe("EC2Wrapper", () => {
             const mockConfig: EC2InstanceConfig = {
                 userId: "test-user",
                 instanceType: "t3.micro",
+                amiId: "ami-test123",
             };
 
             mockEC2Success("i-no-wait");
@@ -321,6 +331,7 @@ describe("EC2Wrapper", () => {
             const mockConfig: EC2InstanceConfig = {
                 userId: "test-user",
                 instanceType: "t3.micro",
+                amiId: "ami-test123",
             };
 
             ec2Mock.on(RunInstancesCommand).rejects(new Error("Network error"));
@@ -688,13 +699,16 @@ describe("EC2Wrapper", () => {
                 });
 
                 // Mock the handleStoppingState to resolve successfully
-                jest.spyOn(EC2Wrapper.prototype, "handleStoppingState").mockResolvedValue(true);
+                const handleStoppingStateSpy = jest
+                    .spyOn(EC2Wrapper.prototype, "handleStoppingState")
+                    .mockResolvedValue(true);
 
                 const ec2Wrapper = new EC2Wrapper();
                 const result = await ec2Wrapper.canTerminate(mockInstanceId);
 
                 expect(result).toBe(true);
                 expect(ec2Wrapper.handleStoppingState).toHaveBeenCalledWith(mockInstanceId);
+                handleStoppingStateSpy.mockRestore();
             });
 
             it("should return false if the instance is already in shutting-down state", async () => {
@@ -880,6 +894,307 @@ describe("EC2Wrapper", () => {
 
                 expect(result.wasAlreadyTerminated).toBe(true); // instance already terminated
                 expect(result.state).toBe("terminated");
+            });
+        });
+    });
+
+    describe("resumeAndStartInstance", () => {
+        const RESUME_INSTANCE_ID = "i-resume-test123";
+
+        beforeEach(() => {
+            resetAllMocks();
+            jest.clearAllMocks();
+        });
+
+        // ── Success — CurrentState.Name present ───────────────────────────────
+
+        it("returns instanceId and the CurrentState.Name on success", async () => {
+            ec2Mock.on(StartInstancesCommand).resolves({
+                StartingInstances: [
+                    { InstanceId: RESUME_INSTANCE_ID, CurrentState: { Name: "running" } },
+                ],
+            });
+
+            const ec2Wrapper = new EC2Wrapper();
+            const result = await ec2Wrapper.resumeAndStartInstance(RESUME_INSTANCE_ID);
+
+            expect(result).toEqual({ instanceId: RESUME_INSTANCE_ID, status: "running" });
+        });
+
+        it("returns status 'pending' when CurrentState.Name is 'pending'", async () => {
+            ec2Mock.on(StartInstancesCommand).resolves({
+                StartingInstances: [
+                    { InstanceId: RESUME_INSTANCE_ID, CurrentState: { Name: "pending" } },
+                ],
+            });
+
+            const ec2Wrapper = new EC2Wrapper();
+            const result = await ec2Wrapper.resumeAndStartInstance(RESUME_INSTANCE_ID);
+
+            expect(result.status).toBe("pending");
+        });
+
+        // ── Default status when StartingInstances is empty / undefined ────────
+
+        it("defaults status to 'pending' when StartingInstances is an empty array", async () => {
+            ec2Mock.on(StartInstancesCommand).resolves({
+                StartingInstances: [],
+            });
+
+            const ec2Wrapper = new EC2Wrapper();
+            const result = await ec2Wrapper.resumeAndStartInstance(RESUME_INSTANCE_ID);
+
+            expect(result).toEqual({ instanceId: RESUME_INSTANCE_ID, status: "pending" });
+        });
+
+        it("defaults status to 'pending' when StartingInstances is undefined", async () => {
+            ec2Mock.on(StartInstancesCommand).resolves({
+                StartingInstances: undefined,
+            });
+
+            const ec2Wrapper = new EC2Wrapper();
+            const result = await ec2Wrapper.resumeAndStartInstance(RESUME_INSTANCE_ID);
+
+            expect(result).toEqual({ instanceId: RESUME_INSTANCE_ID, status: "pending" });
+        });
+
+        it("defaults status to 'pending' when CurrentState is undefined on the first entry", async () => {
+            ec2Mock.on(StartInstancesCommand).resolves({
+                StartingInstances: [{ InstanceId: RESUME_INSTANCE_ID, CurrentState: undefined }],
+            });
+
+            const ec2Wrapper = new EC2Wrapper();
+            const result = await ec2Wrapper.resumeAndStartInstance(RESUME_INSTANCE_ID);
+
+            expect(result.status).toBe("pending");
+        });
+
+        // ── StartInstancesCommand input ───────────────────────────────────────
+
+        it("sends StartInstancesCommand with the correct InstanceIds", async () => {
+            ec2Mock.on(StartInstancesCommand).resolves({
+                StartingInstances: [
+                    { InstanceId: RESUME_INSTANCE_ID, CurrentState: { Name: "running" } },
+                ],
+            });
+
+            const ec2Wrapper = new EC2Wrapper();
+            await ec2Wrapper.resumeAndStartInstance(RESUME_INSTANCE_ID);
+
+            const calls = ec2Mock.commandCalls(StartInstancesCommand);
+            expect(calls).toHaveLength(1);
+            expect(calls[0].args[0].input.InstanceIds).toEqual([RESUME_INSTANCE_ID]);
+        });
+
+        // ── Error wrapping ────────────────────────────────────────────────────
+
+        it("wraps EC2 errors with 'Failed to start instance <id>: <message>'", async () => {
+            ec2Mock.on(StartInstancesCommand).rejects(new Error("insufficient capacity"));
+
+            const ec2Wrapper = new EC2Wrapper();
+            await expect(ec2Wrapper.resumeAndStartInstance(RESUME_INSTANCE_ID)).rejects.toThrow(
+                `Failed to start instance ${RESUME_INSTANCE_ID}: insufficient capacity`,
+            );
+        });
+
+        it("wraps non-Error thrown values (string) into the error message", async () => {
+            ec2Mock.on(StartInstancesCommand).rejects("raw-string-error");
+
+            const ec2Wrapper = new EC2Wrapper();
+            await expect(ec2Wrapper.resumeAndStartInstance(RESUME_INSTANCE_ID)).rejects.toThrow(
+                `Failed to start instance ${RESUME_INSTANCE_ID}:`,
+            );
+        });
+    });
+
+    describe("EC2Wrapper Stop Functions", () => {
+        const mockInstanceId = "i-stop-test";
+
+        const createStopMockInstance = (state: InstanceStateName) => ({
+            InstanceId: mockInstanceId,
+            State: { Name: state },
+            BlockDeviceMappings: [],
+            PublicIpAddress: "1.2.3.4",
+            PrivateIpAddress: "10.0.0.1",
+        });
+
+        beforeEach(() => {
+            resetAllMocks();
+            jest.clearAllMocks();
+        });
+
+        // ── canStop ───────────────────────────────────────────────────────────
+
+        describe("canStop", () => {
+            it("returns true when instance state is 'running'", async () => {
+                ec2Mock.on(DescribeInstancesCommand).resolves({
+                    Reservations: [{ Instances: [createStopMockInstance("running")] }],
+                });
+
+                const ec2Wrapper = new EC2Wrapper();
+                await expect(ec2Wrapper.canStop(mockInstanceId)).resolves.toBe(true);
+            });
+
+            it.each(["pending", "stopping"] as InstanceStateName[])(
+                "returns false for transitional state '%s'",
+                async (state) => {
+                    ec2Mock.on(DescribeInstancesCommand).resolves({
+                        Reservations: [{ Instances: [createStopMockInstance(state)] }],
+                    });
+
+                    const ec2Wrapper = new EC2Wrapper();
+                    await expect(ec2Wrapper.canStop(mockInstanceId)).resolves.toBe(false);
+                },
+            );
+
+            it.each(["shutting-down", "terminated", "stopped"] as InstanceStateName[])(
+                "returns false for terminal/idle state '%s'",
+                async (state) => {
+                    ec2Mock.on(DescribeInstancesCommand).resolves({
+                        Reservations: [{ Instances: [createStopMockInstance(state)] }],
+                    });
+
+                    const ec2Wrapper = new EC2Wrapper();
+                    await expect(ec2Wrapper.canStop(mockInstanceId)).resolves.toBe(false);
+                },
+            );
+
+            it("throws when the instance is in an unknown state", async () => {
+                ec2Mock.on(DescribeInstancesCommand).resolves({
+                    Reservations: [
+                        {
+                            Instances: [
+                                {
+                                    ...createStopMockInstance("running"),
+                                    State: { Name: "mystery-state" as InstanceStateName },
+                                },
+                            ],
+                        },
+                    ],
+                });
+
+                const ec2Wrapper = new EC2Wrapper();
+                await expect(ec2Wrapper.canStop(mockInstanceId)).rejects.toThrow(
+                    "Unknown or unsupported instance state: mystery-state",
+                );
+            });
+
+            it("returns false when the instance does not exist (treats INSTANCE_NOT_FOUND as stopped)", async () => {
+                ec2Mock.on(DescribeInstancesCommand).resolves({ Reservations: [] });
+
+                const ec2Wrapper = new EC2Wrapper();
+                await expect(ec2Wrapper.canStop(mockInstanceId)).resolves.toBe(false);
+            });
+
+            it("rethrows errors unrelated to INSTANCE_NOT_FOUND", async () => {
+                ec2Mock.on(DescribeInstancesCommand).rejects(new Error("some-network-error"));
+
+                const ec2Wrapper = new EC2Wrapper();
+                await expect(ec2Wrapper.canStop(mockInstanceId)).rejects.toThrow(
+                    "some-network-error",
+                );
+            });
+        });
+
+        // ── stopEC2Instance ───────────────────────────────────────────────────
+
+        describe("stopEC2Instance", () => {
+            it("returns { instanceId, status: 'stopped' } without calling StopInstancesCommand when canStop is false", async () => {
+                ec2Mock.on(DescribeInstancesCommand).resolves({
+                    Reservations: [{ Instances: [createStopMockInstance("stopped")] }],
+                });
+
+                const ec2Wrapper = new EC2Wrapper();
+                const result = await ec2Wrapper.stopEC2Instance(mockInstanceId);
+
+                expect(result).toEqual({ instanceId: mockInstanceId, status: "stopped" });
+                expect(ec2Mock.commandCalls(StopInstancesCommand)).toHaveLength(0);
+            });
+
+            it("calls StopInstancesCommand with the correct InstanceIds when the instance is running", async () => {
+                ec2Mock.on(DescribeInstancesCommand).resolves({
+                    Reservations: [{ Instances: [createStopMockInstance("running")] }],
+                });
+                ec2Mock.on(StopInstancesCommand).resolves({
+                    StoppingInstances: [
+                        { InstanceId: mockInstanceId, CurrentState: { Name: "stopping" } },
+                    ],
+                });
+
+                const ec2Wrapper = new EC2Wrapper();
+                await ec2Wrapper.stopEC2Instance(mockInstanceId);
+
+                const calls = ec2Mock.commandCalls(StopInstancesCommand);
+                expect(calls).toHaveLength(1);
+                expect(calls[0].args[0].input).toMatchObject({ InstanceIds: [mockInstanceId] });
+            });
+
+            it("returns the instanceId and status from the StopInstances response", async () => {
+                ec2Mock.on(DescribeInstancesCommand).resolves({
+                    Reservations: [{ Instances: [createStopMockInstance("running")] }],
+                });
+                ec2Mock.on(StopInstancesCommand).resolves({
+                    StoppingInstances: [
+                        { InstanceId: mockInstanceId, CurrentState: { Name: "stopping" } },
+                    ],
+                });
+
+                const ec2Wrapper = new EC2Wrapper();
+                const result = await ec2Wrapper.stopEC2Instance(mockInstanceId);
+
+                expect(result).toEqual({ instanceId: mockInstanceId, status: "stopping" });
+            });
+
+            it("falls back to the input instanceId when InstanceId is absent from the response", async () => {
+                ec2Mock.on(DescribeInstancesCommand).resolves({
+                    Reservations: [{ Instances: [createStopMockInstance("running")] }],
+                });
+                ec2Mock.on(StopInstancesCommand).resolves({
+                    StoppingInstances: [
+                        { InstanceId: undefined, CurrentState: { Name: "stopping" } },
+                    ],
+                });
+
+                const ec2Wrapper = new EC2Wrapper();
+                const result = await ec2Wrapper.stopEC2Instance(mockInstanceId);
+
+                expect(result.instanceId).toBe(mockInstanceId);
+            });
+
+            it("throws STOP_FAILED when StoppingInstances is undefined in the response", async () => {
+                ec2Mock.on(DescribeInstancesCommand).resolves({
+                    Reservations: [{ Instances: [createStopMockInstance("running")] }],
+                });
+                ec2Mock.on(StopInstancesCommand).resolves({ StoppingInstances: undefined });
+
+                const ec2Wrapper = new EC2Wrapper();
+                await expect(ec2Wrapper.stopEC2Instance(mockInstanceId)).rejects.toThrow(
+                    ErrorMessages.STOP_FAILED,
+                );
+            });
+
+            it("throws STOP_FAILED when StoppingInstances is an empty array", async () => {
+                ec2Mock.on(DescribeInstancesCommand).resolves({
+                    Reservations: [{ Instances: [createStopMockInstance("running")] }],
+                });
+                ec2Mock.on(StopInstancesCommand).resolves({ StoppingInstances: [] });
+
+                const ec2Wrapper = new EC2Wrapper();
+                await expect(ec2Wrapper.stopEC2Instance(mockInstanceId)).rejects.toThrow(
+                    ErrorMessages.STOP_FAILED,
+                );
+            });
+
+            it("propagates errors thrown by StopInstancesCommand", async () => {
+                ec2Mock.on(DescribeInstancesCommand).resolves({
+                    Reservations: [{ Instances: [createStopMockInstance("running")] }],
+                });
+                ec2Mock.on(StopInstancesCommand).rejects(new Error("aws-stop-error"));
+
+                const ec2Wrapper = new EC2Wrapper();
+                await expect(ec2Wrapper.stopEC2Instance(mockInstanceId)).rejects.toThrow(
+                    "aws-stop-error",
+                );
             });
         });
     });

@@ -5,9 +5,8 @@ export interface PaymentPlan {
     priceCents: number;
     description: string;
     durationMinutes: number;
+    stripePriceId?: string;
 }
-
-// TODO: Link stripe priceID to each plan to fetch during checkout -> not crucial for MVP and adds complexity
 
 export const PAYMENT_PLANS = {
     STARTER: {
@@ -17,6 +16,7 @@ export const PAYMENT_PLANS = {
         priceCents: 299,
         description: "Perfect for a quick gaming session",
         durationMinutes: 10,
+        stripePriceId: process.env.STRIPE_PRICE_ID_STARTER,
     },
     BASIC: {
         id: "BASIC",
@@ -25,6 +25,7 @@ export const PAYMENT_PLANS = {
         priceCents: 699,
         description: "A solid half-hour session",
         durationMinutes: 30,
+        stripePriceId: process.env.STRIPE_PRICE_ID_BASIC,
     },
     STANDARD: {
         id: "STANDARD",
@@ -33,6 +34,7 @@ export const PAYMENT_PLANS = {
         priceCents: 999,
         description: "A full hour of gaming",
         durationMinutes: 60,
+        stripePriceId: process.env.STRIPE_PRICE_ID_STANDARD,
     },
     PREMIUM: {
         id: "PREMIUM",
@@ -41,6 +43,7 @@ export const PAYMENT_PLANS = {
         priceCents: 2199,
         description: "Extended gaming session",
         durationMinutes: 150,
+        stripePriceId: process.env.STRIPE_PRICE_ID_PREMIUM,
     },
     PRO: {
         id: "PRO",
@@ -49,6 +52,7 @@ export const PAYMENT_PLANS = {
         priceCents: 4299,
         description: "The ultimate gaming marathon",
         durationMinutes: 360,
+        stripePriceId: process.env.STRIPE_PRICE_ID_PRO,
     },
 } as const satisfies Record<string, PaymentPlan>;
 

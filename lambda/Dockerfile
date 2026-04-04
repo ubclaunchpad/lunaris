@@ -1,9 +1,6 @@
 FROM public.ecr.aws/lambda/nodejs:22 AS deps
-ARG NPM_VERSION=11
 
 WORKDIR /app
-
-RUN npm install -g npm@${NPM_VERSION}
 
 COPY package.json package-lock.json ./
 COPY lambda/package.json lambda/tsconfig.json ./lambda/
@@ -12,11 +9,8 @@ RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev --workspace=lambda
 
 FROM public.ecr.aws/lambda/nodejs:22 AS builder
-ARG NPM_VERSION=11
 
 WORKDIR /app
-
-RUN npm install -g npm@${NPM_VERSION}
 
 COPY package.json package-lock.json ./
 COPY lambda/package.json lambda/tsconfig.json ./lambda/

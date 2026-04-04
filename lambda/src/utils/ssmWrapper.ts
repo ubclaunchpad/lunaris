@@ -33,8 +33,10 @@ interface RunDCVParams {
 class SSMWrapper {
     private client: SSMClient;
 
-    constructor() {
-        this.client = new SSMClient();
+    constructor(region?: string) {
+        this.client = new SSMClient({
+            region: region || process.env.LAMBDA_REGION || "us-east-1",
+        });
     }
 
     async runInstall(params: InstallDCVParams): Promise<string> {

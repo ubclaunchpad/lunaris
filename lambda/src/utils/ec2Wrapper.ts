@@ -13,6 +13,8 @@ import {
     type _InstanceType,
     CreateTagsCommand,
     TerminateInstancesCommand,
+    StartInstancesCommand,
+    StopInstancesCommand,
 } from "@aws-sdk/client-ec2";
 import { generateArn } from "./generateArn";
 
@@ -32,9 +34,15 @@ export interface EC2InstanceResult {
     instanceId: string;
     publicIp?: string;
     privateIp?: string;
+    availabilityZone?: string;
     state: string;
     createdAt: string;
     instanceArn: string;
+}
+
+export interface EC2ResumeResult {
+    instanceId: string;
+    status: string;
 }
 
 export interface InstanceDetails {
@@ -55,11 +63,17 @@ export interface TerminateResult {
     wasAlreadyTerminated?: boolean;
 }
 
-const DEFAULT_INSTANCE_TYPE = "t3.small";
+export type StopResult = {
+    instanceId: string;
+    status: string;
+};
+
+export const DEFAULT_INSTANCE_TYPE = "t3.small";
 
 export enum ErrorMessages {
     INSTANCE_NOT_FOUND = "Instance does not exist or is not available",
     TERMINATION_FAILED = "Failed to terminate the instance",
+    STOP_FAILED = "Failed to stop the instance",
     INSTANCE_ALREADY_TERMINATED = "Instance already terminated or terminating",
     WAIT_TERMINATION_FAILED = "Failed to wait for termination of the instance",
     FAILED_GET_INSTANCE_DETAILS = "Failed to retrieve instance details",
@@ -168,6 +182,7 @@ class EC2Wrapper {
                 instanceId: instanceId,
                 publicIp: instance.PublicIpAddress,
                 privateIp: instance.PrivateIpAddress,
+                availabilityZone: instance.Placement?.AvailabilityZone,
                 state: instance.State?.Name || "unknown",
                 createdAt: new Date().toISOString(),
                 instanceArn: generateArn(this.region, instanceId),
@@ -224,6 +239,7 @@ class EC2Wrapper {
                 instanceId: id,
                 publicIp: instance.PublicIpAddress,
                 privateIp: instance.PrivateIpAddress,
+                availabilityZone: instance.Placement?.AvailabilityZone,
                 state: instance.State?.Name || "running",
                 createdAt: createdAt,
                 instanceArn: generateArn(this.region, instanceId),
@@ -259,6 +275,89 @@ class EC2Wrapper {
         }
     }
 
+    async resumeAndStartInstance(instanceId: string): Promise<EC2ResumeResult> {
+        try {
+            const command = new StartInstancesCommand({
+                InstanceIds: [instanceId],
+            });
+            const response = await this.client.send(command);
+
+            return {
+                instanceId,
+                status: response.StartingInstances?.[0]?.CurrentState?.Name || "pending",
+            };
+        } catch (error) {
+            throw new Error(
+                `Failed to start instance ${instanceId}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+        }
+    }
+
+    // EC2 Stop functions
+    async canStop(instanceId: string): Promise<boolean> {
+        try {
+            const instanceDetails = await this.getInstanceDetails(instanceId);
+            const currentState = instanceDetails.state;
+
+            switch (currentState) {
+                case "running":
+                    return true;
+                case "pending":
+                case "stopping":
+                    console.log(
+                        `Instance ${instanceId} is in a pending/stopping state, cannot stop`,
+                    );
+                    return false;
+                case "shutting-down":
+                case "terminated":
+                case "stopped":
+                    console.log(
+                        `Instance ${instanceId} is already terminated/shutting down/stopped.`,
+                    );
+                    return false;
+
+                default:
+                    throw new Error(`Unknown or unsupported instance state: ${currentState}`);
+            }
+        } catch (error: unknown) {
+            // If the instance does not exist, treat it as stopped
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (errorMessage.includes(ErrorMessages.INSTANCE_NOT_FOUND)) {
+                console.log(`Instance ${instanceId} does not exist, treat as stopped.`);
+                return false;
+            }
+            throw error;
+        }
+    }
+
+    async stopEC2Instance(instanceId: string): Promise<StopResult> {
+        try {
+            if (!(await this.canStop(instanceId))) {
+                console.log(`${ErrorMessages.INSTANCE_ALREADY_TERMINATED} ${instanceId}`);
+                return {
+                    instanceId,
+                    status: "stopped",
+                };
+            }
+
+            const command = new StopInstancesCommand({ InstanceIds: [instanceId] });
+            const response = await this.client.send(command);
+            const stoppedInstance = response.StoppingInstances?.[0];
+
+            if (!stoppedInstance) {
+                throw new Error(ErrorMessages.STOP_FAILED);
+            }
+
+            return {
+                instanceId: stoppedInstance.InstanceId || instanceId,
+                status: stoppedInstance.CurrentState?.Name as InstanceStateName,
+            };
+        } catch (error: unknown) {
+            console.error(`${ErrorMessages.STOP_FAILED} for ${instanceId}:`, error);
+            throw error;
+        }
+    }
+
     // --- EC2 Termination Functions ---
     async getInstanceDetails(instanceId: string): Promise<InstanceDetails> {
         try {
@@ -281,6 +380,11 @@ class EC2Wrapper {
                     })) || [],
             };
         } catch (error: unknown) {
+            const errorName = (error as { name?: string }).name;
+            if (errorName === "InvalidInstanceID.NotFound") {
+                throw new Error(`${ErrorMessages.INSTANCE_NOT_FOUND}: ${instanceId}`);
+            }
+
             console.error(`${ErrorMessages.FAILED_GET_INSTANCE_DETAILS} for ${instanceId}:`, error);
             throw error;
         }

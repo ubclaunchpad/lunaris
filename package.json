@@ -39,6 +39,7 @@
         "db:stop": "docker-compose stop dynamodb",
         "db:create-tables": "tsx scripts/init-dynamodb-tables.ts",
         "db:reset": "npm run db:stop && docker-compose rm -f dynamodb && npm run db:start && sleep 2 && npm run db:create-tables",
+        "stripe:dev": "tsx scripts/stripe-dev-server.ts",
         "build:all": "npm run build --workspaces --if-present",
         "test:all": "npm test --workspaces --if-present",
         "install:all": "npm install --workspaces"
@@ -62,7 +63,7 @@
         "eslint-plugin-awscdk": "^4.0.4",
         "eslint-plugin-react": "^7.37.5",
         "globals": "^16.5.0",
-        "prettier": "^3.6.2",
+        "prettier": "^3.8.1",
         "tsx": "^4.20.6",
         "typescript-eslint": "^8.46.3"
     },
