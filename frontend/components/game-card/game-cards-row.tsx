@@ -1,6 +1,20 @@
-import { ReactNode } from "react";
+"use client";
+
+import { ReactNode, useEffect, useState } from "react";
 import { GameCard } from "./game-card";
+import { apiClient, type Game } from "@/lib/api-client";
 import gamesData from "@/lib/data.json";
+
+const fallbackGames: Game[] = gamesData.games.map((g) => ({
+    gameId: g.id,
+    name: g.name,
+    description: "",
+    imageUrl: g.image,
+    tags: g.tags,
+    modes: g.modes,
+    ebsSnapshotId: "",
+    minInstanceType: "",
+}));
 
 interface CarouselProps {
     children: ReactNode;
@@ -19,36 +33,34 @@ const Carousel = ({ children, className = "" }: CarouselProps) => (
     </div>
 );
 
-type GamesDataset = typeof gamesData;
-type Game = GamesDataset["games"][number];
-
-const gameMap: Record<string, Game> = gamesData.games.reduce(
-    (acc, game) => {
-        acc[game.id] = game;
-        return acc;
-    },
-    {} as Record<string, Game>,
-);
-
 interface GameCardsRowProps {
     gameIds?: string[];
 }
 
 export function GameCardsRow({ gameIds }: GameCardsRowProps) {
-    const gamesToRender: Game[] = gameIds?.length
-        ? gameIds.map((id) => gameMap[id]).filter((game): game is Game => Boolean(game))
-        : gamesData.games;
+    const [games, setGames] = useState<Game[]>(fallbackGames);
+
+    useEffect(() => {
+        apiClient
+            .getGames()
+            .then((res) => setGames(res.data))
+            .catch(() => {}); // keep fallback on error
+    }, []);
+
+    const gamesToRender = gameIds?.length
+        ? games.filter((g) => gameIds.includes(g.gameId))
+        : games;
 
     return (
         <Carousel>
             {gamesToRender.map((game) => (
                 <GameCard
-                    key={game.id}
-                    id={game.id}
-                    src={game.image}
+                    key={game.gameId}
+                    id={game.gameId}
+                    src={game.imageUrl}
                     alt={game.name}
                     title={game.name}
-                    modes={game.modes}
+                    modes={game.modes ?? []}
                     tags={game.tags}
                 />
             ))}
