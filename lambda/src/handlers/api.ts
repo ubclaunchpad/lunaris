@@ -112,7 +112,7 @@ const verifyUserBalance = async (
     const balance = await dbWrapper.getItem({ userId });
     const coins = (balance?.coins as number) ?? 0;
     return { hasBalance: coins > 0, coins };
-}
+};
 
 /**
  * List all games from the Games table
