@@ -85,10 +85,7 @@ export function Navbar() {
         function handleOutsideClick(event: MouseEvent) {
             const target = event.target as Node;
 
-            if (
-                !searchRef.current?.contains(target) &&
-                !resultsRef.current?.contains(target)
-            ) {
+            if (!searchRef.current?.contains(target) && !resultsRef.current?.contains(target)) {
                 setSearchFocused(false);
                 setFiltersOpen(false);
             }

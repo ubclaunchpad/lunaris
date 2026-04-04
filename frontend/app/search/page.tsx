@@ -1,7 +1,7 @@
 import Link from "next/link";
 import gamesData from "@/lib/data.json";
 
-type Game = typeof gamesData.games[number];
+type Game = (typeof gamesData.games)[number];
 
 export default async function SearchPage({
     searchParams,
@@ -27,7 +27,9 @@ export default async function SearchPage({
             </h1>
 
             <p className="text-[#fbfff5]/70 mb-10">
-                {q ? `${results.length} result${results.length === 1 ? "" : "s"} found` : "Search for games, tags, or modes."}
+                {q
+                    ? `${results.length} result${results.length === 1 ? "" : "s"} found`
+                    : "Search for games, tags, or modes."}
             </p>
 
             {q && results.length === 0 && (
@@ -37,11 +39,7 @@ export default async function SearchPage({
             {results.length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     {results.map((game) => (
-                        <Link
-                            key={game.id}
-                            href={`/games/${game.id}`}
-                            className="group"
-                        >
+                        <Link key={game.id} href={`/games/${game.id}`} className="group">
                             <div className="overflow-hidden rounded-xl bg-[#1a2328]">
                                 <img
                                     src={game.image}
