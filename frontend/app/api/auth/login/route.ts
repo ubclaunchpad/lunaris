@@ -3,6 +3,7 @@ import {
     CognitoIdentityProviderClient,
     InitiateAuthCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
+import { createCognitoSecretHash, getCognitoErrorMessage } from "@/lib/cognito";
 
 export async function POST(req: Request) {
     const { email, password } = await req.json();
@@ -11,6 +12,7 @@ export async function POST(req: Request) {
         const client = new CognitoIdentityProviderClient({
             region: process.env.NEXT_PUBLIC_COGNITO_REGION,
         });
+        const secretHash = createCognitoSecretHash(email);
 
         const command = new InitiateAuthCommand({
             AuthFlow: "USER_PASSWORD_AUTH",
@@ -18,11 +20,22 @@ export async function POST(req: Request) {
             AuthParameters: {
                 USERNAME: email,
                 PASSWORD: password,
+                ...(secretHash ? { SECRET_HASH: secretHash } : {}),
             },
         });
 
         const response = await client.send(command);
         const result = response.AuthenticationResult;
+
+        if (!result?.IdToken || !result.AccessToken) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    message: "Additional sign-in steps are required for this account.",
+                },
+                { status: 400 },
+            );
+        }
 
         return NextResponse.json({
             success: true,
@@ -32,6 +45,9 @@ export async function POST(req: Request) {
         });
     } catch (err: unknown) {
         console.error("Cognito error:", err);
-        return NextResponse.json({ success: false, message: err.message }, { status: 400 });
+        return NextResponse.json(
+            { success: false, message: getCognitoErrorMessage(err) },
+            { status: 400 },
+        );
     }
 }

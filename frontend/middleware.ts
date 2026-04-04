@@ -6,7 +6,7 @@ export default auth((req) => {
     const { pathname } = req.nextUrl;
 
     // Public routes (accessible without login)
-    const publicRoutes = ["/login", "/about"];
+    const publicRoutes = ["/login", "/register", "/about"];
     const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
 
     // System routes
