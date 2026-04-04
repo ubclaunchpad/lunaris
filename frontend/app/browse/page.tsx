@@ -1,6 +1,36 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Dashboard } from "@/components/dashboard";
+import { GameCard } from "@/components/game-card/game-card";
+import { apiClient, type Game } from "@/lib/api-client";
+import gamesData from "@/lib/data.json";
+
+const fallbackGames: Game[] = gamesData.games.map((g) => ({
+    gameId: g.id,
+    name: g.name,
+    description: g.description || "",
+    imageUrl: g.image,
+    tags: g.tags,
+    modes: g.modes,
+    ebsSnapshotId: "",
+    minInstanceType: "",
+    playable: g.playable,
+}));
 
 export default function BrowsePage() {
+    const [games, setGames] = useState<Game[]>(fallbackGames);
+    const mid = Math.ceil(games.length / 2);
+    const featuredGames = games.slice(0, mid);
+    const popularGames = games.slice(mid);
+
+    useEffect(() => {
+        apiClient
+            .getGames()
+            .then((res) => setGames(res.data))
+            .catch(() => {}); // keep fallback on error
+    }, []);
+
     return (
         <>
             <div className="relative z-0 min-h-screen">
@@ -20,19 +50,15 @@ export default function BrowsePage() {
                         <h2 className="text-2xl font-semibold mb-6">Featured Games</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {featuredGames.map((game) => (
-                                <div key={game.id} className="group cursor-pointer">
-                                    <div className="aspect-video bg-muted rounded-lg mb-3 overflow-hidden">
-                                        <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold text-xl">
-                                            {game.name}
-                                        </div>
-                                    </div>
-                                    <h3 className="font-semibold group-hover:text-primary transition-colors">
-                                        {game.name}
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        {game.genre} • {game.playTime}
-                                    </p>
-                                </div>
+                                <GameCard
+                                    key={game.gameId}
+                                    id={game.gameId}
+                                    src={game.imageUrl}
+                                    alt={game.name}
+                                    title={game.name}
+                                    modes={game.modes ?? []}
+                                    tags={game.tags}
+                                />
                             ))}
                         </div>
                     </section>
@@ -42,19 +68,15 @@ export default function BrowsePage() {
                         <h2 className="text-2xl font-semibold mb-6">Popular Games</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                             {popularGames.map((game) => (
-                                <div key={game.id} className="group cursor-pointer">
-                                    <div className="aspect-video bg-muted rounded-lg mb-3 overflow-hidden">
-                                        <div className="w-full h-full bg-gradient-to-br from-green-500 to-blue-600 flex items-center justify-center text-white font-bold text-xl">
-                                            {game.name}
-                                        </div>
-                                    </div>
-                                    <h3 className="font-semibold group-hover:text-primary transition-colors">
-                                        {game.name}
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        {game.genre} • {game.playTime}
-                                    </p>
-                                </div>
+                                <GameCard
+                                    key={game.gameId}
+                                    id={game.gameId}
+                                    src={game.imageUrl}
+                                    alt={game.name}
+                                    title={game.name}
+                                    modes={game.modes ?? []}
+                                    tags={game.tags}
+                                />
                             ))}
                         </div>
                     </section>
@@ -63,18 +85,3 @@ export default function BrowsePage() {
         </>
     );
 }
-
-// Sample game data
-const featuredGames = [
-    { id: 1, name: "Cyber Adventure", genre: "Action", playTime: "15-30 min" },
-    { id: 2, name: "Space Odyssey", genre: "Sci-Fi", playTime: "30-45 min" },
-    { id: 3, name: "Mystic Quest", genre: "RPG", playTime: "45-60 min" },
-    { id: 4, name: "Racing Thunder", genre: "Racing", playTime: "10-20 min" },
-];
-
-const popularGames = [
-    { id: 5, name: "Battle Royale", genre: "FPS", playTime: "20-40 min" },
-    { id: 6, name: "Puzzle Master", genre: "Puzzle", playTime: "5-15 min" },
-    { id: 7, name: "Fantasy World", genre: "Adventure", playTime: "30-60 min" },
-    { id: 8, name: "Sports Arena", genre: "Sports", playTime: "15-30 min" },
-];

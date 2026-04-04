@@ -1,3 +1,25 @@
+export interface Game {
+    gameId: string;
+    name: string;
+    description: string;
+    imageUrl: string;
+    tags: string[];
+    modes?: string[];
+    ebsSnapshotId: string;
+    minInstanceType: string;
+    playable?: boolean;
+}
+
+export interface GetGamesResponse {
+    message: string;
+    data: Game[];
+}
+
+export interface GetGameResponse {
+    message: string;
+    data: Game;
+}
+
 export interface DeployInstanceRequest {
     userId: string;
 }
@@ -248,6 +270,14 @@ class ApiClient {
         return this.request<GetCheckoutSessionResponse>(`/checkout-session?${params.toString()}`, {
             method: "GET",
         });
+    }
+
+    async getGames(): Promise<GetGamesResponse> {
+        return this.request<GetGamesResponse>("/games");
+    }
+
+    async getGame(gameId: string): Promise<GetGameResponse> {
+        return this.request<GetGameResponse>(`/games/${encodeURIComponent(gameId)}`);
     }
 }
 

@@ -7,6 +7,7 @@ import { ChevronLeft, Gamepad2, Keyboard } from "lucide-react";
 import gamesData from "@/lib/data.json";
 import {
     apiClient,
+    type Game,
     type GetDeploymentStatusResponse,
     type DeploymentStatus,
 } from "@/lib/api-client";
@@ -25,10 +26,33 @@ interface StreamingCredentials {
     instanceId?: string;
 }
 
+function toGame(g: (typeof gamesData.games)[number]): Game {
+    return {
+        gameId: g.id,
+        name: g.name,
+        description: g.description || "",
+        imageUrl: g.image,
+        tags: g.tags,
+        modes: g.modes,
+        ebsSnapshotId: "",
+        minInstanceType: "",
+        playable: g.playable,
+    };
+}
+
 export default function GamePage({ params }: GamePageProps) {
     const router = useRouter();
     const { id } = use(params);
-    const game = gamesData.games.find((g) => g.id === id);
+
+    const fallback = gamesData.games.find((g) => g.id === id);
+    const [game, setGame] = useState<Game | null>(fallback ? toGame(fallback) : null);
+
+    useEffect(() => {
+        apiClient
+            .getGame(id)
+            .then((res) => setGame(res.data))
+            .catch(() => {}); // keep fallback on error
+    }, [id]);
 
     const [userId] = useState("test123"); // TODO: Get from auth context
     const [isDeploying, setIsDeploying] = useState(false);
@@ -235,7 +259,7 @@ export default function GamePage({ params }: GamePageProps) {
             <div className="flex gap-12 mb-16">
                 {/* Game Cover Image */}
                 <div className="w-[489px] h-[321px] rounded-[10px] overflow-hidden shadow-[8px_7px_20px_0px_rgba(0,0,0,0.12)] shrink-0 relative">
-                    <Image src={game.image} alt={game.name} fill className="object-cover" />
+                    <Image src={game.imageUrl} alt={game.name} fill className="object-cover" />
                 </div>
 
                 {/* Game Info */}
@@ -258,7 +282,7 @@ export default function GamePage({ params }: GamePageProps) {
                                 {tag}
                             </div>
                         ))}
-                        {game.modes.map((mode, idx) => (
+                        {(game.modes ?? []).map((mode, idx) => (
                             <div
                                 key={idx}
                                 className="border border-[#e6daf6] text-[#e6daf6] px-4 py-2 rounded-lg font-space-grotesk text-base shadow-[8px_7px_20px_0px_rgba(0,0,0,0.12)]"
