@@ -7,7 +7,8 @@ process.env.STRIPE_SECRET_KEY = "sk_test_mock";
 process.env.USER_DEPLOY_EC2_WORKFLOW_ARN = "arn:aws:states:us-east-1:123:stateMachine:test";
 
 import { APIGatewayProxyEvent } from "aws-lambda";
-import { QueryCommand, PutCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { ConditionalCheckFailedException } from "@aws-sdk/client-dynamodb";
+import { PutCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { dynamoMock, withEnv } from "../utils/dynamoMock";
 
 jest.mock("../../src/utils/stripeWrapper", () => ({
@@ -116,8 +117,6 @@ describe("POST /stripe-webhook", () => {
                 data: { object: mockSession },
             } as unknown as ReturnType<typeof constructWebhookEvent>);
 
-            // Idempotency check — no existing record
-            dynamoMock.on(QueryCommand).resolves({ Items: [] });
             dynamoMock.on(PutCommand).resolves({});
             dynamoMock.on(UpdateCommand).resolves({});
         });
@@ -144,10 +143,12 @@ describe("POST /stripe-webhook", () => {
         });
 
         it("is idempotent — skips duplicate sessions", async () => {
-            // Idempotency check returns an existing record
-            dynamoMock.on(QueryCommand).resolves({
-                Items: [{ userId: "user-123", stripeSessionId: "cs_test_123" }],
-            });
+            dynamoMock.on(PutCommand).rejects(
+                new ConditionalCheckFailedException({
+                    message: "The conditional request failed",
+                    $metadata: {},
+                }),
+            );
 
             const event = makeWebhookEvent();
 
@@ -155,7 +156,8 @@ describe("POST /stripe-webhook", () => {
 
             expect(result.statusCode).toBe(200);
 
-            expect(dynamoMock.commandCalls(PutCommand)).toHaveLength(0);
+            expect(dynamoMock.commandCalls(PutCommand)).toHaveLength(1);
+            expect(dynamoMock.commandCalls(UpdateCommand)).toHaveLength(0);
         });
 
         it("handles missing planId in metadata gracefully", async () => {

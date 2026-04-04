@@ -1,5 +1,5 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { ConditionalCheckFailedException, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
     DynamoDBDocumentClient,
     // UpdateCommand,
@@ -993,18 +993,6 @@ const handleCheckoutCompleted = async (session: Record<string, unknown>): Promis
         return;
     }
 
-    // idempotency check
-    const paymentsDb = new DynamoDBWrapper(USER_PAYMENTS_TABLE_NAME);
-    const existing = await paymentsDb.query({
-        IndexName: "StripeSessionIndex",
-        KeyConditionExpression: "stripeSessionId = :sid",
-        ExpressionAttributeValues: { ":sid": stripeSessionId },
-    });
-    if (existing.length > 0) {
-        console.log(`Payment already recorded for session ${stripeSessionId}, skipping`);
-        return;
-    }
-
     // record plan in log
     const plan = getPaymentPlanById(planId);
     if (!plan) {
@@ -1014,17 +1002,31 @@ const handleCheckoutCompleted = async (session: Record<string, unknown>): Promis
 
     const now = new Date().toISOString();
 
-    await paymentsDb.putItem({
-        userId,
-        createdAt: now,
-        stripeSessionId,
-        stripeCustomerId: stripeCustomerId || "unknown",
-        planId,
-        coins: plan.coins,
-        priceCents: plan.priceCents,
-        status: "completed",
-        customerEmail: customerEmail || "unknown",
-    });
+    // Atomic idempotency: conditional put keyed by stripeSessionId.
+    // ConditionalCheckFailedException means this session was already processed.
+    const paymentsDb = new DynamoDBWrapper(USER_PAYMENTS_TABLE_NAME);
+    try {
+        await paymentsDb.putItem(
+            {
+                stripeSessionId,
+                userId,
+                createdAt: now,
+                stripeCustomerId: stripeCustomerId || "unknown",
+                planId,
+                coins: plan.coins,
+                priceCents: plan.priceCents,
+                status: "completed",
+                customerEmail: customerEmail || "unknown",
+            },
+            { ConditionExpression: "attribute_not_exists(stripeSessionId)" },
+        );
+    } catch (error) {
+        if (error instanceof ConditionalCheckFailedException) {
+            console.log(`Payment already recorded for session ${stripeSessionId}, skipping`);
+            return;
+        }
+        throw error;
+    }
 
     // actually grant coins to end user
     const balancesDb = new DynamoDBWrapper(USER_BALANCES_TABLE_NAME);

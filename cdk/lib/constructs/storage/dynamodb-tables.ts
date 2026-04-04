@@ -98,15 +98,14 @@ export class DynamoDbTables extends Construct {
 
     setupUserPayments(): ITable {
         const table = new Table(this, "UserPayments", {
-            partitionKey: { name: "userId", type: AttributeType.STRING },
-            sortKey: { name: "createdAt", type: AttributeType.STRING },
+            partitionKey: { name: "stripeSessionId", type: AttributeType.STRING },
             billingMode: BillingMode.PAY_PER_REQUEST,
             removalPolicy: RemovalPolicy.RETAIN,
         });
 
         table.addGlobalSecondaryIndex({
-            indexName: "StripeSessionIndex",
-            partitionKey: { name: "stripeSessionId", type: AttributeType.STRING },
+            indexName: "UserIdIndex",
+            partitionKey: { name: "userId", type: AttributeType.STRING },
             projectionType: ProjectionType.ALL,
         });
 
