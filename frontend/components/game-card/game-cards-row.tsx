@@ -47,9 +47,7 @@ export function GameCardsRow({ gameIds }: GameCardsRowProps) {
             .catch(() => {}); // keep fallback on error
     }, []);
 
-    const gamesToRender = gameIds?.length
-        ? games.filter((g) => gameIds.includes(g.gameId))
-        : games;
+    const gamesToRender = gameIds?.length ? games.filter((g) => gameIds.includes(g.gameId)) : games;
 
     return (
         <Carousel>
