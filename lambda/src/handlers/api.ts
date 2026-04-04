@@ -108,9 +108,6 @@ const createResponse = (statusCode: number, body: ResponseBody): APIGatewayProxy
 const verifyUserBalance = async (
     userId: string,
 ): Promise<{ hasBalance: boolean; coins: number }> => {
-    if (!USER_BALANCES_TABLE_NAME) {
-        throw new Error("MissingUserBalancesTable");
-    }
     const dbWrapper = new DynamoDBWrapper(USER_BALANCES_TABLE_NAME);
     const balance = await dbWrapper.getItem({ userId });
     const coins = (balance?.coins as number) ?? 0;
@@ -225,6 +222,12 @@ const handleDeployInstance = async (
 
         if (!userId) {
             return createResponse(400, { message: "User ID is required" });
+        }
+
+        if (!USER_BALANCES_TABLE_NAME) {
+            return createResponse(500, {
+                message: "Internal server error: Balance table not configured",
+            });
         }
 
         // Payment guard: user must have coins to deploy
