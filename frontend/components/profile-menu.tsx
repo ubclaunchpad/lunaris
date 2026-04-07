@@ -1,26 +1,26 @@
-"use client"
+"use client";
 
-import { useEffect, useRef, useState } from "react"
-import { signOut } from "next-auth/react"
-import { LogOut } from "lucide-react"
-import { useUser } from "@/context/usercontext"
+import { useEffect, useRef, useState } from "react";
+import { signOut } from "next-auth/react";
+import { LogOut } from "lucide-react";
+import { useUser } from "@/context/usercontext";
 
 export default function ProfileMenu() {
-    const { email } = useUser()
-    const [open, setOpen] = useState(false)
-    const menuRef = useRef<HTMLDivElement>(null)
+    const { email } = useUser();
+    const [open, setOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         function handleClickOutside(e: MouseEvent) {
             if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-                setOpen(false)
+                setOpen(false);
             }
         }
         if (open) {
-            document.addEventListener("mousedown", handleClickOutside)
+            document.addEventListener("mousedown", handleClickOutside);
         }
-        return () => document.removeEventListener("mousedown", handleClickOutside)
-    }, [open])
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [open]);
 
     return (
         <div ref={menuRef} className="relative">
@@ -29,12 +29,7 @@ export default function ProfileMenu() {
                 className="flex h-12 w-12 items-center justify-center rounded-full border border-[#fbfff5] text-[#fbfff5] transition-colors hover:border-[#e1ff9a] hover:text-[#e1ff9a] focus:outline-none"
                 aria-label="Open user menu"
             >
-                <svg
-                    className="h-6 w-6"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -47,7 +42,9 @@ export default function ProfileMenu() {
             {open && (
                 <div className="absolute right-0 top-full mt-2 w-56 overflow-hidden rounded-xl border border-[#1e2a30] bg-[#0a0e12] shadow-xl ring-1 ring-white/5 z-50">
                     <div className="px-4 py-3">
-                        <p className="text-sm font-medium text-[#fbfff5] truncate">{email || "—"}</p>
+                        <p className="text-sm font-medium text-[#fbfff5] truncate">
+                            {email || "—"}
+                        </p>
                     </div>
 
                     <div className="h-px bg-[#1e2a30]" />
@@ -62,5 +59,5 @@ export default function ProfileMenu() {
                 </div>
             )}
         </div>
-    )
+    );
 }

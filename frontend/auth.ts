@@ -7,7 +7,10 @@ import {
 } from "@aws-sdk/client-cognito-identity-provider";
 import { createCognitoSecretHash, decodeJwtPayload, type CognitoTokenPayload } from "@/lib/cognito";
 
-async function refreshCognitoTokens(refreshToken: string, username: string): Promise<{
+async function refreshCognitoTokens(
+    refreshToken: string,
+    username: string,
+): Promise<{
     accessToken: string;
     idToken: string;
     expiresAt: number;
@@ -147,7 +150,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             if (expiresAt && Date.now() / 1000 > expiresAt - 60) {
                 const refreshToken = token.refreshToken as string | undefined;
                 if (refreshToken) {
-                    const refreshed = await refreshCognitoTokens(refreshToken, token.userId as string ?? "");
+                    const refreshed = await refreshCognitoTokens(
+                        refreshToken,
+                        (token.userId as string) ?? "",
+                    );
                     if (refreshed) {
                         token.accessToken = refreshed.accessToken;
                         token.idToken = refreshed.idToken;
