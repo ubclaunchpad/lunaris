@@ -4,7 +4,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return (
         <>
             <Navbar />
-            <main className="relative z-0 min-h-screen pt-40 px-[58px]">
+            <main className="relative z-0 min-h-screen pt-32 px-[58px]">
                 <div
                     className="pointer-events-none fixed inset-0 -z-10"
                     aria-hidden="true"
