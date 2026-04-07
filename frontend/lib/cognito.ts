@@ -14,9 +14,7 @@ export function createCognitoSecretHash(identifier: string) {
         return undefined;
     }
 
-    return createHmac("sha256", clientSecret)
-        .update(`${identifier}${clientId}`)
-        .digest("base64");
+    return createHmac("sha256", clientSecret).update(`${identifier}${clientId}`).digest("base64");
 }
 
 export function generateCognitoUsername() {

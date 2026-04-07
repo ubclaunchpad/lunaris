@@ -5,11 +5,7 @@ import {
     CognitoIdentityProviderClient,
     InitiateAuthCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
-import {
-    createCognitoSecretHash,
-    decodeJwtPayload,
-    type CognitoTokenPayload,
-} from "@/lib/cognito";
+import { createCognitoSecretHash, decodeJwtPayload, type CognitoTokenPayload } from "@/lib/cognito";
 
 type CredentialsUser = {
     id: string;

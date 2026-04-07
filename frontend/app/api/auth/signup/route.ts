@@ -3,7 +3,11 @@ import {
     CognitoIdentityProviderClient,
     SignUpCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
-import { createCognitoSecretHash, generateCognitoUsername, getCognitoErrorMessage } from "@/lib/cognito";
+import {
+    createCognitoSecretHash,
+    generateCognitoUsername,
+    getCognitoErrorMessage,
+} from "@/lib/cognito";
 
 export async function POST(req: Request) {
     const { email, password } = await req.json();

@@ -43,12 +43,7 @@ function getErrorMessage(error?: string | null, code?: string | null) {
     return "Something went wrong. Please try again.";
 }
 
-export function AuthForm({
-    mode,
-    callbackUrl,
-    initialEmail = "",
-    notice = "",
-}: AuthFormProps) {
+export function AuthForm({ mode, callbackUrl, initialEmail = "", notice = "" }: AuthFormProps) {
     const router = useRouter();
     const [email, setEmail] = useState(initialEmail);
     const [password, setPassword] = useState("");
@@ -227,9 +222,7 @@ export function AuthForm({
                                         placeholder="Enter your password"
                                         value={password}
                                         onChange={(event) => setPassword(event.target.value)}
-                                        autoComplete={
-                                            isLogin ? "current-password" : "new-password"
-                                        }
+                                        autoComplete={isLogin ? "current-password" : "new-password"}
                                         required
                                         className="h-[54px] rounded-[12px] border border-[#9db4ab] bg-[#fbfff5] px-5 pr-14 text-lg leading-[1.5] text-[#12191d] shadow-[8px_7px_20px_0_rgba(0,0,0,0.12)] placeholder:text-[#6b716e] focus-visible:border-[#bbdb9b] focus-visible:ring-[3px] focus-visible:ring-[#bbdb9b]/25 sm:text-[20px]"
                                     />
@@ -248,7 +241,6 @@ export function AuthForm({
                                         )}
                                     </button>
                                 </div>
-
                             </div>
 
                             {!isLogin && (
