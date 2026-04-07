@@ -406,7 +406,7 @@ export default function StreamingTestPage() {
 
     if (showViewer) {
         return (
-            <div className="fixed inset-0 flex flex-col pt-[88px] overflow-hidden z-10">
+            <div className="fixed inset-0 flex flex-col overflow-hidden z-10">
                 {/* Header */}
                 <div className="bg-gray-800 text-white p-2 flex items-center justify-between shrink-0">
                     <span className="font-medium">DCV Viewer - {serverUrl}</span>
@@ -443,7 +443,7 @@ export default function StreamingTestPage() {
     }
 
     return (
-        <div className="fixed inset-0 bg-gray-900 text-white flex items-center justify-center p-4 pt-[88px] z-10">
+        <div className="fixed inset-0 bg-gray-900 text-white flex items-center justify-center p-4 z-10">
             <div className="w-full max-w-md space-y-6">
                 <div className="text-center">
                     <h1 className="text-2xl font-bold mb-2">🖥️ Lunaris Cloud Gaming</h1>

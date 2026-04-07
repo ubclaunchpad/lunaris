@@ -109,10 +109,6 @@ export function Navbar() {
         setFiltersOpen(false);
     }
 
-    if (pathname === "/streaming" || pathname === "/login" || pathname === "/register") {
-        return null;
-    }
-
     return (
         <>
             <nav className="fixed top-0 left-0 right-0 z-50 border-b border-[rgba(255,255,255,0.1)] bg-[#12191d]/95 backdrop-blur-xl">
