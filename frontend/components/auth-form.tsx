@@ -16,7 +16,7 @@ interface AuthFormProps {
     mode: AuthMode;
     callbackUrl?: string;
     initialEmail?: string;
-    showRegisteredMessage?: boolean;
+    notice?: string;
 }
 
 function buildHref(pathname: string, callbackUrl?: string, params?: Record<string, string>) {
@@ -36,24 +36,18 @@ function buildHref(pathname: string, callbackUrl?: string, params?: Record<strin
     return queryString ? `${pathname}?${queryString}` : pathname;
 }
 
-function getErrorMessage(error?: string | null) {
-    if (!error) {
-        return "Something went wrong. Please try again.";
+function getErrorMessage(error?: string | null, code?: string | null) {
+    if (code === "invalid" || error === "CredentialsSignin") {
+        return "Invalid email or password.";
     }
-
-    switch (error) {
-        case "CredentialsSignin":
-            return "Invalid email or password.";
-        default:
-            return error;
-    }
+    return "Something went wrong. Please try again.";
 }
 
 export function AuthForm({
     mode,
     callbackUrl,
     initialEmail = "",
-    showRegisteredMessage = false,
+    notice = "",
 }: AuthFormProps) {
     const router = useRouter();
     const [email, setEmail] = useState(initialEmail);
@@ -102,7 +96,7 @@ export function AuthForm({
                 });
 
                 if (result?.error) {
-                    setError(getErrorMessage(result.error));
+                    setError(getErrorMessage(result.error, result.code));
                     return;
                 }
 
@@ -118,35 +112,19 @@ export function AuthForm({
                 return;
             }
 
-            if (result.userConfirmed) {
-                const signInResult = await signIn("credentials", {
-                    email,
-                    password,
-                    redirect: false,
-                });
+            const signInResult = await signIn("credentials", {
+                email,
+                password,
+                redirect: false,
+            });
 
-                if (signInResult?.error) {
-                    router.replace(
-                        buildHref("/login", callbackUrl, {
-                            registered: "1",
-                            email,
-                        }),
-                    );
-                    router.refresh();
-                    return;
-                }
-
-                router.replace(callbackUrl || "/browse");
+            if (signInResult?.error) {
+                router.replace(buildHref("/login", callbackUrl, { registered: "1", email }));
                 router.refresh();
                 return;
             }
 
-            router.replace(
-                buildHref("/login", callbackUrl, {
-                    registered: "1",
-                    email,
-                }),
-            );
+            router.replace(callbackUrl || "/browse");
             router.refresh();
         } catch (submitError) {
             setError(
@@ -160,7 +138,7 @@ export function AuthForm({
     }
 
     return (
-        <div className="fixed inset-0 overflow-y-auto bg-[#12191d]">
+        <div className="fixed inset-0 overflow-hidden bg-[#12191d]">
             <div
                 className="absolute inset-0"
                 aria-hidden="true"
@@ -175,10 +153,8 @@ export function AuthForm({
                 }}
             />
 
-            <div className="relative z-10 min-h-screen px-6 py-10 sm:px-10 sm:py-11">
-                <div className="h-16 w-16 rounded-full bg-[#fbfff5] sm:h-20 sm:w-20" />
-
-                <div className="mx-auto flex min-h-[calc(100dvh-7rem)] max-w-[810px] items-center justify-center py-12">
+            <div className="relative z-10 flex h-full items-center justify-center px-6 py-6 sm:px-10 sm:py-8">
+                <div className="mx-auto flex h-full w-full max-w-[810px] items-center justify-center">
                     <div className="w-full text-center">
                         <div className="space-y-4">
                             <h1 className="text-3xl font-bold leading-[1.24] text-[#fbfff5] sm:text-[36px]">
@@ -197,16 +173,15 @@ export function AuthForm({
                         </div>
 
                         <form
-                            className="mx-auto mt-12 flex w-full max-w-[518px] flex-col gap-8 text-left sm:mt-[49px]"
+                            className="mx-auto mt-10 flex w-full max-w-[518px] flex-col gap-6 text-left sm:mt-9"
                             onSubmit={handleSubmit}
                         >
-                            {showRegisteredMessage && isLogin && (
+                            {notice && (
                                 <div
                                     className="rounded-xl border border-[#bbdb9b]/35 bg-[#bbdb9b]/10 px-4 py-3 text-sm leading-6 text-[#fbfff5] sm:text-base"
                                     role="status"
                                 >
-                                    Account created. Check your email to verify your address before
-                                    signing in.
+                                    {notice}
                                 </div>
                             )}
 
@@ -274,11 +249,6 @@ export function AuthForm({
                                     </button>
                                 </div>
 
-                                {isLogin && (
-                                    <p className="text-right text-sm leading-[1.5] text-[#fbfff5] sm:text-base">
-                                        Forgot password?
-                                    </p>
-                                )}
                             </div>
 
                             {!isLogin && (

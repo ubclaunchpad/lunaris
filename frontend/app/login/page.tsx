@@ -5,12 +5,15 @@ import { redirect } from "next/navigation";
 export default async function LoginPage({
     searchParams,
 }: {
-    searchParams: Promise<{ callbackUrl?: string; registered?: string; email?: string }>;
+    searchParams: Promise<{
+        callbackUrl?: string;
+        registered?: string;
+        email?: string;
+    }>;
 }) {
     const session = await auth();
     const { callbackUrl, registered, email } = await searchParams;
 
-    // If already logged in, redirect to callback or home
     if (session) {
         redirect(callbackUrl || "/browse");
     }
@@ -20,7 +23,7 @@ export default async function LoginPage({
             mode="login"
             callbackUrl={callbackUrl}
             initialEmail={email}
-            showRegisteredMessage={registered === "1"}
+            notice={registered === "1" ? "Account created. You can sign in now." : ""}
         />
     );
 }

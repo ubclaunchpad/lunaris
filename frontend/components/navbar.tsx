@@ -108,7 +108,11 @@ export function Navbar() {
         setFiltersOpen(false);
     }
 
-    if (pathname === "/streaming" || pathname === "/login" || pathname === "/register") {
+    if (
+        pathname === "/streaming" ||
+        pathname === "/login" ||
+        pathname === "/register"
+    ) {
         return null;
     }
 

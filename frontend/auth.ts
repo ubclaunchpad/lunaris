@@ -1,4 +1,4 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import CognitoProvider from "next-auth/providers/cognito";
 import CredentialsProvider from "next-auth/providers/credentials";
 import {
@@ -8,7 +8,6 @@ import {
 import {
     createCognitoSecretHash,
     decodeJwtPayload,
-    getCognitoErrorMessage,
     type CognitoTokenPayload,
 } from "@/lib/cognito";
 
@@ -74,7 +73,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                         refreshToken: result.RefreshToken,
                     };
                 } catch (error) {
-                    throw new Error(getCognitoErrorMessage(error));
+                    const err = new CredentialsSignin();
+                    err.code = "invalid";
+                    throw err;
                 }
             },
         }),
