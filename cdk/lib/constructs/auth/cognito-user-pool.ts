@@ -1,5 +1,6 @@
 import { Construct } from "constructs";
 import * as cognito from "aws-cdk-lib/aws-cognito";
+import * as lambda from "aws-cdk-lib/aws-lambda";
 import { Duration, RemovalPolicy, CfnOutput } from "aws-cdk-lib";
 
 export class CognitoUserPool extends Construct {
@@ -9,21 +10,28 @@ export class CognitoUserPool extends Construct {
     constructor(scope: Construct, id: string) {
         super(scope, id);
 
+        // Lambda trigger to auto-confirm users on sign-up (no email verification required)
+        const autoConfirmFn = new lambda.Function(this, "AutoConfirmUser", {
+            runtime: lambda.Runtime.NODEJS_22_X,
+            handler: "index.handler",
+            code: lambda.Code.fromInline(`
+                exports.handler = async (event) => {
+                    event.response.autoConfirmUser = true;
+                    event.response.autoVerifyEmail = true;
+                    return event;
+                };
+            `),
+        });
+
         // Create User Pool for user management
         this.userPool = new cognito.UserPool(this, "LunarisUserPool", {
             userPoolName: "lunaris-user-pool",
-            featurePlan: cognito.FeaturePlan.LITE, // low level plan
+            featurePlan: cognito.FeaturePlan.LITE,
             signInCaseSensitive: false,
             selfSignUpEnabled: true,
             signInAliases: {
                 email: true,
                 username: true,
-            },
-            autoVerify: {
-                email: true,
-            },
-            keepOriginal: {
-                email: true,
             },
             standardAttributes: {
                 email: {
@@ -40,6 +48,9 @@ export class CognitoUserPool extends Construct {
             },
             accountRecovery: cognito.AccountRecovery.EMAIL_ONLY,
             removalPolicy: RemovalPolicy.RETAIN,
+            lambdaTriggers: {
+                preSignUp: autoConfirmFn,
+            },
         });
 
         // Add Cognito Domain for OAuth/OIDC flows

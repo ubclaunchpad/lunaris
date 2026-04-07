@@ -3,6 +3,11 @@ import {
     CognitoIdentityProviderClient,
     SignUpCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
+import {
+    createCognitoSecretHash,
+    generateCognitoUsername,
+    getCognitoErrorMessage,
+} from "@/lib/cognito";
 
 export async function POST(req: Request) {
     const { email, password } = await req.json();
@@ -11,24 +16,25 @@ export async function POST(req: Request) {
         const client = new CognitoIdentityProviderClient({
             region: process.env.NEXT_PUBLIC_COGNITO_REGION,
         });
+        const username = generateCognitoUsername();
+        const secretHash = createCognitoSecretHash(username);
 
         const command = new SignUpCommand({
             ClientId: process.env.COGNITO_CLIENT_ID!,
-            Username: email,
+            Username: username,
             Password: password,
-            UserAttributes: [
-                {
-                    Name: "email",
-                    Value: email,
-                },
-            ],
+            ...(secretHash ? { SecretHash: secretHash } : {}),
+            UserAttributes: [{ Name: "email", Value: email }],
         });
 
-        const response = await client.send(command);
+        await client.send(command);
 
-        return NextResponse.json({ success: true, response });
+        return NextResponse.json({ success: true });
     } catch (err: unknown) {
         console.error("Signup error:", err);
-        return NextResponse.json({ success: false, message: err.message }, { status: 400 });
+        return NextResponse.json(
+            { success: false, message: getCognitoErrorMessage(err) },
+            { status: 400 },
+        );
     }
 }
