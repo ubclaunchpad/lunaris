@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useState, useCallback, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ChevronLeft, Gamepad2, Keyboard } from "lucide-react";
@@ -43,6 +44,7 @@ function toGame(g: (typeof gamesData.games)[number]): Game {
 export default function GamePage({ params }: GamePageProps) {
     const router = useRouter();
     const { id } = use(params);
+    const { data: session } = useSession();
 
     const fallback = gamesData.games.find((g) => g.id === id);
     const [game, setGame] = useState<Game | null>(fallback ? toGame(fallback) : null);
@@ -54,9 +56,14 @@ export default function GamePage({ params }: GamePageProps) {
             .catch(() => {}); // keep fallback on error
     }, [id]);
 
-    const [userId] = useState("test123"); // TODO: Get from auth context
+    const userId = session?.user?.id ?? "test123";
+
+    useEffect(() => {
+        apiClient.setToken(session?.idToken ?? null);
+    }, [session?.idToken]);
     const [isDeploying, setIsDeploying] = useState(false);
     const [deploymentStatus, setDeploymentStatus] = useState<string>("");
+    const [deploymentError, setDeploymentError] = useState<string | null>(null);
     const [lastLoggedStep, setLastLoggedStep] = useState<string | null>(null);
     const [credentials, setCredentials] = useState<StreamingCredentials | null>(null);
     const [isFetchingCredentials, setIsFetchingCredentials] = useState(false);
@@ -205,6 +212,7 @@ export default function GamePage({ params }: GamePageProps) {
 
         setIsDeploying(true);
         setDeploymentStatus("Starting deployment...");
+        setDeploymentError(null);
         setLastLoggedStep(null);
         setCredentials(null);
         deployStartedAtRef.current = new Date().toISOString();
@@ -214,9 +222,8 @@ export default function GamePage({ params }: GamePageProps) {
             setDeploymentStatus(`Deployment started: ${response.message}`);
             startPolling();
         } catch (error) {
-            setDeploymentStatus(
-                `Deploy error: ${error instanceof Error ? error.message : "Unknown error"}`,
-            );
+            const message = error instanceof Error ? error.message : "Unknown error";
+            setDeploymentError(`Deploy error: ${message}`);
             setIsDeploying(false);
         }
     };
@@ -337,6 +344,13 @@ export default function GamePage({ params }: GamePageProps) {
                             "Not Available"
                         )}
                     </button>
+                )}
+
+                {/* Deployment Error */}
+                {deploymentError && (
+                    <div className="mt-4 bg-red-900/50 border border-red-700 rounded-lg p-4">
+                        <span className="text-red-300 text-sm">{deploymentError}</span>
+                    </div>
                 )}
 
                 {/* Deployment Status */}

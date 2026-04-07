@@ -7,6 +7,46 @@ import {
 } from "@aws-sdk/client-cognito-identity-provider";
 import { createCognitoSecretHash, decodeJwtPayload, type CognitoTokenPayload } from "@/lib/cognito";
 
+async function refreshCognitoTokens(refreshToken: string, username: string): Promise<{
+    accessToken: string;
+    idToken: string;
+    expiresAt: number;
+} | null> {
+    try {
+        const client = new CognitoIdentityProviderClient({
+            region: process.env.NEXT_PUBLIC_COGNITO_REGION,
+        });
+
+        const secretHash = process.env.COGNITO_CLIENT_SECRET
+            ? createCognitoSecretHash(username)
+            : undefined;
+
+        const command = new InitiateAuthCommand({
+            AuthFlow: "REFRESH_TOKEN_AUTH",
+            ClientId: process.env.COGNITO_CLIENT_ID!,
+            AuthParameters: {
+                REFRESH_TOKEN: refreshToken,
+                ...(secretHash ? { SECRET_HASH: secretHash } : {}),
+            },
+        });
+
+        const response = await client.send(command);
+        const result = response.AuthenticationResult;
+
+        if (!result?.AccessToken || !result?.IdToken) {
+            return null;
+        }
+
+        return {
+            accessToken: result.AccessToken,
+            idToken: result.IdToken,
+            expiresAt: Math.floor(Date.now() / 1000) + (result.ExpiresIn ?? 3600),
+        };
+    } catch {
+        return null;
+    }
+}
+
 type CredentialsUser = {
     id: string;
     email?: string;
@@ -86,11 +126,34 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 token.email = user.email;
                 token.accessToken = credentialsUser.accessToken ?? token.accessToken;
                 token.idToken = credentialsUser.idToken ?? token.idToken;
+                token.refreshToken = credentialsUser.refreshToken ?? token.refreshToken;
+
+                // Store expiry from the decoded ID token
+                if (token.idToken) {
+                    const payload = decodeJwtPayload<{ exp?: number }>(token.idToken as string);
+                    token.expiresAt = payload.exp;
+                }
             }
 
             if (account?.provider === "cognito") {
                 token.accessToken = account.access_token;
                 token.idToken = account.id_token;
+                token.refreshToken = account.refresh_token;
+                token.expiresAt = account.expires_at;
+            }
+
+            // Refresh if token expires within the next 60 seconds
+            const expiresAt = token.expiresAt as number | undefined;
+            if (expiresAt && Date.now() / 1000 > expiresAt - 60) {
+                const refreshToken = token.refreshToken as string | undefined;
+                if (refreshToken) {
+                    const refreshed = await refreshCognitoTokens(refreshToken, token.userId as string ?? "");
+                    if (refreshed) {
+                        token.accessToken = refreshed.accessToken;
+                        token.idToken = refreshed.idToken;
+                        token.expiresAt = refreshed.expiresAt;
+                    }
+                }
             }
 
             return token;
