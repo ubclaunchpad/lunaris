@@ -2,7 +2,7 @@
 
 // import { useRouter } from "next/navigation";
 import { PageHeader, PricingCard, SubscriptionCard } from "./components";
-import { PAYMENT_PLANS } from "../../../lambda/src/shared/payment-plans";
+import { PAYMENT_PLANS } from "@/lib/payment-plans";
 
 export default function TopUpPage() {
     // const router = useRouter();
