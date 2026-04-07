@@ -7,6 +7,7 @@ import { Filter, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import gamesData from "@/lib/data.json";
 import { FilterPanel, type GameFilterState } from "@/components/search/filter-panel";
+import ProfileMenu from "@/components/profile-menu";
 
 type Game = (typeof gamesData.games)[number];
 
@@ -106,10 +107,6 @@ export function Navbar() {
         setSortBy("relevance");
         setSearchFocused(false);
         setFiltersOpen(false);
-    }
-
-    if (pathname === "/streaming" || pathname === "/login" || pathname === "/register") {
-        return null;
     }
 
     return (
@@ -240,25 +237,7 @@ export function Navbar() {
                             )}
                         </div>
 
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-12 w-12 rounded-full border border-[#fbfff5] text-[#fbfff5] hover:text-[#e1ff9a]"
-                        >
-                            <svg
-                                className="h-6 w-6"
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                                />
-                            </svg>
-                        </Button>
+                        <ProfileMenu />
                     </div>
                 </div>
             </nav>

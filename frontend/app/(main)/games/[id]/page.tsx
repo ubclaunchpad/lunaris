@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useState, useCallback, useEffect, useRef } from "react";
+import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ChevronLeft, Gamepad2, Keyboard } from "lucide-react";
@@ -43,6 +44,7 @@ function toGame(g: (typeof gamesData.games)[number]): Game {
 export default function GamePage({ params }: GamePageProps) {
     const router = useRouter();
     const { id } = use(params);
+    const { data: session } = useSession();
 
     const fallback = gamesData.games.find((g) => g.id === id);
     const [game, setGame] = useState<Game | null>(fallback ? toGame(fallback) : null);
@@ -54,9 +56,14 @@ export default function GamePage({ params }: GamePageProps) {
             .catch(() => {}); // keep fallback on error
     }, [id]);
 
-    const [userId] = useState("test123"); // TODO: Get from auth context
+    const userId = session?.user?.id ?? "test123";
+
+    useEffect(() => {
+        apiClient.setToken(session?.idToken ?? null);
+    }, [session?.idToken]);
     const [isDeploying, setIsDeploying] = useState(false);
     const [deploymentStatus, setDeploymentStatus] = useState<string>("");
+    const [deploymentError, setDeploymentError] = useState<string | null>(null);
     const [lastLoggedStep, setLastLoggedStep] = useState<string | null>(null);
     const [credentials, setCredentials] = useState<StreamingCredentials | null>(null);
     const [isFetchingCredentials, setIsFetchingCredentials] = useState(false);
@@ -205,6 +212,7 @@ export default function GamePage({ params }: GamePageProps) {
 
         setIsDeploying(true);
         setDeploymentStatus("Starting deployment...");
+        setDeploymentError(null);
         setLastLoggedStep(null);
         setCredentials(null);
         deployStartedAtRef.current = new Date().toISOString();
@@ -214,9 +222,8 @@ export default function GamePage({ params }: GamePageProps) {
             setDeploymentStatus(`Deployment started: ${response.message}`);
             startPolling();
         } catch (error) {
-            setDeploymentStatus(
-                `Deploy error: ${error instanceof Error ? error.message : "Unknown error"}`,
-            );
+            const message = error instanceof Error ? error.message : "Unknown error";
+            setDeploymentError(`Deploy error: ${message}`);
             setIsDeploying(false);
         }
     };
@@ -249,26 +256,26 @@ export default function GamePage({ params }: GamePageProps) {
         <div>
             <button
                 onClick={() => router.back()}
-                className="flex items-center gap-2 mb-6 text-white hover:text-[#e1ff9a] transition-colors"
+                className="flex items-center gap-2 mb-4 text-white hover:text-[#e1ff9a] transition-colors"
             >
                 <ChevronLeft className="w-6 h-6" />
                 <span className="font-space-grotesk text-xl">Back</span>
             </button>
 
             {/* Game Header Section */}
-            <div className="flex gap-12 mb-16">
+            <div className="flex gap-8 mb-5">
                 {/* Game Cover Image */}
-                <div className="w-[489px] h-[321px] rounded-[10px] overflow-hidden shadow-[8px_7px_20px_0px_rgba(0,0,0,0.12)] shrink-0 relative">
+                <div className="w-[365px] h-[240px] rounded-[10px] overflow-hidden shadow-[8px_7px_20px_0px_rgba(0,0,0,0.12)] shrink-0 relative">
                     <Image src={game.imageUrl} alt={game.name} fill className="object-cover" />
                 </div>
 
                 {/* Game Info */}
                 <div className="flex-1 pt-2">
-                    <h1 className="font-space-grotesk font-bold text-white text-[36px] leading-[1.24] mb-8">
+                    <h1 className="font-space-grotesk font-bold text-white text-[36px] leading-[1.24] mb-4">
                         {game.name}
                     </h1>
 
-                    <p className="font-space-grotesk text-[#fbfff5] text-[14px] leading-[1.5] mb-8">
+                    <p className="font-space-grotesk text-[#fbfff5] text-[14px] leading-[1.5] mb-4">
                         {game.description || "No description available."}
                     </p>
 
@@ -295,7 +302,7 @@ export default function GamePage({ params }: GamePageProps) {
             </div>
 
             {/* Play / Stream Button */}
-            <div className="mb-12">
+            <div className="mb-5">
                 {credentials ? (
                     <button
                         onClick={handleStartStreaming}
@@ -339,6 +346,13 @@ export default function GamePage({ params }: GamePageProps) {
                     </button>
                 )}
 
+                {/* Deployment Error */}
+                {deploymentError && (
+                    <div className="mt-4 bg-red-900/50 border border-red-700 rounded-lg p-4">
+                        <span className="text-red-300 text-sm">{deploymentError}</span>
+                    </div>
+                )}
+
                 {/* Deployment Status */}
                 {(isDeploying || isFetchingCredentials) && deploymentStatus && (
                     <div className="mt-4 bg-blue-900/50 border border-blue-700 rounded-lg p-4">
@@ -367,7 +381,7 @@ export default function GamePage({ params }: GamePageProps) {
             </div>
 
             {/* Game Details */}
-            <div className="grid grid-cols-2 gap-16 mb-16">
+            <div className="grid grid-cols-2 gap-16">
                 <div className="font-space-grotesk text-[#fbfff5] text-base space-y-2">
                     <p>
                         <span className="font-bold">Publisher:</span> Electronic Arts

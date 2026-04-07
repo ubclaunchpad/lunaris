@@ -34,8 +34,6 @@ export default function BrowsePage() {
     return (
         <>
             <div className="relative z-0 min-h-screen">
-                <Dashboard />
-
                 {/* Main Content */}
                 <main className="container py-8">
                     <div className="mb-8">

@@ -127,6 +127,11 @@ export class NetworkError extends Error {
 class ApiClient {
     private baseUrl: string;
     private isDevelopment: boolean;
+    private token: string | null = null;
+
+    setToken(token: string | null) {
+        this.token = token;
+    }
 
     constructor() {
         this.baseUrl =
@@ -173,12 +178,16 @@ class ApiClient {
 
     private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
         const url = `${this.baseUrl}${endpoint}`;
+        const headers: Record<string, string> = {
+            "Content-Type": "application/json",
+            ...(options.headers as Record<string, string>),
+        };
+        if (this.token) {
+            headers["Authorization"] = `Bearer ${this.token}`;
+        }
         const requestOptions: RequestInit = {
             ...options,
-            headers: {
-                "Content-Type": "application/json",
-                ...options.headers,
-            },
+            headers,
         };
 
         if (this.isDevelopment) {

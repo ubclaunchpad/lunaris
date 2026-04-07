@@ -6,6 +6,8 @@ import {
     AuthorizationType,
     Cors,
     MethodOptions,
+    GatewayResponse,
+    ResponseType,
 } from "aws-cdk-lib/aws-apigateway";
 import { Function } from "aws-cdk-lib/aws-lambda";
 import * as cognito from "aws-cdk-lib/aws-cognito";
@@ -93,8 +95,30 @@ export class ApiGateway extends Construct {
                     "X-Api-Key",
                     "X-Amz-Security-Token",
                 ],
-                allowCredentials: true,
+                // allowCredentials must NOT be true when allowOrigins is '*'
             },
+        });
+
+        // API Gateway strips CORS headers from 4XX responses produced by the
+        // authorizer before the integration ever runs.  These GatewayResponses
+        // re-add the headers so the browser sees a proper CORS error instead of
+        // the opaque "CORS header missing" message.
+        const corsHeaders = {
+            "Access-Control-Allow-Origin": "'*'",
+            "Access-Control-Allow-Headers":
+                "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'",
+        };
+
+        new GatewayResponse(this, "UnauthorizedGatewayResponse", {
+            restApi: this.restApi,
+            type: ResponseType.UNAUTHORIZED,
+            responseHeaders: corsHeaders,
+        });
+
+        new GatewayResponse(this, "Default4xxGatewayResponse", {
+            restApi: this.restApi,
+            type: ResponseType.DEFAULT_4XX,
+            responseHeaders: corsHeaders,
         });
 
         if (props.userPool) {
