@@ -48,6 +48,7 @@ const docClient = DynamoDBDocumentClient.from(dynamoClient);
 // Environment variables
 const RUNNING_INSTANCES_TABLE_NAME = process.env.RUNNING_INSTANCES_TABLE_NAME || "";
 const RUNNING_STREAMS_TABLE_NAME = process.env.RUNNING_STREAMS_TABLE_NAME || "";
+const GAMES_TABLE_NAME = process.env.GAMES_TABLE_NAME || "";
 const USER_DEPLOY_EC2_WORKFLOW_ARN = process.env.USER_DEPLOY_EC2_WORKFLOW_ARN || "";
 const TERMINATE_WORKFLOW_ARN = process.env.TERMINATE_WORKFLOW_ARN || "";
 const USER_PAYMENTS_TABLE_NAME = process.env.USER_PAYMENTS_TABLE_NAME || "";
@@ -62,12 +63,14 @@ interface GameItem {
     imageUrl: string;
     tags: string[];
     modes?: string[];
-    ebsSnapshotId: string;
+    amiId: string;
     minInstanceType: string;
+    ebsSnapshotId?: string; // optional, retained for future EBS-based approaches
 }
 
 interface DeployInstanceRequest {
     userId: string;
+    gameId: string;
 }
 
 interface TerminateInstanceRequest {
@@ -214,7 +217,7 @@ const handleDeployInstance = async (
 ): Promise<APIGatewayProxyResult> => {
     try {
         const body: DeployInstanceRequest = JSON.parse(event.body || "{}");
-        const { userId } = body;
+        const { userId, gameId } = body;
 
         if (!RUNNING_INSTANCES_TABLE_NAME) {
             throw new Error("MissingRunningInstancesTable");
@@ -222,6 +225,31 @@ const handleDeployInstance = async (
 
         if (!userId) {
             return createResponse(400, { message: "User ID is required" });
+        }
+
+        if (!gameId) {
+            return createResponse(400, { message: "Game ID is required" });
+        }
+
+        const gamesTableName = process.env.GAMES_TABLE_NAME || "";
+        if (!gamesTableName) {
+            return createResponse(500, { message: "Internal server error: Games table not configured" });
+        }
+
+        // Look up the game to get its AMI ID and instance type
+        const gameResult = await docClient.send(new GetCommand({
+            TableName: gamesTableName,
+            Key: { gameId },
+        }));
+
+        const game = gameResult.Item as GameItem | undefined;
+
+        if (!game) {
+            return createResponse(404, { message: `Game '${gameId}' not found` });
+        }
+
+        if (!game.amiId) {
+            return createResponse(400, { message: `Game '${gameId}' has no AMI configured` });
         }
 
         if (!USER_BALANCES_TABLE_NAME) {
@@ -245,7 +273,10 @@ const handleDeployInstance = async (
         }
 
         const stepFunctionInput = {
-            userId: userId,
+            userId,
+            gameId,
+            amiId: game.amiId,
+            instanceType: game.minInstanceType,
         };
 
         const executionName = `${userId}-${Date.now()}`;

@@ -8,6 +8,7 @@ type UpdateRunningInstancesEvent = {
     instanceArn: string;
     ebsVolumeId?: string;
     userId: string;
+    gameId?: string;
     creationTime: string;
 };
 
@@ -38,6 +39,7 @@ export const handler = async (
             instanceArn: event.instanceArn,
             ebsVolumeId: event.ebsVolumeId,
             userId: event.userId,
+            gameId: event.gameId,
             creationTime: event.creationTime,
             status: "running",
             lastModifiedTime: now,
@@ -68,6 +70,11 @@ export const handler = async (
         if (payload.ebsVolumeId) {
             expressionAttributeValues[":ebsVolumeId"] = payload.ebsVolumeId;
             setExpressions.push("ebsVolumeId = :ebsVolumeId");
+        }
+
+        if (payload.gameId) {
+            expressionAttributeValues[":gameId"] = payload.gameId;
+            setExpressions.push("gameId = :gameId");
         }
 
         const updateExpression = `SET ${setExpressions.join(", ")}`;

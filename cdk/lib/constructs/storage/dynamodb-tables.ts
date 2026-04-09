@@ -60,8 +60,8 @@ export class DynamoDbTables extends Construct {
     }
 
     /**
-     * Schema: instanceId (PK), instanceArn, ebsVolumes (list), creationTime,
-     *         status, region, instanceType, lastModifiedTime, userId,
+     * Schema: instanceId (PK), instanceArn, ebsVolumeId, creationTime,
+     *         status, region, instanceType, lastModifiedTime, userId, gameId,
      *         executionArn (optional - stores Step Function execution ARN for termination workflows)
      */
     setupRunningInstances(): ITable {
@@ -122,6 +122,18 @@ export class DynamoDbTables extends Construct {
         return table;
     }
 
+    /*
+     * Games Table Schema:
+     * - gameId (string) - Partition Key
+     * - name (string)
+     * - description (string)
+     * - imageUrl (string)
+     * - tags (string[])
+     * - modes? (string[])
+     * - amiId (string) - AMI ID to launch for this game
+     * - minInstanceType (string) - e.g. "g4dn.xlarge"
+     * - ebsSnapshotId? (string) - optional, retained for future EBS-based approaches
+     */
     setupGamesTable(): ITable {
         const table = new Table(this, "Games", {
             partitionKey: { name: "gameId", type: AttributeType.STRING },

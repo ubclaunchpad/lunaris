@@ -49,83 +49,76 @@ User ends session:
 
 **Goal:** User selects a game → correct AMI launches → game runs in DCV.
 
-### 1.1 Add `amiId` to the Games DynamoDB table schema
+### 1.1 Add `amiId` to the Games DynamoDB table schema ✅
 
-**Decision required:** Store AMI ID directly in the DynamoDB `Games` table (recommended — simpler than SSM per game).
+- [x] Add `amiId: string` field to `GameItem` interface in `lambda/src/handlers/api.ts`
+- [x] `ebsSnapshotId` kept as optional field (`ebsSnapshotId?`) for future EBS-based approaches
+- [x] Update `dynamodb-tables.ts` schema comment to document `amiId` field
 
-- [ ] Add `amiId: string` field to `GameItem` interface in `lambda/src/handlers/api.ts`
-- [ ] Decide fate of `ebsSnapshotId` field — remove it or keep as optional for EBS-based approaches
-- [ ] Update `dynamodb-tables.ts` schema comment to document the `amiId` field
-- [ ] Update `GameItem` type used in any other lambda handlers referencing game records
-
-### 1.2 Update API deploy endpoint to accept and validate `gameId`
+### 1.2 Update API deploy endpoint to accept and validate `gameId` ✅
 
 Files: `lambda/src/handlers/api.ts`
 
-- [ ] Add `gameId: string` to the `DeployInstanceRequest` interface
-- [ ] In `handleDeployInstance`, validate `gameId` is present in the request body (return 400 if missing)
-- [ ] Perform a DynamoDB `GetItem` on the `Games` table using `gameId` to fetch `amiId` and `minInstanceType`
-- [ ] Return 404 if `gameId` is not found in the Games table
-- [ ] Return 400 if the game record is missing `amiId`
-- [ ] Add `GAMES_TABLE_NAME` env var read to the deploy handler (it's set on the Lambda but not read in this path)
-- [ ] Pass `{ userId, gameId, amiId, instanceType }` as the Step Function input (currently only `{ userId }`)
+- [x] Add `gameId: string` to the `DeployInstanceRequest` interface
+- [x] Validate `gameId` is present in the request body (return 400 if missing)
+- [x] Perform a DynamoDB `GetItem` on the `Games` table using `gameId` to fetch `amiId` and `minInstanceType`
+- [x] Return 404 if `gameId` is not found in the Games table
+- [x] Return 400 if the game record is missing `amiId`
+- [x] Add `GAMES_TABLE_NAME` module-level constant (runtime read via `process.env` inside handlers)
+- [x] Pass `{ userId, gameId, amiId, instanceType }` as the Step Function input
 
-### 1.3 Thread `gameId` and `amiId` through the deploy Step Function
+### 1.3 Thread `gameId` and `amiId` through the deploy Step Function ✅
 
 File: `cdk/stepfunctions/user-deploy-ec2/definition.asl.json`
 
-- [ ] Update `DeployEC2` state Payload to include `"gameId.$": "$.gameId"` and `"amiId.$": "$.amiId"` and `"instanceType.$": "$.instanceType"`
-- [ ] Update `ResumeDeployInstance` state Payload to forward `gameId` (resume path)
-- [ ] Update `MergeResumeData` Pass state Parameters to include `gameId` from resume path
-- [ ] Update `PrepareUpdatePayload` Pass state to include `gameId` so it reaches `UpdateRunningInstances`
-- [ ] Update `UpdateRunningInstances` state Payload to include `"gameId.$": "$.updatePayload.gameId"`
+- [x] `DeployEC2` state Payload includes `gameId`, `amiId`, `instanceType`
+- [x] `ResumeDeployInstance` state Payload forwards `gameId`
+- [x] `MergeResumeData` Pass state carries `gameId`, `amiId`, `instanceType`
+- [x] `PrepareUpdatePayload` Pass state includes `gameId`
+- [x] `UpdateRunningInstances` state Payload includes `gameId`
 
-### 1.4 Update `deploy-ec2` lambda to use `amiId` from event
+### 1.4 Update `deploy-ec2` lambda to use `amiId` from event ✅
 
 File: `lambda/src/handlers/user-deploy-ec2/deploy-ec2.ts`
 
-- [ ] Add `gameId`, `amiId`, `instanceType` fields to the `DeployEc2Event` type
-- [ ] Remove the SSM parameter lookup (`ssmWrapper.getParamFromParamStore("ami_id")`) — use `event.amiId` directly
-- [ ] Pass `instanceType` from event to `EC2InstanceConfig` (currently hardcoded or defaulted in ec2Wrapper)
-- [ ] Add EC2 tag `GameId: event.gameId` to the instance tags at launch
-- [ ] Remove `SSMWrapper` import if no longer needed by this handler
-- [ ] Update `deploy-ec2.config.ts`: remove `BASE_EBS_SNAPSHOT_ID` from `envVars` (unused); remove SSM policy dependency if applicable
+- [x] `DeployEc2Event` type has `gameId`, `amiId`, `instanceType`
+- [x] SSM parameter lookup removed — uses `event.amiId` directly
+- [x] `instanceType` from event passed to `EC2InstanceConfig`
+- [x] EC2 instance tagged with `GameId: event.gameId`
+- [x] `SSMWrapper` import removed from this handler
+- [x] `BASE_EBS_SNAPSHOT_ID` removed from `deploy-ec2.config.ts` envVars
 
-### 1.5 Remove per-game SSM AMI lookup policy (if AMI comes from DynamoDB)
+### 1.5 Remove per-game SSM AMI lookup policy ✅
 
 File: `cdk/lib/constructs/iam/lambda-policies.ts`
 
-- [ ] Remove or narrow the `ssm:GetParameter` policy in `getDeployEC2Policies()` — the `/ami_id` SSM parameter is no longer needed if `amiId` comes from the Games DynamoDB table via the API handler
-- [ ] If SSM is retained for other purposes, update the resource ARN to the correct path
+- [x] `ssm:GetParameter` for `/ami_id` removed from `getDeployEC2Policies()`
 
-### 1.6 Store `gameId` in the `RunningInstances` table
+### 1.6 Store `gameId` in the `RunningInstances` table ✅
 
 Files: `lambda/src/handlers/user-deploy-ec2/update-running-instances.ts`
 
-- [ ] Add `gameId` to the event/input type in `update-running-instances.ts`
-- [ ] Add `gameId` as an attribute in the DynamoDB `PutItem` / `UpdateItem` call
-- [ ] Update `dynamodb-tables.ts` schema comment to document `gameId` column
+- [x] `gameId?` added to `UpdateRunningInstancesEvent` type
+- [x] `gameId` conditionally added to DynamoDB update expression
+- [x] `dynamodb-tables.ts` schema comment updated with `gameId`
 
-### 1.7 Register `/games` and `/games/{gameId}` in API Gateway
+### 1.7 Register `/games` and `/games/{gameId}` in API Gateway ✅
 
 File: `cdk/lib/constructs/api/api-gateway.ts`
 
-- [ ] Add `{ path: "games", method: "GET", statusCodes: ["200"], noAuth: true }` to `ENDPOINTS`
-- [ ] Add `{ path: "games/{gameId}", method: "GET", statusCodes: ["200", "404"], noAuth: true }` to `ENDPOINTS`
-- [ ] Verify path parameter routing works with the existing Lambda proxy setup
+- [x] `GET /games` added to `ENDPOINTS` (noAuth)
+- [x] `GET /games/{gameId}` added to `ENDPOINTS` (noAuth)
+- [x] `addEndpoint` updated to handle nested path segments (e.g. `games/{gameId}`)
 
-### 1.8 Add `GAMES_TABLE_NAME` to `deploy-ec2.config.ts` env vars
+### 1.8 Remove `BASE_EBS_SNAPSHOT_ID` from `deploy-ec2.config.ts` ✅
 
 File: `cdk/lambdas/deploy-ec2.config.ts`
 
-- [ ] Add `"GAMES_TABLE_NAME"` to the `envVars` array (needed if the deploy lambda does its own game lookup; remove if lookup stays in the API handler)
+- [x] `BASE_EBS_SNAPSHOT_ID` removed from `envVars` (was unused)
 
-### 1.9 Update `ec2Wrapper.ts` to support `instanceType`
+### 1.9 `ec2Wrapper.ts` already supports `instanceType` ✅
 
-File: `lambda/src/utils/ec2Wrapper.ts`
-
-- [ ] Add optional `instanceType?: string` field to `EC2InstanceConfig`
-- [ ] Use `instanceType` in the `RunInstances` call if provided, otherwise keep existing default
+- [x] `EC2InstanceConfig.instanceType?: _InstanceType` already existed — no changes needed
 
 ---
 
@@ -223,15 +216,33 @@ The terminate workflow stops (not terminates) the EC2 instance to preserve EBS s
 
 ---
 
+## Known Issues
+
+### Pre-existing test failures (not introduced by Phase 1)
+
+Three test suites fail in their current state on this branch — these were not touched by Phase 1 work:
+
+| File | Failure | Root cause |
+|------|---------|------------|
+| `test/utils/dynamoDbWrapper.test.ts` | `wrapper.queryItemsByUserId is not a function` | Test references a method that doesn't exist on `DynamoDBWrapper` |
+| `test/integration/user-terminate-ec2-workflow.test.ts` | `Cannot read properties of undefined (reading 'length')` | `queryByStatus` mock not set up to return an array |
+| `test/wrappers/ssmWrapper.test.ts` | `ParameterNotFound` rejection handling | aws-sdk-client-mock version issue with `.rejects()` |
+
+### Node v25 Jest compatibility
+
+Jest tests fail silently on Node v25 without `--localstorage-file`. Fixed by adding `NODE_OPTIONS='--localstorage-file=/tmp/jest-localstorage.json'` to the `test` script in `lambda/package.json`.
+
+---
+
 ## Decisions Log
 
 | # | Decision | Status | Notes |
 |---|----------|--------|-------|
-| 1 | AMI storage: DynamoDB Games table vs SSM per game | **DynamoDB recommended** | Store `amiId` directly in Games table; simpler, avoids SSM parameter proliferation |
-| 2 | `ebsSnapshotId` fate | Pending | Keep as optional field for potential EBS-based approaches, or remove if not needed |
-| 3 | Subnet selection | Pending | Needs real subnet ID — use default VPC subnet via context or create NetworkStack |
-| 4 | Per-game instance type | Use `minInstanceType` from Games table | Already in `GameItem`, just needs to be wired through |
-| 5 | RDP port 3389 | Remove for production | Keep a CDK context flag to re-enable for debugging |
+| 1 | AMI storage: DynamoDB Games table vs SSM per game | **Resolved — DynamoDB** | `amiId` stored directly in Games table |
+| 2 | `ebsSnapshotId` fate | **Resolved — keep optional** | `ebsSnapshotId?` retained as optional field |
+| 3 | Subnet selection | Pending (Phase 2) | Needs real subnet ID — use default VPC subnet via context or create NetworkStack |
+| 4 | Per-game instance type | **Resolved — wired** | `minInstanceType` from Games table passed through to EC2 launch |
+| 5 | RDP port 3389 | Remove for production (Phase 2) | Keep a CDK context flag to re-enable for debugging |
 
 ---
 

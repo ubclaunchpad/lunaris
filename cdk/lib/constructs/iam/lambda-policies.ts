@@ -20,11 +20,6 @@ export function getDeployEC2Policies(): PolicyStatement[] {
     return [
         new PolicyStatement({
             effect: Effect.ALLOW,
-            actions: ["ssm:GetParameter"],
-            resources: ["arn:aws:ssm:*:*:parameter/ami_id"],
-        }),
-        new PolicyStatement({
-            effect: Effect.ALLOW,
             actions: [
                 "ec2:RunInstances",
                 "ec2:CreateVolume",

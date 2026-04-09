@@ -65,6 +65,18 @@ const ENDPOINTS: EndpointDefinition[] = [
         statusCodes: ["200", "400"],
         noAuth: true,
     },
+    {
+        path: "games",
+        method: "GET",
+        statusCodes: ["200", "500"],
+        noAuth: true,
+    },
+    {
+        path: "games/{gameId}",
+        method: "GET",
+        statusCodes: ["200", "400", "404", "500"],
+        noAuth: true,
+    },
 ];
 
 const RESPONSE_MODELS: Record<string, Record<string, { modelId: string }>> = {
@@ -136,10 +148,12 @@ export class ApiGateway extends Construct {
     }
 
     private addEndpoint(integration: LambdaIntegration, endpoint: EndpointDefinition): void {
-        const resource =
-            // doing this getResource check first to avoid creating duplicate resources if multiple endpoint share the same path name (e.g. /checkout-session GET and POST)
-            this.restApi.root.getResource(endpoint.path) ??
-            this.restApi.root.addResource(endpoint.path);
+        // Support nested paths (e.g. "games/{gameId}") by traversing each segment
+        const segments = endpoint.path.split("/");
+        let resource = this.restApi.root.getResource(segments[0]) ?? this.restApi.root.addResource(segments[0]);
+        for (let i = 1; i < segments.length; i++) {
+            resource = resource.getResource(segments[i]) ?? resource.addResource(segments[i]);
+        }
 
         const useAuth = this.authorizer && !endpoint.noAuth;
 
