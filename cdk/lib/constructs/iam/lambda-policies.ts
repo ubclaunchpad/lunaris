@@ -37,11 +37,6 @@ export function getDeployEC2Policies(): PolicyStatement[] {
         }),
         new PolicyStatement({
             effect: Effect.ALLOW,
-            actions: ["iam:PassRole"],
-            resources: ["*"],
-        }),
-        new PolicyStatement({
-            effect: Effect.ALLOW,
             actions: [
                 "ssm:SendCommand",
                 "ssm:GetCommandInvocation",

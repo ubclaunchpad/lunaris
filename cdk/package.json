@@ -11,7 +11,7 @@
         "build:cdk": "tsc",
         "copy-assets": "node scripts/copy-stepfunctions.js",
         "watch": "tsc -w",
-        "test": "jest",
+        "test": "NODE_OPTIONS='--localstorage-file=/tmp/jest-localstorage.json' jest",
         "clean": "node -e \"const fs=require('fs');if(fs.existsSync('dist'))fs.rmSync('dist',{recursive:true,force:true})\"",
         "prebuild": "npm run clean",
         "cdk": "cdk",

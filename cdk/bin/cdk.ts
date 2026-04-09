@@ -24,6 +24,7 @@ const storageStack = new StorageStack(app, "StorageStack");
 const computeStack = new ComputeStack(app, "ComputeStack", {
     ec2InstanceProfileArn: iamStack.ec2InstanceProfileArn,
     ec2InstanceProfileName: iamStack.ec2InstanceProfileName,
+    ec2InstanceRoleArn: iamStack.ec2InstanceRoleArn,
     runningInstancesTable: storageStack.runningInstancesTable,
     runningStreamsTable: storageStack.runningStreamsTable,
     userPaymentsTable: storageStack.userPaymentsTable,

@@ -122,46 +122,49 @@ File: `cdk/lambdas/deploy-ec2.config.ts`
 
 ---
 
-## Phase 2 — Networking & Infrastructure Hardening
+## Phase 2 — Networking & Infrastructure Hardening ✅
 
 **Goal:** Remove placeholders, make the stack cleanly deployable to a real AWS account.
 
-### 2.1 Fix hardcoded placeholder subnet in `compute-stack.ts`
+### 2.1 Fix hardcoded placeholder subnet in `compute-stack.ts` ✅
 
-File: `cdk/lib/compute-stack.ts:124`
+File: `cdk/lib/compute-stack.ts`
 
-- [ ] Remove or correct the IAM policy that references `subnet-12345678` — this resource ARN is non-functional
-- [ ] Either delete the overly-scoped subnet policy (the broader `ec2:RunInstances` on `"*"` in `lambda-policies.ts` already covers launch), or replace with a real subnet ARN from context/SSM
+- [x] Removed the IAM policy block that referenced `subnet-12345678` — the API Lambda does not call EC2 directly (it starts Step Functions), so the policy was both incorrect and redundant
 
-### 2.2 Pass `SUBNET_ID` to the deploy lambda
+### 2.2 Pass `SUBNET_ID` and `KEY_PAIR_NAME` to the deploy lambda ✅
 
 Files: `lambda-types.ts`, `lambda-functions.ts`, `deploy-ec2.config.ts`, `compute-stack.ts`
 
-- [ ] Add `SUBNET_ID?: string` to `LambdaEnvVarProvider` in `lambda-types.ts`
-- [ ] Add `subnetId?: string` to `LambdaFunctionsProps` in `lambda-functions.ts` and wire it into the env var provider
-- [ ] Add `"SUBNET_ID"` to `envVars` in `deploy-ec2.config.ts`
-- [ ] Pass actual subnet ID into `ComputeStack` (from CDK context, SSM lookup, or hardcoded for now)
+- [x] Added `SUBNET_ID?: string` and `KEY_PAIR_NAME?: string` to `LambdaEnvVarProvider` in `lambda-types.ts`
+- [x] Added `subnetId?: string` and `keyPairName?: string` to `LambdaFunctionsProps` in `lambda-functions.ts` and wired into `buildEnvVarProvider`
+- [x] Added `"SUBNET_ID"` and `"KEY_PAIR_NAME"` to `envVars` in `deploy-ec2.config.ts`
+- [x] `compute-stack.ts` reads `subnetId` and `keyPairName` from `this.node.tryGetContext()` and passes them to `LambdaFunctions`
 
-### 2.3 Scope `iam:PassRole` policy
+### 2.3 Scope `iam:PassRole` policy ✅
 
-File: `cdk/lib/constructs/iam/lambda-policies.ts:46`
+Files: `cdk/lib/iam-stack.ts`, `cdk/lib/compute-stack.ts`, `cdk/lib/constructs/iam/lambda-policies.ts`, `cdk/bin/cdk.ts`
 
-- [ ] Change `resources: ["*"]` on the `iam:PassRole` statement to the specific EC2 instance role ARN (use CDK token/export from `IAMStack`)
-- [ ] Wire the instance role ARN through to `LambdaFunctionsProps` or use `Fn.importValue`
+- [x] Removed unscoped `iam:PassRole resources: ["*"]` from `getDeployEC2Policies()` in `lambda-policies.ts`
+- [x] Exported `ec2InstanceRoleArn` from `IAMStack` (via `ec2InstanceRole.role.roleArn`)
+- [x] Added `ec2InstanceRoleArn` to `ComputeStackProps` and wired from `bin/cdk.ts`
+- [x] Added scoped `iam:PassRole` on `deployEC2Function` in `compute-stack.ts`, resource scoped to `props.ec2InstanceRoleArn`
 
-### 2.4 Restrict or remove RDP port 3389 from DCV security group
+### 2.4 Restrict or remove RDP port 3389 from DCV security group ✅
 
-File: `cdk/lib/constructs/compute/dcv-security-group.ts:43`
+File: `cdk/lib/constructs/compute/dcv-security-group.ts`
 
-- [ ] Remove the port 3389 ingress rule for production, or restrict to a specific admin CIDR via CDK context parameter
-- [ ] Document the decision in a comment
+- [x] Port 3389 rule removed by default (production safe)
+- [x] Rule added conditionally if CDK context `adminCidr` is set: `cdk deploy -c adminCidr=203.0.113.0/24`
+- [x] Documented in JSDoc and inline comment
 
-### 2.5 Add `SUBNET_ID` and `KEY_PAIR_NAME` as CDK context parameters
+### 2.5 Add `SUBNET_ID` and `KEY_PAIR_NAME` as CDK context parameters ✅
 
 File: `cdk/cdk.json`
 
-- [ ] Add `subnetId` and optionally `keyPairName` to `cdk.json` context block
-- [ ] Update `compute-stack.ts` to read these from `this.node.tryGetContext()`
+- [x] Added `"subnetId": ""` to `cdk.json` context block (override with `-c subnetId=subnet-xxx`)
+- [x] Added `"keyPairName": ""` to `cdk.json` context block (override with `-c keyPairName=my-key`)
+- [x] `adminCidr` has no default entry — omitting it disables RDP (secure default)
 
 ---
 
@@ -218,19 +221,33 @@ The terminate workflow stops (not terminates) the EC2 instance to preserve EBS s
 
 ## Known Issues
 
-### Pre-existing test failures (not introduced by Phase 1)
+### Pre-existing lambda test failures — **all fixed**
 
-Three test suites fail in their current state on this branch — these were not touched by Phase 1 work:
+| File | Root cause | Fix |
+|------|-----------|-----|
+| `test/utils/dynamoDbWrapper.test.ts` | Tests called `queryItemsByUserId` — method didn't exist | Added `queryItemsByUserId` to `DynamoDBWrapper` with error-message wrapping |
+| `test/integration/user-terminate-ec2-workflow.test.ts` | `queryByStatus` mock not set up; `countActiveInstances` crashed on `.length` | Added `mockDb.queryByStatus.mockResolvedValue([])` to `beforeEach` |
+| `test/wrappers/ssmWrapper.test.ts` | `getParamFromParamStore` threw on `ParameterNotFound` instead of returning `""` | Updated `ssmWrapper.ts` to catch `ParameterNotFound` and return `""` |
+
+Lambda test suite: **328 passing, 5 skipped** (1 suite skipped, 33 suites pass).
+
+### Pre-existing CDK test failures (not introduced by Phase 2)
+
+Five CDK test suites were failing before Phase 2 and remain unresolved:
 
 | File | Failure | Root cause |
 |------|---------|------------|
-| `test/utils/dynamoDbWrapper.test.ts` | `wrapper.queryItemsByUserId is not a function` | Test references a method that doesn't exist on `DynamoDBWrapper` |
-| `test/integration/user-terminate-ec2-workflow.test.ts` | `Cannot read properties of undefined (reading 'length')` | `queryByStatus` mock not set up to return an array |
-| `test/wrappers/ssmWrapper.test.ts` | `ParameterNotFound` rejection handling | aws-sdk-client-mock version issue with `.rejects()` |
+| `test/workflow-factory.test.ts` | Cannot find module `lib/constructs/workflow-factory` | Missing/renamed source module |
+| `test/deployment-validation.test.ts` | Cannot find module `lib/cdk-stack` | Missing/renamed source module |
+| `test/step-functions.test.ts` | `checkRunningStreamsFunction` not in `StepFunctionsProps` | Tests use stale `StepFunctionsProps` API |
+| `test/cdk.test.ts` | DynamoDB table attribute assertions wrong; removal policy mismatch | Tests expect stale schema and `DESTROY` policy |
+| `test/workflow-registry.test.ts` | Expects 0 workflows but finds 2 (test isolation issue) | `discoverWorkflows` side-effect bleeds across test cases |
+
+None of these touch Phase 1/2 code paths. CDK build (`tsc`) passes cleanly.
 
 ### Node v25 Jest compatibility
 
-Jest tests fail silently on Node v25 without `--localstorage-file`. Fixed by adding `NODE_OPTIONS='--localstorage-file=/tmp/jest-localstorage.json'` to the `test` script in `lambda/package.json`.
+Jest tests fail silently on Node v25 without `--localstorage-file`. Fixed by adding `NODE_OPTIONS='--localstorage-file=/tmp/jest-localstorage.json'` to the `test` script in both `lambda/package.json` and `cdk/package.json`.
 
 ---
 
@@ -240,9 +257,9 @@ Jest tests fail silently on Node v25 without `--localstorage-file`. Fixed by add
 |---|----------|--------|-------|
 | 1 | AMI storage: DynamoDB Games table vs SSM per game | **Resolved — DynamoDB** | `amiId` stored directly in Games table |
 | 2 | `ebsSnapshotId` fate | **Resolved — keep optional** | `ebsSnapshotId?` retained as optional field |
-| 3 | Subnet selection | Pending (Phase 2) | Needs real subnet ID — use default VPC subnet via context or create NetworkStack |
+| 3 | Subnet selection | **Resolved — CDK context** | `subnetId` read from `this.node.tryGetContext("subnetId")`; set via `-c subnetId=subnet-xxx` at deploy time |
 | 4 | Per-game instance type | **Resolved — wired** | `minInstanceType` from Games table passed through to EC2 launch |
-| 5 | RDP port 3389 | Remove for production (Phase 2) | Keep a CDK context flag to re-enable for debugging |
+| 5 | RDP port 3389 | **Resolved — opt-in via context** | Disabled by default; re-enable with `-c adminCidr=x.x.x.x/32` for scoped admin access |
 
 ---
 
@@ -264,5 +281,12 @@ Quick reference for which files are touched per phase.
 | `cdk/lib/constructs/compute/dcv-security-group.ts` | 2.4 |
 | `cdk/lib/constructs/compute/lambda-functions.ts` | 2.2 |
 | `cdk/lib/constructs/compute/lambda-types.ts` | 2.2 |
-| `cdk/lib/compute-stack.ts` | 2.1, 2.2 |
+| `cdk/lib/compute-stack.ts` | 2.1, 2.2, 2.3 |
+| `cdk/lib/iam-stack.ts` | 2.3 |
+| `cdk/bin/cdk.ts` | 2.3 |
 | `cdk/cdk.json` | 2.5 |
+| `lambda/src/utils/dynamoDbWrapper.ts` | pre-existing fix |
+| `lambda/src/utils/ssmWrapper.ts` | pre-existing fix |
+| `lambda/test/integration/user-terminate-ec2-workflow.test.ts` | pre-existing fix |
+| `lambda/package.json` | Node v25 fix |
+| `cdk/package.json` | Node v25 fix |

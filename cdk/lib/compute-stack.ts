@@ -13,6 +13,7 @@ import { DCVSecurityGroup } from "./constructs/compute/dcv-security-group";
 export interface ComputeStackProps extends StackProps {
     readonly ec2InstanceProfileArn: string;
     readonly ec2InstanceProfileName: string;
+    readonly ec2InstanceRoleArn: string;
     readonly runningInstancesTable: ITable;
     readonly runningStreamsTable: ITable;
     readonly userPaymentsTable: ITable;
@@ -40,6 +41,9 @@ export class ComputeStack extends Stack {
             gamesTable,
         } = props;
 
+        const subnetId = this.node.tryGetContext("subnetId") as string | undefined;
+        const keyPairName = this.node.tryGetContext("keyPairName") as string | undefined;
+
         const dcvSecurityGroup = new DCVSecurityGroup(this, "DCVSecurityGroup");
 
         const lambdaFunctions = new LambdaFunctions(this, "LambdaFunctions", {
@@ -49,6 +53,8 @@ export class ComputeStack extends Stack {
             ec2InstanceProfileArn: props.ec2InstanceProfileArn,
             ec2InstanceProfileName: props.ec2InstanceProfileName,
             dcvSecurityGroupId: dcvSecurityGroup.securityGroupId,
+            subnetId: subnetId || undefined,
+            keyPairName: keyPairName || undefined,
             frontendUrl: process.env.FRONTEND_URL,
             stripeSecretKey: process.env.STRIPE_SECRET_KEY,
             stripePriceStarter: process.env.STRIPE_PRICE_ID_STARTER,
@@ -117,11 +123,12 @@ export class ComputeStack extends Stack {
             terminateWorkflow.stateMachineArn,
         );
 
-        // Grant EC2 permissions to unified API Lambda
-        lambdaFunctions.apiFunction.addToRolePolicy(
+        // Scope iam:PassRole for deploy-ec2 lambda to the specific EC2 instance role
+        lambdaFunctions.getFunction("deployEC2Function").addToRolePolicy(
             new PolicyStatement({
-                actions: ["ec2:RunInstances", "ec2:CreateTags", "ec2:DescribeInstances"],
-                resources: [`arn:aws:ec2:${this.region}:${this.account}:subnet/subnet-12345678`],
+                effect: Effect.ALLOW,
+                actions: ["iam:PassRole"],
+                resources: [props.ec2InstanceRoleArn],
             }),
         );
 
