@@ -10,6 +10,7 @@ type UpdateRunningInstancesEvent = {
     userId: string;
     gameId?: string;
     creationTime: string;
+    executionArn?: string;
 };
 
 type UpdateRunningInstancesResult = {
@@ -75,6 +76,11 @@ export const handler = async (
         if (payload.gameId) {
             expressionAttributeValues[":gameId"] = payload.gameId;
             setExpressions.push("gameId = :gameId");
+        }
+
+        if (event.executionArn) {
+            expressionAttributeValues[":executionArn"] = event.executionArn;
+            setExpressions.push("executionArn = :executionArn");
         }
 
         const updateExpression = `SET ${setExpressions.join(", ")}`;

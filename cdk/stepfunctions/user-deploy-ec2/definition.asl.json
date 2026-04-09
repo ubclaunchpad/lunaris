@@ -293,7 +293,8 @@
                     "instanceId.$": "$.updatePayload.instanceId",
                     "instanceArn.$": "$.updatePayload.instanceArn",
                     "ebsVolumeId.$": "$.updatePayload.ebsVolumeId",
-                    "creationTime.$": "$.deployResult.Payload.creationTime"
+                    "creationTime.$": "$.deployResult.Payload.creationTime",
+                    "executionArn.$": "$$.Execution.Id"
                 }
             },
             "ResultPath": "$.updateRunningInstanceResult",

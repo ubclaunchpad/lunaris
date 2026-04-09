@@ -173,6 +173,30 @@ describe("user-deploy-ec2/update-running-instances", () => {
         expect(eav[":lastModifiedTime"]).toBeTruthy();
     });
 
+    it("includes executionArn in update expression when provided", async () => {
+        const executionArn =
+            "arn:aws:states:us-west-2:111122223333:execution:UserDeployEC2Workflow:user-123-1234567890";
+        await handler({ ...BASE_EVENT, executionArn });
+
+        const options = (mockDynamoDBWrapper.updateItem as jest.Mock).mock.calls[0][1] as Record<
+            string,
+            unknown
+        >;
+        const eav = options.ExpressionAttributeValues as Record<string, string>;
+        expect(options.UpdateExpression).toContain("executionArn = :executionArn");
+        expect(eav[":executionArn"]).toBe(executionArn);
+    });
+
+    it("omits executionArn from update expression when not provided", async () => {
+        await handler(BASE_EVENT);
+
+        const options = (mockDynamoDBWrapper.updateItem as jest.Mock).mock.calls[0][1] as Record<
+            string,
+            unknown
+        >;
+        expect(options.UpdateExpression).not.toContain("executionArn");
+    });
+
     it("includes ebsVolumeId in update expression when provided", async () => {
         await handler({ ...BASE_EVENT, ebsVolumeId: "vol-123" });
 

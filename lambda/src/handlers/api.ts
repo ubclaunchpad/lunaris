@@ -2,8 +2,7 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { ConditionalCheckFailedException, DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
     DynamoDBDocumentClient,
-    // UpdateCommand,
-    // PutCommand
+    PutCommand,
     ScanCommand,
     GetCommand,
 } from "@aws-sdk/lib-dynamodb";
@@ -318,29 +317,29 @@ const handleDeployInstance = async (
             throw new Error("Failed to start UserDeployEC2 Step Function");
         }
 
-        // Store execution ARN in DynamoDB immediately so we can track the deployment status
-        // Use a placeholder instanceId based on the execution name until the real instance is created
-        // const placeholderInstanceId = `pending-${executionName}`;
-        // const now = new Date().toISOString();
-
-        // try {
-        //     const putCommand = new PutCommand({
-        //         TableName: RUNNING_INSTANCES_TABLE_NAME,
-        //         Item: {
-        //             instanceId: placeholderInstanceId,
-        //             userId: userId,
-        //             executionArn: executionResponse.executionArn,
-        //             status: "deploying",
-        //             creationTime: now, // Match GSI sort key name
-        //             lastModifiedTime: now,
-        //         },
-        //     });
-        //     await docClient.send(putCommand);
-        //     console.log(`Stored execution tracking record for user ${userId}`);
-        // } catch (dbError) {
-        //     console.error("Failed to store execution ARN in DynamoDB:", dbError);
-        //     // Don't fail the request - the Step Function has already started
-        // }
+        // Store a placeholder record immediately so deployment-status can track progress
+        // while the Step Function is running. The real instance record (written by
+        // UpdateRunningInstances at the end of the workflow) will have a later creationTime
+        // and will appear first in queryByUserId results once the workflow completes.
+        const placeholderInstanceId = `pending-${executionName}`;
+        const now = new Date().toISOString();
+        try {
+            await docClient.send(new PutCommand({
+                TableName: RUNNING_INSTANCES_TABLE_NAME,
+                Item: {
+                    instanceId: placeholderInstanceId,
+                    userId,
+                    executionArn: executionResponse.executionArn,
+                    status: "deploying",
+                    creationTime: now,
+                    lastModifiedTime: now,
+                },
+            }));
+            console.log(`Stored deployment tracking record for user ${userId}`);
+        } catch (dbError) {
+            // Don't fail the request — the Step Function has already started
+            console.error("Failed to store deployment tracking record:", dbError);
+        }
 
         console.log(
             `Started Step Function execution ${executionResponse.executionArn} for user ${userId}`,
