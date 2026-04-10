@@ -150,7 +150,9 @@ export class ApiGateway extends Construct {
     private addEndpoint(integration: LambdaIntegration, endpoint: EndpointDefinition): void {
         // Support nested paths (e.g. "games/{gameId}") by traversing each segment
         const segments = endpoint.path.split("/");
-        let resource = this.restApi.root.getResource(segments[0]) ?? this.restApi.root.addResource(segments[0]);
+        let resource =
+            this.restApi.root.getResource(segments[0]) ??
+            this.restApi.root.addResource(segments[0]);
         for (let i = 1; i < segments.length; i++) {
             resource = resource.getResource(segments[i]) ?? resource.addResource(segments[i]);
         }

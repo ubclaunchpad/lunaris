@@ -1,11 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { ConditionalCheckFailedException, DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import {
-    DynamoDBDocumentClient,
-    PutCommand,
-    ScanCommand,
-    GetCommand,
-} from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, PutCommand, ScanCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import {
     SFNClient,
     StartExecutionCommand,
@@ -232,14 +227,18 @@ const handleDeployInstance = async (
 
         const gamesTableName = process.env.GAMES_TABLE_NAME || "";
         if (!gamesTableName) {
-            return createResponse(500, { message: "Internal server error: Games table not configured" });
+            return createResponse(500, {
+                message: "Internal server error: Games table not configured",
+            });
         }
 
         // Look up the game to get its AMI ID and instance type
-        const gameResult = await docClient.send(new GetCommand({
-            TableName: gamesTableName,
-            Key: { gameId },
-        }));
+        const gameResult = await docClient.send(
+            new GetCommand({
+                TableName: gamesTableName,
+                Key: { gameId },
+            }),
+        );
 
         const game = gameResult.Item as GameItem | undefined;
 
@@ -324,17 +323,19 @@ const handleDeployInstance = async (
         const placeholderInstanceId = `pending-${executionName}`;
         const now = new Date().toISOString();
         try {
-            await docClient.send(new PutCommand({
-                TableName: RUNNING_INSTANCES_TABLE_NAME,
-                Item: {
-                    instanceId: placeholderInstanceId,
-                    userId,
-                    executionArn: executionResponse.executionArn,
-                    status: "deploying",
-                    creationTime: now,
-                    lastModifiedTime: now,
-                },
-            }));
+            await docClient.send(
+                new PutCommand({
+                    TableName: RUNNING_INSTANCES_TABLE_NAME,
+                    Item: {
+                        instanceId: placeholderInstanceId,
+                        userId,
+                        executionArn: executionResponse.executionArn,
+                        status: "deploying",
+                        creationTime: now,
+                        lastModifiedTime: now,
+                    },
+                }),
+            );
             console.log(`Stored deployment tracking record for user ${userId}`);
         } catch (dbError) {
             // Don't fail the request — the Step Function has already started
