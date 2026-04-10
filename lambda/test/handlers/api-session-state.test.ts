@@ -61,35 +61,32 @@ describe("API session-state regressions", () => {
     });
 
     describe("POST /terminateInstance", () => {
-        it.failing(
-            "persists the new terminate execution and transitional state for the active session",
-            async () => {
-                const executionArn =
-                    "arn:aws:states:us-east-1:123:execution:UserTerminateEC2Workflow:user-123-1";
+        it("persists the new terminate execution and transitional state for the active session", async () => {
+            const executionArn =
+                "arn:aws:states:us-east-1:123:execution:UserTerminateEC2Workflow:user-123-1";
 
-                sfnMock.on(StartExecutionCommand).resolves({
-                    executionArn,
-                    startDate: new Date("2026-04-10T00:00:00.000Z"),
-                    $metadata: {},
-                });
+            sfnMock.on(StartExecutionCommand).resolves({
+                executionArn,
+                startDate: new Date("2026-04-10T00:00:00.000Z"),
+                $metadata: {},
+            });
 
-                const response = await handler(
-                    makeEvent("/terminateInstance", "POST", {
-                        body: { userId: "user-123", instanceId: "i-123" },
-                    }),
-                );
+            const response = await handler(
+                makeEvent("/terminateInstance", "POST", {
+                    body: { userId: "user-123", instanceId: "i-123" },
+                }),
+            );
 
-                expect(response.statusCode).toBe(200);
+            expect(response.statusCode).toBe(200);
 
-                const updateInputs = dynamoMock.commandCalls(UpdateCommand).map((call) => call.args[0].input);
-                const putInputs = dynamoMock.commandCalls(PutCommand).map((call) => call.args[0].input);
-                const mutationInputs = [...updateInputs, ...putInputs];
+            const updateInputs = dynamoMock.commandCalls(UpdateCommand).map((call) => call.args[0].input);
+            const putInputs = dynamoMock.commandCalls(PutCommand).map((call) => call.args[0].input);
+            const mutationInputs = [...updateInputs, ...putInputs];
 
-                expect(mutationInputs.length).toBeGreaterThan(0);
-                expect(JSON.stringify(mutationInputs)).toContain(executionArn);
-                expect(JSON.stringify(mutationInputs)).toContain("terminating");
-            },
-        );
+            expect(mutationInputs.length).toBeGreaterThan(0);
+            expect(JSON.stringify(mutationInputs)).toContain(executionArn);
+            expect(JSON.stringify(mutationInputs)).toContain("terminating");
+        });
     });
 
     describe("GET /streamingLink", () => {
@@ -159,16 +156,25 @@ describe("API session-state regressions", () => {
     });
 
     describe("GET /deployment-status", () => {
-        it("returns terminate workflow progress when the stored executionArn points at terminate", async () => {
-            const executionArn =
+        it("prefers the active terminate execution over an older deploy execution", async () => {
+            const terminateExecutionArn =
                 "arn:aws:states:us-east-1:123:execution:UserTerminateEC2Workflow:user-123-2";
+            const deployExecutionArn =
+                "arn:aws:states:us-east-1:123:execution:UserDeployEC2Workflow:user-123-1";
 
             dynamoMock.on(QueryCommand).resolves({
                 Items: [
                     {
                         instanceId: "i-123",
                         userId: "user-123",
-                        executionArn,
+                        executionArn: deployExecutionArn,
+                        status: "running",
+                        creationTime: "2026-04-09T23:55:00.000Z",
+                    },
+                    {
+                        instanceId: "i-123",
+                        userId: "user-123",
+                        executionArn: terminateExecutionArn,
                         status: "terminating",
                         creationTime: "2026-04-10T00:00:00.000Z",
                     },
@@ -177,7 +183,7 @@ describe("API session-state regressions", () => {
 
             sfnMock.on(DescribeExecutionCommand).resolves({
                 status: "RUNNING",
-                executionArn,
+                executionArn: terminateExecutionArn,
                 startDate: new Date("2026-04-10T00:00:00.000Z"),
                 $metadata: {},
             });
@@ -202,6 +208,9 @@ describe("API session-state regressions", () => {
             const body = JSON.parse(response.body);
             expect(body.status).toBe("RUNNING");
             expect(body.deploymentStatus).toBe("terminating");
+            const describeCalls = sfnMock.commandCalls(DescribeExecutionCommand);
+            expect(describeCalls).toHaveLength(1);
+            expect(describeCalls[0].args[0].input.executionArn).toBe(terminateExecutionArn);
         });
     });
 });
