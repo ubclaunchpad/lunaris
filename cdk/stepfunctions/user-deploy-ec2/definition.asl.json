@@ -239,7 +239,7 @@
                 {
                     "ErrorEquals": ["States.ALL"],
                     "ResultPath": "$.configureError",
-                    "Next": "UpdateRunningStreams"
+                    "Next": "PrepareUpdatePayload"
                 }
             ]
         },

@@ -19,6 +19,7 @@ type DeployEC2Success = {
     success: boolean;
     instanceId: string;
     instanceArn: string;
+    ebsVolumeId: string;
     dcvIp: string;
     dcvPort: number;
     dcvUser: string;
@@ -141,6 +142,7 @@ export const handler = async (
             success: true,
             instanceId: instance.instanceId,
             instanceArn: instance.instanceArn,
+            ebsVolumeId: "",
             dcvIp: instance.publicIp || "",
             dcvPort: 8443,
             dcvUser: "Administrator",
