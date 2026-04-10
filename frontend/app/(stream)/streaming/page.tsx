@@ -15,6 +15,12 @@ interface StreamingPageState {
     gameName?: string;
 }
 
+interface UploadStatus {
+    filename: string;
+    progress: "uploading" | "done" | "error";
+    error?: string;
+}
+
 export default function StreamingPage() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -22,6 +28,9 @@ export default function StreamingPage() {
     const [state, setState] = useState<StreamingPageState | null>(null);
     const [showTopBar, setShowTopBar] = useState(false);
     const [isTerminating, setIsTerminating] = useState(false);
+    const [sessionInfo, setSessionInfo] = useState<{ sessionId: string; authToken: string } | null>(null);
+    const [uploadStatuses, setUploadStatuses] = useState<UploadStatus[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -70,6 +79,55 @@ export default function StreamingPage() {
         }, 500);
     }, []);
 
+    const handleFileUpload = useCallback(
+        async (files: FileList) => {
+            if (!state || !sessionInfo) return;
+
+            for (const file of Array.from(files)) {
+                setUploadStatuses((prev) => [
+                    ...prev,
+                    { filename: file.name, progress: "uploading" },
+                ]);
+
+                const formData = new FormData();
+                formData.append("file", file);
+
+                try {
+                    const res = await fetch(
+                        `${state.serverUrl}/nice-dcv/v1/api/session/${sessionInfo.sessionId}/file-transfer/upload`,
+                        {
+                            method: "POST",
+                            headers: { "X-Authorization": `Token ${sessionInfo.authToken}` },
+                            body: formData,
+                        },
+                    );
+
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                    setUploadStatuses((prev) =>
+                        prev.map((s) =>
+                            s.filename === file.name ? { ...s, progress: "done" } : s,
+                        ),
+                    );
+                } catch (err) {
+                    setUploadStatuses((prev) =>
+                        prev.map((s) =>
+                            s.filename === file.name
+                                ? { ...s, progress: "error", error: String(err) }
+                                : s,
+                        ),
+                    );
+                }
+
+                // Clear completed/failed after 3s
+                setTimeout(() => {
+                    setUploadStatuses((prev) => prev.filter((s) => s.filename !== file.name));
+                }, 3000);
+            }
+        },
+        [state, sessionInfo],
+    );
+
     const handleTerminate = async () => {
         if (!state || isTerminating) return;
 
@@ -88,7 +146,7 @@ export default function StreamingPage() {
         if (document.fullscreenElement) {
             await document.exitFullscreen().catch(() => {});
         }
-        router.push(state.gameId ? `/games/${state.gameId}` : "/browse");
+        router.push(state.gameId ? `/games/${state.gameId}?terminated=true` : "/browse");
     };
 
     if (!state) {
@@ -118,17 +176,53 @@ export default function StreamingPage() {
                 onMouseEnter={handleMouseEnterTop}
                 onMouseLeave={handleMouseLeaveTop}
             >
-                <div className="bg-gray-900/95 backdrop-blur-sm text-white px-4 py-3 flex items-center justify-between">
+                <div className="bg-gray-900/95 backdrop-blur-sm text-white px-4 py-3 flex items-center justify-between gap-4">
                     <span className="font-space-grotesk font-medium text-sm">
                         {state.gameName || "Game"}
                     </span>
-                    <button
-                        onClick={handleTerminate}
-                        disabled={isTerminating}
-                        className="px-4 py-1.5 bg-red-600 rounded text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
-                    >
-                        {isTerminating ? "Terminating..." : "Terminate"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                        {/* Upload status pills */}
+                        {uploadStatuses.map((s) => (
+                            <span
+                                key={s.filename}
+                                className={`text-xs px-2 py-1 rounded ${
+                                    s.progress === "uploading"
+                                        ? "bg-blue-600"
+                                        : s.progress === "done"
+                                          ? "bg-green-600"
+                                          : "bg-red-600"
+                                }`}
+                            >
+                                {s.progress === "uploading" && "↑ "}
+                                {s.progress === "done" && "✓ "}
+                                {s.progress === "error" && "✗ "}
+                                {s.filename}
+                            </span>
+                        ))}
+                        {/* File upload button */}
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={!sessionInfo}
+                            title={!sessionInfo ? "Waiting for session..." : "Upload files to instance"}
+                            className="px-4 py-1.5 bg-gray-600 rounded text-sm font-medium hover:bg-gray-500 transition-colors disabled:opacity-40"
+                        >
+                            Upload Files
+                        </button>
+                        <button
+                            onClick={handleTerminate}
+                            disabled={isTerminating}
+                            className="px-4 py-1.5 bg-red-600 rounded text-sm font-medium hover:bg-red-700 transition-colors disabled:opacity-50"
+                        >
+                            {isTerminating ? "Terminating..." : "Terminate"}
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -141,6 +235,7 @@ export default function StreamingPage() {
                     onConnect={() => {}}
                     onDisconnect={() => {}}
                     onError={() => {}}
+                    onSessionReady={setSessionInfo}
                 />
             </div>
         </div>

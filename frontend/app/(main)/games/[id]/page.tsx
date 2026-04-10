@@ -2,7 +2,7 @@
 
 import { use, useState, useCallback, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { ChevronLeft, Gamepad2, Keyboard } from "lucide-react";
 import gamesData from "@/lib/data.json";
@@ -43,6 +43,7 @@ function toGame(g: (typeof gamesData.games)[number]): Game {
 
 export default function GamePage({ params }: GamePageProps) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { id } = use(params);
     const { data: session } = useSession();
 
@@ -73,6 +74,10 @@ export default function GamePage({ params }: GamePageProps) {
     // Check for existing streaming session on mount
     useEffect(() => {
         const checkExistingStream = async () => {
+            if (searchParams.get("terminated") === "true") {
+                setIsCheckingExisting(false);
+                return;
+            }
             try {
                 const streamData = await apiClient.getStreamingLink({ userId });
                 const session = streamData as {
@@ -98,7 +103,7 @@ export default function GamePage({ params }: GamePageProps) {
         };
 
         checkExistingStream();
-    }, [userId]);
+    }, [userId, searchParams]);
 
     // Handle deployment status changes
     const handleStatusChange = useCallback(
