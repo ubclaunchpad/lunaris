@@ -99,9 +99,9 @@ export const handler = async (
 
     await db.updateItem({ instanceArn: event.instanceArn }, updateConfig);
 
-    // Also update the RunningInstances table to replace the placeholder instanceId with the real one
-    // This is crucial for terminate to work correctly
-    // I THINK THIS CODE CAN BE REMOVED WITH UPDATE RUNNING INSTANCES????
+    // Also update the RunningInstances table to replace the placeholder instanceId with the real one.
+    // This preserves the in-flight executionArn/status tracking record that the API created before
+    // the real EC2 instance existed, which deployment-status relies on for progress polling.
     const runningInstancesTable = process.env.RUNNING_INSTANCES_TABLE_NAME;
     if (runningInstancesTable) {
         try {
@@ -115,6 +115,7 @@ export const handler = async (
                     ":userId": event.userId,
                     ":prefix": "pending-",
                 },
+                ScanIndexForward: false,
             });
             const queryResult = await docClient.send(queryCommand);
 

@@ -19,6 +19,13 @@ mainSteps:
                   if ($dcvService) {
                       Write-Host "DCV Server service already exists"
                       Write-Host "Status: $($dcvService.Status)"
+                      $rule = Get-NetFirewallRule -DisplayName "Lunaris DCV HTTPS" -ErrorAction SilentlyContinue
+                      if (!$rule) {
+                          New-NetFirewallRule -DisplayName "Lunaris DCV HTTPS" -Direction Inbound -Protocol TCP -LocalPort 8443 -Action Allow -Profile Any | Out-Null
+                          Write-Host "DCV firewall rule created"
+                      } else {
+                          Write-Host "DCV firewall rule already exists"
+                      }
                       Write-Host "Version:"
                       & "C:\Program Files\NICE\DCV\Server\bin\dcv.exe" --version 2>&1
                       exit 0
@@ -128,6 +135,14 @@ mainSteps:
                           exit 1
                       }
                       Write-Host "DCV Server service started successfully"
+                  }
+
+                  $rule = Get-NetFirewallRule -DisplayName "Lunaris DCV HTTPS" -ErrorAction SilentlyContinue
+                  if (!$rule) {
+                      New-NetFirewallRule -DisplayName "Lunaris DCV HTTPS" -Direction Inbound -Protocol TCP -LocalPort 8443 -Action Allow -Profile Any | Out-Null
+                      Write-Host "DCV firewall rule created"
+                  } else {
+                      Write-Host "DCV firewall rule already exists"
                   }
 
                   # Verify port is listening

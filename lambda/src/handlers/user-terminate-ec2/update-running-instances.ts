@@ -29,7 +29,9 @@ export const handler = async (
         const db = new DynamoDBWrapper(process.env.RUNNING_INSTANCES_TABLE_NAME);
         const now = new Date().toISOString();
 
-        // Note: sometimes the stopEC2 status will return as stopping, even though it succesfully stops
+        // User-initiated "termination" is modeled as a resumable stop in this product.
+        // We persist stopped here so future deploys can reuse the instance, and reserve
+        // "terminated" for cases where no resumable instance remains.
         const status = "stopped";
 
         const payload = {

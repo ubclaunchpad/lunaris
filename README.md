@@ -10,6 +10,14 @@ This project consists of:
 - **Lambda**: AWS Lambda functions for serverless backend logic
 - **CDK**: Infrastructure as Code using AWS CDK
 
+### Session Control Plane
+
+The current session-tracking architecture and polling decision are documented in
+[`docs/adr/0001-session-control-plane.md`](docs/adr/0001-session-control-plane.md).
+That ADR explains which DynamoDB table owns which fields, why the current product treats
+"terminate" as stop/resume, and when the project should consider moving to a single
+authoritative session record or event-driven status delivery.
+
 ## Prerequisites
 
 - **Node.js** 22.x or higher

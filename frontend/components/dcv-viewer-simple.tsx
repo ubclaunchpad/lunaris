@@ -62,6 +62,7 @@ interface DCVViewerSimpleProps {
     onConnect?: () => void;
     onDisconnect?: (reason: { message?: string }) => void;
     onError?: (error: Error) => void;
+    onSessionReady?: (info: { sessionId: string; authToken: string }) => void;
 }
 
 declare global {
@@ -117,6 +118,7 @@ export function DCVViewerSimple({
     onConnect,
     onDisconnect,
     onError,
+    onSessionReady,
 }: DCVViewerSimpleProps) {
     const [status, setStatus] = useState<
         "loading" | "authenticating" | "ready-to-connect" | "connected" | "error"
@@ -302,6 +304,9 @@ export function DCVViewerSimple({
                         sessionToken = authenticationData.getSessionToken();
                     }
                 }
+
+                // Expose session info for file transfer
+                onSessionReady?.({ sessionId, authToken: sessionToken });
 
                 // Connect after render
                 setStatus("ready-to-connect");

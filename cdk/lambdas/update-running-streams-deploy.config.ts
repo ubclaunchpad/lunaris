@@ -5,7 +5,7 @@ const config: LambdaFunctionConfig = {
     constructId: "UpdateRunningStreamsHandler",
     handler: "handlers/user-deploy-ec2/update-running-streams.handler",
     description: "Updates running streams table with new session information",
-    envVars: ["RUNNING_STREAMS_TABLE_NAME"],
+    envVars: ["RUNNING_STREAMS_TABLE_NAME", "RUNNING_INSTANCES_TABLE_NAME"],
 };
 
 export default config;

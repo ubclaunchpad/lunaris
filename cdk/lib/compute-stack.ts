@@ -114,6 +114,14 @@ export class ComputeStack extends Stack {
             }),
         );
 
+        lambdaFunctions.apiFunction.addToRolePolicy(
+            new PolicyStatement({
+                effect: Effect.ALLOW,
+                actions: ["ec2:DescribeInstances"],
+                resources: ["*"],
+            }),
+        );
+
         lambdaFunctions.apiFunction.addEnvironment(
             "USER_DEPLOY_EC2_WORKFLOW_ARN",
             deployWorkflow.stateMachineArn,
@@ -158,11 +166,7 @@ export class ComputeStack extends Stack {
         runningStreamsTable.grantWriteData(
             lambdaFunctions.getFunction("updateRunningStreamsFunction"),
         );
-        runningStreamsTable.grantReadData(lambdaFunctions.getFunction("getDcvConfigFunction"));
-        runningInstancesTable.grantReadData(
-            lambdaFunctions.getFunction("checkRunningInstancesFunction"),
-        );
-        runningInstancesTable.grantWriteData(
+        runningInstancesTable.grantReadWriteData(
             lambdaFunctions.getFunction("updateRunningInstancesFunction"),
         );
 

@@ -1,6 +1,12 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { ConditionalCheckFailedException, DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import { DynamoDBDocumentClient, PutCommand, ScanCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
+import {
+    DynamoDBDocumentClient,
+    PutCommand,
+    ScanCommand,
+    GetCommand,
+    QueryCommand,
+} from "@aws-sdk/lib-dynamodb";
 import {
     SFNClient,
     StartExecutionCommand,
@@ -15,6 +21,7 @@ import {
 import { SFNClientConfig } from "@aws-sdk/client-sfn";
 import { DynamoDBClientConfig } from "@aws-sdk/client-dynamodb";
 import DynamoDBWrapper from "../utils/dynamoDbWrapper";
+import EC2Wrapper from "../utils/ec2Wrapper";
 import {
     createCheckoutSession,
     getCheckoutSession,
@@ -49,6 +56,7 @@ const USER_PAYMENTS_TABLE_NAME = process.env.USER_PAYMENTS_TABLE_NAME || "";
 const USER_BALANCES_TABLE_NAME = process.env.USER_BALANCES_TABLE_NAME || "";
 // NOTE: Read at request time so tests can override via process.env
 const getStripeWhSecret = (): string => process.env.STRIPE_WH_SECRET || "";
+const ec2Region = process.env.LAMBDA_REGION || process.env.AWS_REGION || "us-west-2";
 
 interface GameItem {
     gameId: string;
@@ -69,7 +77,7 @@ interface DeployInstanceRequest {
 
 interface TerminateInstanceRequest {
     userId: string;
-    // instanceId: string;
+    instanceId?: string;
 }
 
 interface CreateCheckoutRequest {
@@ -88,9 +96,32 @@ interface ResponseBody {
     streamingLink?: string;
     dcvUser?: string;
     instanceArn?: string;
+    executionArn?: string;
     updatedAt?: string;
     [key: string]: unknown; // Allow other properties from streamRecord
 }
+
+type RunningInstanceTrackingRecord = {
+    instanceId?: string;
+    executionArn?: string;
+    status?: string;
+    creationTime?: string;
+    lastModifiedTime?: string;
+};
+
+type RunningStreamRecord = {
+    userId?: string;
+    instanceId?: string;
+    instanceArn?: string;
+    status?: string;
+    streamingLink?: string;
+    dcvIp?: string;
+    dcvPort?: number;
+    dcvUser?: string;
+    dcvPassword?: string;
+    createdAt?: string;
+    updatedAt?: string;
+};
 
 // Helper function to format responses consistently
 const createResponse = (statusCode: number, body: ResponseBody): APIGatewayProxyResult => ({
@@ -109,6 +140,78 @@ const verifyUserBalance = async (
     const balance = await dbWrapper.getItem({ userId });
     const coins = (balance?.coins as number) ?? 0;
     return { hasBalance: coins > 0, coins };
+};
+
+const TRACKED_EXECUTION_STATUS_PRIORITY = ["terminating", "running", "deploying", "stopped"];
+
+const selectTrackedInstanceRecord = (
+    instances: RunningInstanceTrackingRecord[],
+): RunningInstanceTrackingRecord | null => {
+    const withExecutionArn = instances.filter((instance) => Boolean(instance.executionArn));
+    if (withExecutionArn.length === 0) {
+        return null;
+    }
+
+    for (const status of TRACKED_EXECUTION_STATUS_PRIORITY) {
+        const match = withExecutionArn.find((instance) => instance.status === status);
+        if (match) {
+            return match;
+        }
+    }
+
+    return withExecutionArn[0];
+};
+
+const getLatestRunningStreamForUser = async (
+    userId: string,
+): Promise<{ instanceId?: string } | null> => {
+    if (!RUNNING_STREAMS_TABLE_NAME) {
+        return null;
+    }
+
+    const queryCommand = new QueryCommand({
+        TableName: RUNNING_STREAMS_TABLE_NAME,
+        IndexName: "UserIdIndex",
+        KeyConditionExpression: "userId = :userId",
+        ExpressionAttributeValues: {
+            ":userId": userId,
+        },
+        ScanIndexForward: false,
+    });
+
+    const queryResult = (await docClient.send(queryCommand)) as {
+        Items?: Array<{ instanceId?: string; status?: string }>;
+    };
+    const runningStream = (queryResult.Items || []).find((item) => item.status === "running");
+
+    return runningStream ?? null;
+};
+
+const resolveTrackedInstanceId = async (
+    userId: string,
+    explicitInstanceId?: string,
+): Promise<string | null> => {
+    if (explicitInstanceId) {
+        return explicitInstanceId;
+    }
+
+    const runningStream = await getLatestRunningStreamForUser(userId);
+    if (runningStream?.instanceId) {
+        return String(runningStream.instanceId);
+    }
+
+    const dbWrapper = new DynamoDBWrapper(RUNNING_INSTANCES_TABLE_NAME);
+    const instances = (await dbWrapper.queryByUserId(userId)) as RunningInstanceTrackingRecord[];
+    const fallbackInstance = instances.find((instance) => {
+        const instanceId = String(instance.instanceId || "");
+        if (instanceId.startsWith("pending-")) {
+            return false;
+        }
+
+        return ["running", "terminating", "stopped"].includes(String(instance.status || ""));
+    });
+
+    return fallbackInstance?.instanceId ? String(fallbackInstance.instanceId) : null;
 };
 
 /**
@@ -366,7 +469,7 @@ const handleTerminateInstance = async (
 ): Promise<APIGatewayProxyResult> => {
     try {
         const body: TerminateInstanceRequest = JSON.parse(event.body || "{}");
-        const { userId } = body;
+        const { userId, instanceId } = body;
 
         // Validate input
         if (!userId) {
@@ -447,35 +550,40 @@ const handleTerminateInstance = async (
             });
         }
 
-        // Update DynamoDB with execution ARN and status
-        // This should not fail the request if it errors (Step Function already started)
-        // const timestamp = new Date().toISOString();
-        // try {
-        //     const updateCommand = new UpdateCommand({
-        //         TableName: RUNNING_INSTANCES_TABLE_NAME,
-        //         Key: {
-        //             instanceId: instanceId,
-        //         },
-        //         UpdateExpression:
-        //             "SET executionArn = :arn, #status = :status, lastModifiedTime = :timestamp",
-        //         ExpressionAttributeNames: {
-        //             "#status": "status",
-        //         },
-        //         ExpressionAttributeValues: {
-        //             ":arn": executionResponse.executionArn,
-        //             ":status": "terminating",
-        //             ":timestamp": timestamp,
-        //         },
-        //     });
-
-        //     await docClient.send(updateCommand);
-        //     console.log(
-        //         `Updated DynamoDB with execution ARN: ${executionResponse.executionArn} for instance ${instanceId}`,
-        //     );
-        // } catch (dbError) {
-        //     // Log error but don't fail the request since Step Function was already started
-        //     console.error("Failed to update DynamoDB:", dbError);
-        // }
+        // Persist the active terminate execution so deployment-status follows the
+        // new workflow instead of a stale deploy execution.
+        try {
+            const trackedInstanceId = await resolveTrackedInstanceId(userId, instanceId);
+            if (trackedInstanceId) {
+                const timestamp = new Date().toISOString();
+                const dbWrapper = new DynamoDBWrapper(RUNNING_INSTANCES_TABLE_NAME);
+                await dbWrapper.updateItem(
+                    { instanceId: trackedInstanceId },
+                    {
+                        UpdateExpression:
+                            "SET executionArn = :arn, #status = :status, lastModifiedTime = :timestamp",
+                        ExpressionAttributeNames: {
+                            "#status": "status",
+                        },
+                        ExpressionAttributeValues: {
+                            ":arn": executionResponse.executionArn,
+                            ":status": "terminating",
+                            ":timestamp": timestamp,
+                        },
+                    },
+                );
+                console.log(
+                    `Updated tracking record for instance ${trackedInstanceId} with terminate execution ${executionResponse.executionArn}`,
+                );
+            } else {
+                console.warn(
+                    `Could not resolve an active instance record for terminate tracking (userId=${userId})`,
+                );
+            }
+        } catch (dbError) {
+            // Don't fail the request since Step Function was already started
+            console.error("Failed to update terminate tracking record:", dbError);
+        }
 
         console.log(
             `Started Step Function execution ${executionResponse.executionArn} for user ${userId}`,
@@ -484,6 +592,7 @@ const handleTerminateInstance = async (
         return createResponse(200, {
             status: "success",
             message: "Termination workflow started successfully",
+            executionArn: executionResponse.executionArn,
         });
     } catch (error) {
         // Handle JSON parsing errors and other unexpected errors
@@ -512,7 +621,6 @@ const handleStreamingLink = async (event: APIGatewayProxyEvent): Promise<APIGate
         console.log(`Querying RunningStreams table for userId: ${userId}`);
 
         // Query the RunningStreams table by userId using the UserIdIndex
-        const { QueryCommand } = await import("@aws-sdk/lib-dynamodb");
         const queryCommand = new QueryCommand({
             TableName: RUNNING_STREAMS_TABLE_NAME,
             IndexName: "UserIdIndex",
@@ -520,20 +628,70 @@ const handleStreamingLink = async (event: APIGatewayProxyEvent): Promise<APIGate
             ExpressionAttributeValues: {
                 ":userId": userId,
             },
+            ScanIndexForward: false,
         });
 
-        const queryResult = await docClient.send(queryCommand);
+        const queryResult = (await docClient.send(queryCommand)) as {
+            Items?: RunningStreamRecord[];
+        };
         const results = queryResult.Items || [];
 
         if (results.length === 0) {
             return createResponse(404, {
                 error: "Not Found",
-                message: `No streaming session found for userId: ${userId}`,
+                message: `No active streaming session found for userId: ${userId}`,
             });
         }
 
-        // Return the most recent entry (first result since sorted by createdAt)
-        const streamRecord = results[0];
+        const runningInstancesDb = RUNNING_INSTANCES_TABLE_NAME
+            ? new DynamoDBWrapper(RUNNING_INSTANCES_TABLE_NAME)
+            : null;
+        const ec2Wrapper = new EC2Wrapper(ec2Region);
+
+        let streamRecord: RunningStreamRecord | null = null;
+
+        for (const candidate of results) {
+            if (candidate.status !== "running") {
+                continue;
+            }
+
+            if (!runningInstancesDb || !candidate.instanceId) {
+                streamRecord = candidate;
+                break;
+            }
+
+            const instanceRecord = await runningInstancesDb.getItem(
+                { instanceId: candidate.instanceId },
+                { ConsistentRead: true },
+            );
+
+            if (instanceRecord?.status === "running") {
+                try {
+                    const instanceDetails = await ec2Wrapper.getInstanceDetails(
+                        candidate.instanceId,
+                    );
+                    if (instanceDetails.state !== "running") {
+                        continue;
+                    }
+                } catch (error) {
+                    console.warn(
+                        `Skipping streaming candidate ${candidate.instanceId}; failed EC2 state check`,
+                        error,
+                    );
+                    continue;
+                }
+
+                streamRecord = candidate;
+                break;
+            }
+        }
+
+        if (!streamRecord) {
+            return createResponse(404, {
+                error: "Not Found",
+                message: `No active streaming session found for userId: ${userId}`,
+            });
+        }
 
         console.log(`Found streaming session for userId ${userId}:`, streamRecord);
 
@@ -587,19 +745,21 @@ const handleStreamingLink = async (event: APIGatewayProxyEvent): Promise<APIGate
 // Define workflow steps for deploy and terminate workflows
 const DEPLOY_STEPS = [
     { name: "CheckRunningStreams", displayName: "Checking existing streams", order: 1 },
-    { name: "CheckIfValidStream", displayName: "Validating stream status", order: 2 },
-    { name: "DeployEC2", displayName: "Deploying EC2 instance", order: 3 },
-    { name: "WaitForInstanceReady", displayName: "Waiting for instance to be ready", order: 4 },
-    { name: "ConfigureDcvInstance", displayName: "Configuring DCV session", order: 5 },
-    { name: "UpdateRunningStreams", displayName: "Updating streaming database", order: 6 },
-    { name: "DeploymentSuccess", displayName: "Deployment complete", order: 7 },
+    { name: "DeployEC2", displayName: "Deploying EC2 instance", order: 2 },
+    { name: "WaitForInstanceReady", displayName: "Waiting for instance to be ready", order: 3 },
+    { name: "UpdateRunningStreams", displayName: "Updating streaming database", order: 4 },
+    { name: "UpdateRunningInstances", displayName: "Finalizing session", order: 5 },
+    { name: "Success", displayName: "Deployment complete", order: 6 },
 ];
 
 const TERMINATE_STEPS = [
     { name: "CheckRunningStreams", displayName: "Checking running streams", order: 1 },
-    { name: "TerminateEC2", displayName: "Terminating EC2 instance", order: 2 },
-    { name: "UpdateRunningStreams", displayName: "Updating streaming database", order: 3 },
-    { name: "TerminationSuccess", displayName: "Termination complete", order: 4 },
+    { name: "CheckRunningInstances", displayName: "Checking instance state", order: 2 },
+    { name: "StopDCV", displayName: "Stopping DCV session", order: 3 },
+    { name: "StopEC2", displayName: "Stopping EC2 instance", order: 4 },
+    { name: "UpdateRunningStreams", displayName: "Updating streaming database", order: 5 },
+    { name: "UpdateRunningInstances", displayName: "Updating instance database", order: 6 },
+    { name: "TerminationSuccess", displayName: "Termination complete", order: 7 },
 ];
 
 interface StepInfo {
@@ -736,9 +896,11 @@ const handleDeploymentStatus = async (
             });
         }
 
-        const runningInstance = instances[0];
+        const runningInstance = selectTrackedInstanceRecord(
+            instances as RunningInstanceTrackingRecord[],
+        );
 
-        if (!runningInstance.executionArn) {
+        if (!runningInstance?.executionArn) {
             return createResponse(404, {
                 error: "NotFound",
                 message: `No active deployment found for userId: ${userId}`,

@@ -9,7 +9,9 @@ type StartDcvInstanceResult = {
     message: string;
 };
 
-const ssmClient = new SSMClient({ region: process.env.LAMBDA_REGION || "us-west-2" });
+const ssmClient = new SSMClient({
+    region: process.env.AWS_REGION || process.env.LAMBDA_REGION || "us-west-2",
+});
 
 /**
  * Waits for an SSM command to complete and returns the result
@@ -104,32 +106,43 @@ export const handler = async (event: StartDcvInstanceEvent): Promise<StartDcvIns
 
     try {
         const result = await runCommand(instanceId, [
+            `$rule = Get-NetFirewallRule -DisplayName "Lunaris DCV HTTPS" -ErrorAction SilentlyContinue`,
+            `if (-not $rule) {`,
+            `  New-NetFirewallRule -DisplayName "Lunaris DCV HTTPS" -Direction Inbound -Protocol TCP -LocalPort 8443 -Action Allow -Profile Any | Out-Null`,
+            `  Write-Host "DCV firewall rule created"`,
+            `} else {`,
+            `  Write-Host "DCV firewall rule already exists"`,
+            `}`,
             `$service = Get-Service -Name "DcvServer" -ErrorAction SilentlyContinue`,
             `if ($service) {`,
             `  if ($service.Status -ne "Running") {`,
             `    Start-Service -Name "DcvServer"`,
+            `    Start-Sleep -Seconds 10`,
             `    Write-Host "DCV service started successfully"`,
             `  } else {`,
             `    Write-Host "DCV service already running"`,
             `  }`,
+            `  $test = Test-NetConnection -ComputerName localhost -Port 8443 -WarningAction SilentlyContinue`,
+            `  if (-not $test.TcpTestSucceeded) {`,
+            `    Write-Error "Port 8443 not listening after DCV service start"`,
+            `    exit 1`,
+            `  }`,
             `} else {`,
-            `  Write-Host "DCV service not found, skipping start"`,
+            `  Write-Error "DCV service not found"`,
+            `  exit 1`,
             `}`,
         ]);
 
-        if (result.success) {
-            console.log("DCV service started:", result.output);
-            return {
-                success: true,
-                message: "DCV service started successfully",
-            };
-        } else {
+        if (!result.success) {
             console.error("Failed to start DCV service:", result.error);
-            return {
-                success: false,
-                message: result.error || "Unknown error starting DCV service",
-            };
+            throw new Error(result.error || "Unknown error starting DCV service");
         }
+
+        console.log("DCV service started:", result.output);
+        return {
+            success: true,
+            message: "DCV service started successfully",
+        };
     } catch (err: unknown) {
         console.error("Error starting DCV:", err);
         throw err;

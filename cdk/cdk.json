@@ -15,7 +15,7 @@
         ]
     },
     "context": {
-        "subnetId": "",
+        "subnetId": "subnet-096c4fb28ed249fef",
         "keyPairName": "",
         "@aws-cdk/aws-signer:signingProfileNamePassedToCfn": true,
         "@aws-cdk/aws-ecs-patterns:secGroupsDisablesImplicitOpenListener": true,

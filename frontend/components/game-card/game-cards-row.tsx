@@ -59,7 +59,7 @@ export function GameCardsRow({ gameIds }: GameCardsRowProps) {
                     alt={game.name}
                     title={game.name}
                     modes={game.modes ?? []}
-                    tags={game.tags}
+                    tags={game.tags ?? []}
                 />
             ))}
         </Carousel>

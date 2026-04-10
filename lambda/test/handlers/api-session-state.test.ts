@@ -1,0 +1,315 @@
+process.env.RUNNING_INSTANCES_TABLE_NAME = "test-running-instances";
+process.env.RUNNING_STREAMS_TABLE_NAME = "test-running-streams";
+process.env.TERMINATE_WORKFLOW_ARN = "arn:aws:states:us-east-1:123:stateMachine:terminate";
+process.env.USER_DEPLOY_EC2_WORKFLOW_ARN = "arn:aws:states:us-east-1:123:stateMachine:deploy";
+process.env.GAMES_TABLE_NAME = "test-games";
+process.env.USER_PAYMENTS_TABLE_NAME = "test-user-payments";
+process.env.USER_BALANCES_TABLE_NAME = "test-user-balances";
+process.env.STRIPE_SECRET_KEY = "sk_test_mock";
+process.env.STRIPE_WH_SECRET = "whsec_test_secret";
+
+import { APIGatewayProxyEvent } from "aws-lambda";
+import { mockClient } from "aws-sdk-client-mock";
+import {
+    SFNClient,
+    StartExecutionCommand,
+    DescribeExecutionCommand,
+    GetExecutionHistoryCommand,
+} from "@aws-sdk/client-sfn";
+import { GetCommand, PutCommand, QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { dynamoMock } from "../utils/dynamoMock";
+
+jest.mock("../../src/utils/stripeWrapper", () => ({
+    constructWebhookEvent: jest.fn(),
+    createCheckoutSession: jest.fn(),
+    getCheckoutSession: jest.fn(),
+    findOrCreateCustomer: jest.fn(),
+}));
+
+const mockGetInstanceDetails = jest.fn();
+jest.mock("../../src/utils/ec2Wrapper", () => ({
+    __esModule: true,
+    default: jest.fn().mockImplementation(() => ({
+        getInstanceDetails: mockGetInstanceDetails,
+    })),
+}));
+
+import { handler } from "../../src/handlers/api";
+
+const sfnMock = mockClient(SFNClient);
+
+const makeEvent = (
+    path: string,
+    method: string,
+    options: {
+        body?: Record<string, unknown>;
+        query?: Record<string, string>;
+    } = {},
+): APIGatewayProxyEvent =>
+    ({
+        resource: path,
+        path,
+        httpMethod: method,
+        headers: {},
+        multiValueHeaders: {},
+        queryStringParameters: options.query ?? null,
+        multiValueQueryStringParameters: null,
+        pathParameters: null,
+        stageVariables: null,
+        requestContext: {} as APIGatewayProxyEvent["requestContext"],
+        body: options.body ? JSON.stringify(options.body) : null,
+        isBase64Encoded: false,
+    }) as APIGatewayProxyEvent;
+
+describe("API session-state regressions", () => {
+    beforeEach(() => {
+        dynamoMock.reset();
+        sfnMock.reset();
+        jest.clearAllMocks();
+        mockGetInstanceDetails.mockReset();
+    });
+
+    describe("POST /terminateInstance", () => {
+        it("persists the new terminate execution and transitional state for the active session", async () => {
+            const executionArn =
+                "arn:aws:states:us-east-1:123:execution:UserTerminateEC2Workflow:user-123-1";
+
+            sfnMock.on(StartExecutionCommand).resolves({
+                executionArn,
+                startDate: new Date("2026-04-10T00:00:00.000Z"),
+                $metadata: {},
+            });
+
+            const response = await handler(
+                makeEvent("/terminateInstance", "POST", {
+                    body: { userId: "user-123", instanceId: "i-123" },
+                }),
+            );
+
+            expect(response.statusCode).toBe(200);
+
+            const updateInputs = dynamoMock
+                .commandCalls(UpdateCommand)
+                .map((call) => call.args[0].input);
+            const putInputs = dynamoMock.commandCalls(PutCommand).map((call) => call.args[0].input);
+            const mutationInputs = [...updateInputs, ...putInputs];
+
+            expect(mutationInputs.length).toBeGreaterThan(0);
+            expect(JSON.stringify(mutationInputs)).toContain(executionArn);
+            expect(JSON.stringify(mutationInputs)).toContain("terminating");
+        });
+    });
+
+    describe("GET /streamingLink", () => {
+        it("returns inactive when only stopped sessions exist", async () => {
+            dynamoMock.on(QueryCommand).resolves({
+                Items: [
+                    {
+                        userId: "user-123",
+                        instanceId: "i-stopped",
+                        instanceArn: "arn:aws:ec2:us-west-2:123:instance/i-stopped",
+                        status: "stopped",
+                        streamingLink: "https://stale.example.com:8443",
+                        dcvUser: "Administrator",
+                        dcvPassword: "pw",
+                        createdAt: "2026-04-10T00:00:00.000Z",
+                    },
+                ],
+            });
+
+            const response = await handler(
+                makeEvent("/streamingLink", "GET", {
+                    query: { userId: "user-123" },
+                }),
+            );
+
+            expect(response.statusCode).toBe(404);
+            expect(JSON.parse(response.body).message).toContain("No active streaming session");
+            const queryCalls = dynamoMock.commandCalls(QueryCommand);
+            expect(queryCalls).toHaveLength(1);
+            expect(queryCalls[0].args[0].input.ScanIndexForward).toBe(false);
+        });
+
+        it("prefers the newest running session over a stale stopped row", async () => {
+            dynamoMock.on(QueryCommand).resolves({
+                Items: [
+                    {
+                        userId: "user-123",
+                        instanceId: "i-stopped",
+                        instanceArn: "arn:aws:ec2:us-west-2:123:instance/i-stopped",
+                        status: "stopped",
+                        streamingLink: "https://stale.example.com:8443",
+                        dcvUser: "Administrator",
+                        dcvPassword: "old-pw",
+                        createdAt: "2026-04-10T00:00:00.000Z",
+                    },
+                    {
+                        userId: "user-123",
+                        instanceId: "i-running",
+                        instanceArn: "arn:aws:ec2:us-west-2:123:instance/i-running",
+                        status: "running",
+                        streamingLink: "https://live.example.com:8443",
+                        dcvUser: "Administrator",
+                        dcvPassword: "new-pw",
+                        createdAt: "2026-04-09T23:59:00.000Z",
+                    },
+                ],
+            });
+            dynamoMock.on(GetCommand).resolves({
+                Item: {
+                    instanceId: "i-running",
+                    status: "running",
+                },
+            });
+            mockGetInstanceDetails.mockResolvedValue({
+                instanceId: "i-running",
+                state: "running",
+                publicIp: "1.2.3.4",
+                volumes: [],
+            });
+
+            const response = await handler(
+                makeEvent("/streamingLink", "GET", {
+                    query: { userId: "user-123" },
+                }),
+            );
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.body);
+            expect(body.instanceId).toBe("i-running");
+            expect(body.streamingLink).toBe("https://live.example.com:8443");
+            const queryCalls = dynamoMock.commandCalls(QueryCommand);
+            expect(queryCalls).toHaveLength(1);
+            expect(queryCalls[0].args[0].input.ScanIndexForward).toBe(false);
+        });
+
+        it("returns inactive when EC2 says the candidate instance is no longer running", async () => {
+            dynamoMock.on(QueryCommand).resolves({
+                Items: [
+                    {
+                        userId: "user-123",
+                        instanceId: "i-dead",
+                        instanceArn: "arn:aws:ec2:us-west-2:123:instance/i-dead",
+                        status: "running",
+                        streamingLink: "https://dead.example.com:8443",
+                        dcvUser: "Administrator",
+                        dcvPassword: "pw",
+                        createdAt: "2026-04-10T00:00:00.000Z",
+                    },
+                ],
+            });
+            dynamoMock.on(GetCommand).resolves({
+                Item: {
+                    instanceId: "i-dead",
+                    status: "running",
+                },
+            });
+            mockGetInstanceDetails.mockResolvedValue({
+                instanceId: "i-dead",
+                state: "terminated",
+                publicIp: "1.2.3.4",
+                volumes: [],
+            });
+
+            const response = await handler(
+                makeEvent("/streamingLink", "GET", {
+                    query: { userId: "user-123" },
+                }),
+            );
+
+            expect(response.statusCode).toBe(404);
+            expect(JSON.parse(response.body).message).toContain("No active streaming session");
+        });
+
+        it("returns inactive when the stream row is running but the instance row is no longer running", async () => {
+            dynamoMock.on(QueryCommand).resolves({
+                Items: [
+                    {
+                        userId: "user-123",
+                        instanceId: "i-stale",
+                        instanceArn: "arn:aws:ec2:us-west-2:123:instance/i-stale",
+                        status: "running",
+                        streamingLink: "https://stale.example.com:8443",
+                        dcvUser: "Administrator",
+                        dcvPassword: "pw",
+                        createdAt: "2026-04-10T00:00:00.000Z",
+                    },
+                ],
+            });
+            dynamoMock.on(GetCommand).resolves({
+                Item: {
+                    instanceId: "i-stale",
+                    status: "stopped",
+                },
+            });
+
+            const response = await handler(
+                makeEvent("/streamingLink", "GET", {
+                    query: { userId: "user-123" },
+                }),
+            );
+
+            expect(response.statusCode).toBe(404);
+            expect(JSON.parse(response.body).message).toContain("No active streaming session");
+        });
+    });
+
+    describe("GET /deployment-status", () => {
+        it("prefers the active terminate execution over an older deploy execution", async () => {
+            const terminateExecutionArn =
+                "arn:aws:states:us-east-1:123:execution:UserTerminateEC2Workflow:user-123-2";
+            const deployExecutionArn =
+                "arn:aws:states:us-east-1:123:execution:UserDeployEC2Workflow:user-123-1";
+
+            dynamoMock.on(QueryCommand).resolves({
+                Items: [
+                    {
+                        instanceId: "i-123",
+                        userId: "user-123",
+                        executionArn: deployExecutionArn,
+                        status: "running",
+                        creationTime: "2026-04-09T23:55:00.000Z",
+                    },
+                    {
+                        instanceId: "i-123",
+                        userId: "user-123",
+                        executionArn: terminateExecutionArn,
+                        status: "terminating",
+                        creationTime: "2026-04-10T00:00:00.000Z",
+                    },
+                ],
+            });
+
+            sfnMock.on(DescribeExecutionCommand).resolves({
+                status: "RUNNING",
+                executionArn: terminateExecutionArn,
+                startDate: new Date("2026-04-10T00:00:00.000Z"),
+                $metadata: {},
+            });
+
+            sfnMock.on(GetExecutionHistoryCommand).resolves({
+                events: [
+                    {
+                        type: "TaskStateEntered",
+                        stateEnteredEventDetails: { name: "StopEC2" },
+                    },
+                ],
+                $metadata: {},
+            });
+
+            const response = await handler(
+                makeEvent("/deployment-status", "GET", {
+                    query: { userId: "user-123" },
+                }),
+            );
+
+            expect(response.statusCode).toBe(200);
+            const body = JSON.parse(response.body);
+            expect(body.status).toBe("RUNNING");
+            expect(body.deploymentStatus).toBe("terminating");
+            const describeCalls = sfnMock.commandCalls(DescribeExecutionCommand);
+            expect(describeCalls).toHaveLength(1);
+            expect(describeCalls[0].args[0].input.executionArn).toBe(terminateExecutionArn);
+        });
+    });
+});

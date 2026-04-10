@@ -1,5 +1,4 @@
 import EC2Wrapper from "../../utils/ec2Wrapper";
-import EBSWrapper from "../../utils/ebsWrapper";
 import DCVWrapper from "../../utils/dcvWrapper";
 import DynamoDBWrapper from "../../utils/dynamoDbWrapper";
 import {
@@ -40,7 +39,6 @@ export interface TerminateEc2Result {
     success: boolean;
     instanceId?: string;
     dcvStopped?: boolean;
-    detachVolumeState?: string;
     terminateInstanceState?: string;
     dynamoDbUpdateStatus?: string;
     message?: string;
@@ -53,34 +51,15 @@ async function terminateWorkflow(
     runningInstancesTable: DynamoDBWrapper,
 ) {
     const dcvWrapper = new DCVWrapper(instanceId, userId);
-    const ebsWrapper = new EBSWrapper();
     const ec2Wrapper = new EC2Wrapper();
 
     let dcvResult = { stoppedSuccessfully: false, message: "DCV stop skipped" };
-    let detachResult = { state: "skipped" };
 
+    // Stop DCV session (best effort - don't fail if it doesn't work)
     try {
-        // Get instance details to find volume
-        const instanceDetails = await ec2Wrapper.getInstanceDetails(instanceId);
-        const volumeId = instanceDetails.volumes[0]?.volumeId;
-
-        // Stop DCV session (best effort - don't fail if it doesn't work)
-        try {
-            dcvResult = await dcvWrapper.stopDCVSession();
-        } catch (dcvError) {
-            console.warn("Failed to stop DCV session:", dcvError);
-        }
-
-        // Detach EBS volume if found (best effort for MVP)
-        if (volumeId) {
-            try {
-                detachResult = await ebsWrapper.detachEBSVolume(volumeId, instanceId);
-            } catch (detachError) {
-                console.warn("Failed to detach volume:", detachError);
-            }
-        }
-    } catch (detailsError) {
-        console.warn("Failed to get instance details:", detailsError);
+        dcvResult = await dcvWrapper.stopDCVSession();
+    } catch (dcvError) {
+        console.warn("Failed to stop DCV session:", dcvError);
     }
 
     // Terminate EC2 instance - don't wait for full termination to avoid Lambda timeout
@@ -111,7 +90,6 @@ async function terminateWorkflow(
         success: true,
         instanceId,
         dcvStopped: dcvResult.stoppedSuccessfully,
-        detachVolumeState: detachResult.state,
         terminateInstanceState: terminateResult.state,
         dynamoDbUpdateStatus,
         message: `Instance ${instanceId} terminated successfully.`,

@@ -83,6 +83,10 @@ describe("user-deploy-ec2/update-running-streams", () => {
         const deleteCalls = dynamoMock.commandCalls(DeleteCommand);
         expect(deleteCalls).toHaveLength(1);
         expect(deleteCalls[0].args[0].input.Key).toEqual({ instanceId: "pending-123" });
+
+        const queryCalls = dynamoMock.commandCalls(QueryCommand);
+        expect(queryCalls).toHaveLength(1);
+        expect(queryCalls[0].args[0].input.ScanIndexForward).toBe(false);
     });
 
     it("does not fail overall when RunningInstances migration errors", async () => {

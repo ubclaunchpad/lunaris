@@ -57,6 +57,14 @@ mainSteps:
                       Write-Host "DCV Server already running"
                   }
 
+                  $rule = Get-NetFirewallRule -DisplayName "Lunaris DCV HTTPS" -ErrorAction SilentlyContinue
+                  if (!$rule) {
+                      New-NetFirewallRule -DisplayName "Lunaris DCV HTTPS" -Direction Inbound -Protocol TCP -LocalPort 8443 -Action Allow -Profile Any | Out-Null
+                      Write-Host "DCV firewall rule created"
+                  } else {
+                      Write-Host "DCV firewall rule already exists"
+                  }
+
     - name: CreateOrGetSession
       action: aws:runPowerShellScript
       inputs:

@@ -36,6 +36,7 @@ export default function StreamingTestPage() {
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
     const [userId, setUserId] = useState("test123");
+    const [gameId, setGameId] = useState("");
     const [showViewer, setShowViewer] = useState(false);
     const [logs, setLogs] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
@@ -293,6 +294,10 @@ export default function StreamingTestPage() {
             addLog("❌ Please enter a User ID");
             return;
         }
+        if (!gameId) {
+            addLog("❌ Please enter a Game ID");
+            return;
+        }
 
         setDeploying(true);
         setDeploymentComplete(false);
@@ -301,7 +306,7 @@ export default function StreamingTestPage() {
         addLog(`⏳ This may take 2-3 minutes. Status will update automatically...`);
 
         try {
-            const response = await apiClient.deployInstance({ userId });
+            const response = await apiClient.deployInstance({ userId, gameId });
             addLog(`✅ Deployment workflow started: ${response.message}`);
 
             // Start polling for deployment status
@@ -465,11 +470,23 @@ export default function StreamingTestPage() {
                         />
                     </div>
 
+                    {/* Game ID input */}
+                    <div className="space-y-2">
+                        <label className="block text-sm font-medium">Game ID</label>
+                        <input
+                            type="text"
+                            value={gameId}
+                            onChange={(e) => setGameId(e.target.value)}
+                            placeholder="Enter game ID (e.g. fortnite)"
+                            className="w-full px-3 py-2 bg-gray-700 rounded border border-gray-600 focus:border-blue-500 outline-none"
+                        />
+                    </div>
+
                     {/* Action buttons */}
                     <div className="flex gap-2">
                         <button
                             onClick={deployInstance}
-                            disabled={deploying || isPolling || !userId}
+                            disabled={deploying || isPolling || !userId || !gameId}
                             className="flex-1 py-2 bg-purple-600 rounded font-medium hover:bg-purple-700 transition-colors disabled:opacity-50"
                         >
                             {isPolling
@@ -549,7 +566,7 @@ export default function StreamingTestPage() {
                             <div className="flex items-center gap-2">
                                 <span className="text-green-400">✓</span>
                                 <span className="text-green-300 text-sm">
-                                    Instance deployed! Click "Get Session" to connect.
+                                    Instance deployed! Click &quot;Get Session&quot; to connect.
                                 </span>
                             </div>
                         </div>
