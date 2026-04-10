@@ -96,6 +96,7 @@ describe("ApiClient", () => {
 
             const mockResponse = {
                 message: "This is the Terminate Instance handler",
+                executionArn: "arn:aws:states:us-west-2:123456789012:execution:Terminate:abc",
             };
 
             mockFetch.mockResolvedValueOnce({
@@ -108,6 +109,7 @@ describe("ApiClient", () => {
             const result = await apiClient.terminateInstance(request);
 
             expect(result).toEqual(mockResponse);
+            expect(result.executionArn).toBe(mockResponse.executionArn);
             expect(mockFetch).toHaveBeenCalledWith(
                 "https://test-api.example.com/terminateInstance",
                 {
@@ -239,6 +241,31 @@ describe("ApiClient", () => {
                     },
                 },
             );
+        });
+
+        it("should successfully get deployment status - terminating", async () => {
+            const request: GetDeploymentStatusRequest = {
+                userId: "user123",
+            };
+
+            const mockResponse = {
+                status: "RUNNING" as const,
+                deploymentStatus: "terminating" as const,
+                message: "Stopping EC2 instance",
+                currentStepName: "Stopping EC2 instance",
+            };
+
+            mockFetch.mockResolvedValueOnce({
+                ok: true,
+                status: 200,
+                statusText: "OK",
+                json: async () => mockResponse,
+            });
+
+            const result = await apiClient.getDeploymentStatus(request);
+
+            expect(result).toEqual(mockResponse);
+            expect(result.deploymentStatus).toBe("terminating");
         });
 
         it("should successfully get deployment status - SUCCEEDED", async () => {

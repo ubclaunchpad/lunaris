@@ -33,12 +33,13 @@ export interface DeployInstanceResponse {
 
 export interface TerminateInstanceRequest {
     userId: string;
-    instanceId: string;
+    instanceId?: string;
 }
 
 export interface TerminateInstanceResponse {
     message: string;
     status?: string;
+    executionArn?: string;
 }
 
 export interface GetStreamingLinkRequest {
@@ -81,9 +82,15 @@ export interface GetCheckoutSessionResponse {
 
 export type DeploymentStatus = "RUNNING" | "SUCCEEDED" | "FAILED" | "NOT_FOUND" | "UNKNOWN";
 
+export type DeploymentLifecycleStatus =
+    | "deploying"
+    | "running"
+    | "terminating"
+    | "terminated";
+
 export interface GetDeploymentStatusResponse {
     status: DeploymentStatus;
-    deploymentStatus?: "deploying" | "running";
+    deploymentStatus?: DeploymentLifecycleStatus;
     message: string;
     instanceId?: string;
     dcvUrl?: string;

@@ -566,7 +566,7 @@ export default function StreamingTestPage() {
                             <div className="flex items-center gap-2">
                                 <span className="text-green-400">✓</span>
                                 <span className="text-green-300 text-sm">
-                                    Instance deployed! Click "Get Session" to connect.
+                                    Instance deployed! Click &quot;Get Session&quot; to connect.
                                 </span>
                             </div>
                         </div>

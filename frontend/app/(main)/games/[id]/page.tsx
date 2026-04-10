@@ -2,7 +2,7 @@
 
 import { use, useState, useCallback, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ChevronLeft, Gamepad2, Keyboard } from "lucide-react";
 import gamesData from "@/lib/data.json";
@@ -43,7 +43,6 @@ function toGame(g: (typeof gamesData.games)[number]): Game {
 
 export default function GamePage({ params }: GamePageProps) {
     const router = useRouter();
-    const searchParams = useSearchParams();
     const { id } = use(params);
     const { data: session } = useSession();
 
@@ -67,17 +66,28 @@ export default function GamePage({ params }: GamePageProps) {
     const [deploymentError, setDeploymentError] = useState<string | null>(null);
     const [lastLoggedStep, setLastLoggedStep] = useState<string | null>(null);
     const [credentials, setCredentials] = useState<StreamingCredentials | null>(null);
+    const [sessionNotice, setSessionNotice] = useState<string | null>(null);
     const [isFetchingCredentials, setIsFetchingCredentials] = useState(false);
     const [isCheckingExisting, setIsCheckingExisting] = useState(true);
     const deployStartedAtRef = useRef<string | null>(null);
 
+    useEffect(() => {
+        const terminatedGameId = window.sessionStorage.getItem("terminated-game-id");
+
+        if (terminatedGameId === id) {
+            setSessionNotice("Session ended. You can launch this game again whenever you're ready.");
+            window.sessionStorage.removeItem("terminated-game-id");
+            return;
+        }
+
+        setSessionNotice(null);
+    }, [id]);
+
     // Check for existing streaming session on mount
     useEffect(() => {
         const checkExistingStream = async () => {
-            if (searchParams.get("terminated") === "true") {
-                setIsCheckingExisting(false);
-                return;
-            }
+            setCredentials(null);
+
             try {
                 const streamData = await apiClient.getStreamingLink({ userId });
                 const session = streamData as {
@@ -103,7 +113,7 @@ export default function GamePage({ params }: GamePageProps) {
         };
 
         checkExistingStream();
-    }, [userId, searchParams]);
+    }, [userId]);
 
     // Handle deployment status changes
     const handleStatusChange = useCallback(
@@ -358,6 +368,12 @@ export default function GamePage({ params }: GamePageProps) {
                     </div>
                 )}
 
+                {sessionNotice && (
+                    <div className="mt-4 rounded-lg border border-white/15 bg-white/5 p-4">
+                        <span className="text-sm text-[#fbfff5]">{sessionNotice}</span>
+                    </div>
+                )}
+
                 {/* Deployment Status */}
                 {(isDeploying || isFetchingCredentials) && deploymentStatus && (
                     <div className="mt-4 bg-blue-900/50 border border-blue-700 rounded-lg p-4">
@@ -366,7 +382,10 @@ export default function GamePage({ params }: GamePageProps) {
                             <span className="text-blue-300 text-sm">{deploymentStatus}</span>
                         </div>
                         <p className="text-xs text-blue-400 mt-2">
-                            This may take 2-3 minutes. The button will change to "Start Streaming"
+                            This may take 2-3 minutes. The button will change to
+                            {" "}
+                            &quot;Start Streaming&quot;
+                            {" "}
                             when ready.
                         </p>
                     </div>
@@ -378,7 +397,7 @@ export default function GamePage({ params }: GamePageProps) {
                         <div className="flex items-center gap-2">
                             <span className="text-green-400">&#10003;</span>
                             <span className="text-green-300 text-sm">
-                                Instance ready! Click "Start Streaming" to launch fullscreen.
+                                Instance ready! Click &quot;Start Streaming&quot; to launch fullscreen.
                             </span>
                         </div>
                     </div>
