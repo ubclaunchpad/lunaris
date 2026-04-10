@@ -240,7 +240,7 @@
                 {
                     "ErrorEquals": ["States.ALL"],
                     "ResultPath": "$.configureError",
-                    "Next": "HandleConfigureDcvError"
+                    "Next": "PrepareUpdatePayload"
                 }
             ]
         },
@@ -366,11 +366,6 @@
             "Type": "Fail",
             "Cause": "Failed to start DCV service on resumed instance",
             "Error": "StartDcvFailedError"
-        },
-        "HandleConfigureDcvError": {
-            "Type": "Fail",
-            "Cause": "Failed to configure DCV on deployed instance",
-            "Error": "ConfigureDcvFailedError"
         }
     }
 }
