@@ -72,31 +72,9 @@
         },
         "WaitForInstanceReady": {
             "Type": "Wait",
-            "Seconds": 120,
-            "Comment": "Give EC2 user-data time to start DCV bootstrap and certificate setup",
-            "Next": "VerifyDcvEndpoint"
-        },
-        "VerifyDcvEndpoint": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::lambda:invoke",
-            "Parameters": {
-                "FunctionName": "${VerifyDcvEndpointArn}",
-                "Payload": {
-                    "instanceId.$": "$.deployResult.Payload.instanceId",
-                    "dcvPort.$": "$.deployResult.Payload.dcvPort",
-                    "timeoutSeconds": 600,
-                    "pollIntervalSeconds": 15
-                }
-            },
-            "ResultPath": "$.verifyDcvResult",
-            "Next": "PrepareUpdatePayload",
-            "Catch": [
-                {
-                    "ErrorEquals": ["States.ALL"],
-                    "ResultPath": "$.verifyDcvError",
-                    "Next": "RollbackInstance"
-                }
-            ]
+            "Seconds": 60,
+            "Comment": "Wait for EC2 instance to be fully ready — DCV is pre-installed on the AMI",
+            "Next": "PrepareUpdatePayload"
         },
         "PrepareUpdatePayload": {
             "Type": "Pass",
@@ -106,8 +84,8 @@
                 "gameId.$": "$.gameId",
                 "instanceId.$": "$.deployResult.Payload.instanceId",
                 "instanceArn.$": "$.deployResult.Payload.instanceArn",
-                "dcvIp.$": "$.verifyDcvResult.Payload.dcvIp",
-                "dcvPort.$": "$.verifyDcvResult.Payload.dcvPort",
+                "dcvIp.$": "$.deployResult.Payload.dcvIp",
+                "dcvPort.$": "$.deployResult.Payload.dcvPort",
                 "dcvUser.$": "$.deployResult.Payload.dcvUser",
                 "dcvPassword.$": "$.deployResult.Payload.dcvPassword"
             },

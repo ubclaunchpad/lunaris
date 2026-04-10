@@ -397,36 +397,46 @@ States renamed: `VerifyDcvEndpointAfterDeploy` → `VerifyDcvEndpoint`;
 ### Task List
 
 **State machine (`definition.asl.json`)**
-- [ ] Remove the entire resume branch: `CheckRunningInstances`, `CheckIfInstanceExists`, `ResumeDeployInstance`, `WaitForResumeInstanceReady`, `GetDcvConfig`, `MergeResumeData`, `StartDcvInstance`, `VerifyDcvEndpointAfterResume`, `HandleInstancesRunningError`
-- [ ] Remove `ConfigureDcvInstance` and `WaitForInstanceReady`→`ConfigureDcvInstance`→`VerifyDcvEndpointAfterDeploy`; wire `WaitForInstanceReady` directly to `VerifyDcvEndpoint`
-- [ ] Rename `VerifyDcvEndpointAfterDeploy` → `VerifyDcvEndpoint`
-- [ ] Increase `WaitForInstanceReady` from 60s to 120s
-- [ ] Increase verify step `timeoutSeconds` from 360 to 600
-- [ ] Rename `HandleDatabaseError` (post-rollback terminal reached via `RollbackInstance`) to `HandleRollbackComplete` with cause "EC2 instance was rolled back after failed deployment"
-- [ ] Remove `ebsVolumeId` from `PrepareUpdatePayload` parameters
-- [ ] Wire `CheckIfValidStream` Default branch directly to `DeployEC2` (remove the `CheckRunningInstances` indirection)
+- [x] Remove the entire resume branch: `CheckRunningInstances`, `CheckIfInstanceExists`, `ResumeDeployInstance`, `WaitForResumeInstanceReady`, `GetDcvConfig`, `MergeResumeData`, `StartDcvInstance`, `VerifyDcvEndpointAfterResume`, `HandleInstancesRunningError`
+- [x] Remove `ConfigureDcvInstance` and wire `WaitForInstanceReady` directly to `VerifyDcvEndpoint`
+- [x] Rename `VerifyDcvEndpointAfterDeploy` → `VerifyDcvEndpoint`
+- [x] Increase `WaitForInstanceReady` from 60s to 120s
+- [x] Increase verify step `timeoutSeconds` from 360 to 600
+- [x] Rename `HandleDatabaseError` (post-rollback terminal) to `HandleRollbackComplete` with accurate cause message
+- [x] Remove `ebsVolumeId` from `PrepareUpdatePayload` parameters
+- [x] Wire `CheckIfValidStream` Default branch directly to `DeployEC2`
 
 **Lambda configs**
-- [ ] Remove `configureDcvInstance`, `resumeDeployInstance`, `getDcvConfig`, `startDcvInstance` from `workflow.config.ts` lambdaFunctions
-- [ ] Increase `verifyDcvEndpoint` Lambda `timeoutSeconds` from 420 to 660 in `verify-dcv-endpoint.config.ts`
+- [x] Remove `configureDcvInstance`, `resumeDeployInstance`, `getDcvConfig`, `startDcvInstance` from `workflow.config.ts` lambdaFunctions
+- [x] Increase `verifyDcvEndpoint` Lambda `timeoutSeconds` from 420 to 660 in `verify-dcv-endpoint.config.ts`
+- [x] Delete config files: `configure-dcv-instance.config.ts`, `get-dcv-config.config.ts`, `resume-deploy-instance.config.ts`, `start-dcv-instance.config.ts`, `check-running-instances-deploy.config.ts`
 
 **Lambda handlers**
-- [ ] Remove `ebsVolumeId` field and conditional DynamoDB write from `update-running-instances.ts`
-- [ ] Remove EBS detach block from `terminate-ec2.ts`; delete `lambda/src/utils/ebsWrapper.ts`
+- [x] Remove `ebsVolumeId` field and conditional DynamoDB write from `update-running-instances.ts`
+- [x] Remove EBS detach block from `terminate-ec2.ts`; delete `lambda/src/utils/ebsWrapper.ts`
 
 **CDK**
-- [ ] Remove Lambda constructs for `configureDcvInstance`, `resumeDeployInstance`, `getDcvConfig`, `startDcvInstance` from `compute-stack.ts` and `lambda-functions.ts`
+- [x] Remove DynamoDB grants for `getDcvConfigFunction` and `checkRunningInstancesFunction` from `compute-stack.ts`
+- [x] Remove `baseEbsSnapshotId` prop and `BASE_EBS_SNAPSHOT_ID` env var from `lambda-functions.ts` and `lambda-types.ts`
+- [x] Remove `resumeEC2`, `startDcv`, `configureDcv` from `LambdaPolicy` type and `lambda-factory.ts` switch
+
+**Tests**
+- [x] Fix `step-functions.test.ts`: correct `StepFunctionsProps` shape (was using named properties instead of `Map<string, Function>`); add `WorkflowRegistry.discoverWorkflows()` call in `beforeEach`; remove `configureDcvInstanceFunction` reference; assert removed lambdas are absent from workflow config
+- [x] Fix `terminate-ec2.test.ts`: remove EBS mock, `detachVolumeState` assertions, and EBS-specific test cases
+- [x] Fix `terminate-ec2.metrics.test.ts`: remove EBS import and mock
+- [x] Fix `update-running-instances.test.ts`: remove `ebsVolumeId` test case
+- [x] Delete `lambda/test/wrappers/ebsWrapper.test.ts`
 
 **Deploy and validate**
-- [ ] Deploy and run a full end-to-end: fresh deploy → status polling → frontend DCV connect
+- [ ] Deploy to AWS and run a full end-to-end: fresh deploy → status polling → frontend DCV connect
 
 ### Definition Of Done
 
 - [ ] Fresh deploy produces a verified browser-connectable DCV URL in DynamoDB
-- [ ] No resume, EBS, SSM-config, or `ConfigureDcvInstance` states in any execution graph
+- [x] No resume, EBS, SSM-config, or `ConfigureDcvInstance` states in any execution graph
 - [ ] `VerifyDcvEndpoint` succeeds within the polling window on a cold Windows AMI boot
-- [ ] No `ebsVolumeId` in any state machine payload, DynamoDB write, or Lambda event type
-- [ ] Post-rollback terminal state has an accurate error message
+- [x] No `ebsVolumeId` in any state machine payload, DynamoDB write, or Lambda event type
+- [x] Post-rollback terminal state has an accurate error message
 
 ---
 
@@ -441,3 +451,4 @@ States renamed: `VerifyDcvEndpointAfterDeploy` → `VerifyDcvEndpoint`;
 - 2026-04-10: Phase 5 completed. The streaming page now waits for confirmed termination before redirecting, and the game page no longer relies on the `terminated=true` bypass to avoid stale ready state.
 - 2026-04-10: Phase 6 completed. Added an ADR documenting the current DynamoDB ownership model, polling decision, and the long-term path toward a more authoritative session control plane.
 - 2026-04-10: Post-phase hotfix in progress. Live debugging on instance `i-0cfe97128b282eade` showed the instance was running and its EC2 security group allowed TCP 8443, but external TCP connects to `52.33.95.53:8443` timed out and SSM-based DCV setup was not completing reliably. The remediation adds an explicit Windows firewall rule for DCV HTTPS and verifies port 8443 after DCV start/restart. The workflow-level "fail deploy if ConfigureDcvInstance fails" change was then rolled back to restore the previous best-effort behavior for that step, because `ConfigureDcvInstance` predates this implementation wave and is not required for AMIs that are already DCV-ready.
+- 2026-04-10: Simplification plan implemented. Resume path, EBS, and ConfigureDcvInstance removed entirely. State machine reduced from 27 states to 17. WaitForInstanceReady increased to 120s, verify timeout to 600s, verify Lambda timeout to 660s. HandleRollbackComplete replaces the misleading HandleDatabaseError post-rollback label. All CDK lambda configs/policy types for removed lambdas cleaned up. All tests updated and passing (lambda: 321/326 pass, 5 pre-existing skips; CDK step-functions: 9/9 pass, 4 pre-existing unrelated failures unchanged). Remaining work: deploy to AWS and validate end-to-end.

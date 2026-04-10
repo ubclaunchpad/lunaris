@@ -11,7 +11,11 @@
       "Bash(aws ec2:*)",
       "Bash(aws iam:*)",
       "Bash(grep -n \"SECURITY_GROUP_ID\\\\|port 80\\\\|port 8443\\\\|LocalPort 80\" cdk/lib/compute-stack.ts cdk/lib/constructs/compute/*.ts)",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "Bash(grep -v \"^$\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('jest', {}\\), indent=2\\)\\)\")",
+      "Bash(node -e \"const env = require\\('./node_modules/jest-environment-node/build/index.js'\\); console.log\\('loaded ok'\\)\")",
+      "Bash(NODE_OPTIONS='--localstorage-file=/tmp/jest-localstorage.json' npx jest --testPathPattern=\"verify-dcv-endpoint\" --no-coverage)"
     ]
   }
 }

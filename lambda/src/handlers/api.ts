@@ -743,14 +743,11 @@ const handleStreamingLink = async (event: APIGatewayProxyEvent): Promise<APIGate
 // Define workflow steps for deploy and terminate workflows
 const DEPLOY_STEPS = [
     { name: "CheckRunningStreams", displayName: "Checking existing streams", order: 1 },
-    { name: "CheckIfValidStream", displayName: "Validating stream status", order: 2 },
-    { name: "DeployEC2", displayName: "Deploying EC2 instance", order: 3 },
-    { name: "WaitForInstanceReady", displayName: "Waiting for instance to be ready", order: 4 },
-    { name: "ConfigureDcvInstance", displayName: "Configuring DCV session", order: 5 },
-    { name: "VerifyDcvEndpointAfterDeploy", displayName: "Verifying DCV browser access", order: 6 },
-    { name: "VerifyDcvEndpointAfterResume", displayName: "Verifying DCV browser access", order: 6 },
-    { name: "UpdateRunningStreams", displayName: "Updating streaming database", order: 7 },
-    { name: "DeploymentSuccess", displayName: "Deployment complete", order: 8 },
+    { name: "DeployEC2", displayName: "Deploying EC2 instance", order: 2 },
+    { name: "WaitForInstanceReady", displayName: "Waiting for instance to be ready", order: 3 },
+    { name: "UpdateRunningStreams", displayName: "Updating streaming database", order: 4 },
+    { name: "UpdateRunningInstances", displayName: "Finalizing session", order: 5 },
+    { name: "Success", displayName: "Deployment complete", order: 6 },
 ];
 
 const TERMINATE_STEPS = [

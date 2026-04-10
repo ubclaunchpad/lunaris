@@ -7,8 +7,7 @@ import { Duration } from "aws-cdk-lib";
  * This workflow orchestrates the EC2 deployment process for users by:
  * 1. Checking if there are any running streams for the user
  * 2. Deploying a new EC2 instance from a DCV-ready AMI
- * 3. Verifying the DCV HTTPS endpoint is browser-connectable
- * 4. Writing the verified DCV URL to DynamoDB
+ * 3. Writing the DCV URL to DynamoDB
  */
 const config: WorkflowConfig = {
     name: "UserDeployEC2Workflow",
@@ -24,11 +23,6 @@ const config: WorkflowConfig = {
         deployEC2: {
             functionName: "deployEC2Function",
             placeholder: "${DeployEC2Arn}",
-            required: true,
-        },
-        verifyDcvEndpoint: {
-            functionName: "verifyDcvEndpointFunction",
-            placeholder: "${VerifyDcvEndpointArn}",
             required: true,
         },
         updateRunningStreams: {

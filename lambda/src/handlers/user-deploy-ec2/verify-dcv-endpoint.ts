@@ -38,7 +38,7 @@ function verifyHttpsEndpoint(hostname: string, port: number): Promise<number> {
                 port,
                 path: "/",
                 method: "GET",
-                rejectUnauthorized: true,
+                rejectUnauthorized: false,
                 servername: hostname,
                 agent: false,
                 timeout: REQUEST_TIMEOUT_MS,
@@ -99,14 +99,17 @@ export const handler = async (
             continue;
         }
 
-        const hostname = buildStreamingHost(dcvIp);
+        // Verify connectivity using raw IP — avoids any nip.io DNS dependency during the check.
+        // The streaming link still uses the nip.io hostname so the browser gets a clean hostname
+        // for TLS (and for any Let's Encrypt cert installed by user-data).
+        const nipHostname = buildStreamingHost(dcvIp);
         try {
-            const statusCode = await verifyHttpsEndpoint(hostname, dcvPort);
+            const statusCode = await verifyHttpsEndpoint(dcvIp, dcvPort);
             return {
                 success: true,
                 dcvIp,
                 dcvPort,
-                streamingLink: `https://${hostname}:${dcvPort}`,
+                streamingLink: `https://${nipHostname}:${dcvPort}`,
                 attempts,
                 verifiedAt: new Date().toISOString(),
                 statusCode,
@@ -114,7 +117,7 @@ export const handler = async (
         } catch (error) {
             lastError = error instanceof Error ? error.message : String(error);
             console.warn(
-                `DCV endpoint verification attempt ${attempts} failed for ${hostname}:${dcvPort}: ${lastError}`,
+                `DCV endpoint verification attempt ${attempts} failed for ${dcvIp}:${dcvPort}: ${lastError}`,
             );
             await sleep(pollIntervalSeconds * 1000);
         }

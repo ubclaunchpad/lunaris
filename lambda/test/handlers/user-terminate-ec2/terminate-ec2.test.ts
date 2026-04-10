@@ -1,17 +1,14 @@
 import { handler } from "../../../src/handlers/user-terminate-ec2/terminate-ec2";
 import EC2Wrapper from "../../../src/utils/ec2Wrapper";
-import EBSWrapper from "../../../src/utils/ebsWrapper";
 import DCVWrapper from "../../../src/utils/dcvWrapper";
 import DynamoDBWrapper from "../../../src/utils/dynamoDbWrapper";
 
 jest.mock("../../../src/utils/ec2Wrapper");
-jest.mock("../../../src/utils/ebsWrapper");
 jest.mock("../../../src/utils/dcvWrapper");
 jest.mock("../../../src/utils/dynamoDbWrapper");
 
 describe("user-terminate-ec2/terminate-ec2", () => {
     let mockEC2: jest.Mocked<EC2Wrapper>;
-    let mockEBS: jest.Mocked<EBSWrapper>;
     let mockDCV: jest.Mocked<DCVWrapper>;
     let mockRunningInstances: jest.Mocked<DynamoDBWrapper>;
 
@@ -23,30 +20,23 @@ describe("user-terminate-ec2/terminate-ec2", () => {
         jest.clearAllMocks();
 
         mockEC2 = new EC2Wrapper() as jest.Mocked<EC2Wrapper>;
-        mockEBS = new EBSWrapper() as jest.Mocked<EBSWrapper>;
         mockDCV = new DCVWrapper(instanceId, userId) as jest.Mocked<DCVWrapper>;
         mockRunningInstances = new DynamoDBWrapper(
             "RunningInstances",
         ) as jest.Mocked<DynamoDBWrapper>;
 
         (EC2Wrapper as jest.MockedClass<typeof EC2Wrapper>).mockImplementation(() => mockEC2);
-        (EBSWrapper as jest.MockedClass<typeof EBSWrapper>).mockImplementation(() => mockEBS);
         (DCVWrapper as jest.MockedClass<typeof DCVWrapper>).mockImplementation(() => mockDCV);
         (DynamoDBWrapper as jest.MockedClass<typeof DynamoDBWrapper>).mockImplementation(
             () => mockRunningInstances,
         );
 
-        mockEC2.getInstanceDetails.mockResolvedValue({ volumes: [{ volumeId: "vol-1" }] });
         mockDCV.stopDCVSession.mockResolvedValue({
             stoppedSuccessfully: true,
             message: "ok",
         });
-        mockEBS.detachEBSVolume.mockResolvedValue({
-            volumeId: "vol-1",
-            instanceId,
-            state: "detached",
-        });
         mockEC2.terminateInstance.mockResolvedValue({ instanceId, state: "shutting-down" });
+        mockRunningInstances.getItem.mockResolvedValue(null);
         mockRunningInstances.updateItem.mockResolvedValue(undefined);
     });
 
@@ -57,10 +47,10 @@ describe("user-terminate-ec2/terminate-ec2", () => {
             success: true,
             instanceId,
             dcvStopped: true,
-            detachVolumeState: "detached",
             terminateInstanceState: "shutting-down",
             dynamoDbUpdateStatus: "updated",
         });
+        expect(result).not.toHaveProperty("detachVolumeState");
     });
 
     it("uses instanceArn fallback when instanceId is missing", async () => {
@@ -81,38 +71,12 @@ describe("user-terminate-ec2/terminate-ec2", () => {
         );
     });
 
-    it("continues when getting instance details fails", async () => {
-        mockEC2.getInstanceDetails.mockRejectedValue(new Error("details failed"));
-
-        const result = await handler({ userId, instanceId, instanceArn });
-        expect(result.success).toBe(true);
-        expect(mockEC2.terminateInstance).toHaveBeenCalledWith(instanceId);
-        expect(result.detachVolumeState).toBe("skipped");
-    });
-
     it("continues when DCV stop throws", async () => {
         mockDCV.stopDCVSession.mockRejectedValue(new Error("dcv failed"));
 
         const result = await handler({ userId, instanceId, instanceArn });
         expect(result.success).toBe(true);
         expect(result.dcvStopped).toBe(false);
-    });
-
-    it("continues when detach throws", async () => {
-        mockEBS.detachEBSVolume.mockRejectedValue(new Error("detach failed"));
-
-        const result = await handler({ userId, instanceId, instanceArn });
-        expect(result.success).toBe(true);
-        expect(result.detachVolumeState).toBe("skipped");
-    });
-
-    it("keeps detach skipped when no volume exists", async () => {
-        mockEC2.getInstanceDetails.mockResolvedValue({ volumes: [] });
-
-        const result = await handler({ userId, instanceId, instanceArn });
-        expect(result.success).toBe(true);
-        expect(mockEBS.detachEBSVolume).not.toHaveBeenCalled();
-        expect(result.detachVolumeState).toBe("skipped");
     });
 
     it("marks running instances update as not_found on update failure", async () => {

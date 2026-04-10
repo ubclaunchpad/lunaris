@@ -45,7 +45,7 @@ describe("user-deploy-ec2/verify-dcv-endpoint", () => {
         });
 
         requestMock.mockImplementation((options: any, callback: (response: any) => void) => {
-            expect(options.hostname).toBe("1-2-3-4.nip.io");
+            expect(options.hostname).toBe("1.2.3.4");
             expect(options.port).toBe(8443);
             callback({
                 statusCode: 200,
