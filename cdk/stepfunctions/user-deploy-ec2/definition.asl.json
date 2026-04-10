@@ -100,7 +100,8 @@
             "Parameters": {
                 "FunctionName": "${GetDcvConfigArn}",
                 "Payload": {
-                    "instanceArn.$": "$.resumeDeployResult.Payload.instanceArn"
+                    "instanceArn.$": "$.resumeDeployResult.Payload.instanceArn",
+                    "instanceId.$": "$.resumeDeployResult.Payload.instanceId"
                 }
             },
             "ResultPath": "$.dcvConfig",

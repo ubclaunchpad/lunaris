@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
 import { GetCommand } from "@aws-sdk/lib-dynamodb";
 import { handler } from "../../../src/handlers/user-deploy-ec2/get-dcv-config";
 import { dynamoMock, ensureStreamsTableEnv } from "../../utils/dynamoMock";
+import EC2Wrapper from "../../../src/utils/ec2Wrapper";
+
+jest.mock("../../../src/utils/ec2Wrapper");
 
 const INSTANCE_ARN = "arn:aws:ec2:us-west-2:123456789012:instance/i-abc123";
 
@@ -11,6 +14,18 @@ describe("user-deploy-ec2/get-dcv-config", () => {
     beforeEach(() => {
         dynamoMock.reset();
         restoreEnv = ensureStreamsTableEnv();
+        jest.clearAllMocks();
+        const mockEc2Wrapper = new EC2Wrapper() as jest.Mocked<EC2Wrapper>;
+        (EC2Wrapper as jest.MockedClass<typeof EC2Wrapper>).mockImplementation(
+            () => mockEc2Wrapper,
+        );
+        mockEc2Wrapper.getInstanceDetails = jest.fn().mockResolvedValue({
+            instanceId: "i-abc123",
+            state: "running",
+            publicIp: "203.0.113.10",
+            privateIp: "10.0.0.10",
+            volumes: [],
+        });
     });
 
     afterEach(() => {
@@ -53,8 +68,24 @@ describe("user-deploy-ec2/get-dcv-config", () => {
             dcvPassword: "s3cr3t",
             dcvUser: "StreamUser",
             dcvPort: "9999",
-            dcvIp: "54.1.2.3",
+            dcvIp: "203.0.113.10",
         });
+    });
+
+    it("prefers the current EC2 public IP over the stale stored stream IP", async () => {
+        dynamoMock.on(GetCommand).resolves({
+            Item: {
+                instanceArn: INSTANCE_ARN,
+                dcvPassword: "s3cr3t",
+                dcvUser: "StreamUser",
+                dcvPort: "9999",
+                dcvIp: "54.1.2.3",
+            },
+        });
+
+        const result = await handler({ instanceArn: INSTANCE_ARN });
+
+        expect(result.dcvIp).toBe("203.0.113.10");
     });
 
     // ── Default values ────────────────────────────────────────────────────────
@@ -98,13 +129,21 @@ describe("user-deploy-ec2/get-dcv-config", () => {
                 dcvPort: "8443",
             },
         });
+        const mockEc2Wrapper = new EC2Wrapper() as jest.Mocked<EC2Wrapper>;
+        mockEc2Wrapper.getInstanceDetails.mockResolvedValue({
+            instanceId: "i-abc123",
+            state: "running",
+            publicIp: undefined,
+            privateIp: "10.0.0.10",
+            volumes: [],
+        });
 
         const result = await handler({ instanceArn: INSTANCE_ARN });
 
         expect(result.dcvIp).toBe("");
     });
 
-    it("applies all three defaults when dcvUser, dcvPort, and dcvIp are all absent", async () => {
+    it("applies user and port defaults while still using the current EC2 public IP when stored dcvIp is absent", async () => {
         dynamoMock.on(GetCommand).resolves({
             Item: { instanceArn: INSTANCE_ARN, dcvPassword: "pw" },
         });
@@ -115,7 +154,7 @@ describe("user-deploy-ec2/get-dcv-config", () => {
             dcvPassword: "pw",
             dcvUser: "Administrator",
             dcvPort: "8443",
-            dcvIp: "",
+            dcvIp: "203.0.113.10",
         });
     });
 
@@ -133,6 +172,17 @@ describe("user-deploy-ec2/get-dcv-config", () => {
         const input = calls[0].args[0].input;
         expect(input.TableName).toBe("test-running-streams");
         expect(input.Key).toEqual({ instanceArn: INSTANCE_ARN });
+    });
+
+    it("uses the provided instanceId when present instead of parsing from instanceArn", async () => {
+        dynamoMock.on(GetCommand).resolves({
+            Item: { instanceArn: INSTANCE_ARN, dcvPassword: "pw" },
+        });
+        const mockEc2Wrapper = new EC2Wrapper() as jest.Mocked<EC2Wrapper>;
+
+        await handler({ instanceArn: INSTANCE_ARN, instanceId: "i-explicit" });
+
+        expect(mockEc2Wrapper.getInstanceDetails).toHaveBeenCalledWith("i-explicit");
     });
 
     // ── Error propagation ─────────────────────────────────────────────────────
