@@ -82,11 +82,7 @@ export interface GetCheckoutSessionResponse {
 
 export type DeploymentStatus = "RUNNING" | "SUCCEEDED" | "FAILED" | "NOT_FOUND" | "UNKNOWN";
 
-export type DeploymentLifecycleStatus =
-    | "deploying"
-    | "running"
-    | "terminating"
-    | "terminated";
+export type DeploymentLifecycleStatus = "deploying" | "running" | "terminating" | "terminated";
 
 export interface GetDeploymentStatusResponse {
     status: DeploymentStatus;

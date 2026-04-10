@@ -88,7 +88,9 @@ describe("API session-state regressions", () => {
 
             expect(response.statusCode).toBe(200);
 
-            const updateInputs = dynamoMock.commandCalls(UpdateCommand).map((call) => call.args[0].input);
+            const updateInputs = dynamoMock
+                .commandCalls(UpdateCommand)
+                .map((call) => call.args[0].input);
             const putInputs = dynamoMock.commandCalls(PutCommand).map((call) => call.args[0].input);
             const mutationInputs = [...updateInputs, ...putInputs];
 

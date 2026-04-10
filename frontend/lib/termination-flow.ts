@@ -4,9 +4,7 @@ export function isTerminationComplete(response: GetDeploymentStatusResponse): bo
     return response.status === "SUCCEEDED" && response.deploymentStatus === "terminated";
 }
 
-export function getTerminationStatusMessage(
-    response: GetDeploymentStatusResponse | null,
-): string {
+export function getTerminationStatusMessage(response: GetDeploymentStatusResponse | null): string {
     if (!response) {
         return "Ending your session...";
     }

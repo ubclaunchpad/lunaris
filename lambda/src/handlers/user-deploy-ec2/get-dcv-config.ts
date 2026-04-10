@@ -44,7 +44,9 @@ export const handler = async (event: GetDcvConfigEvent): Promise<GetDcvConfigRes
     }
 
     const instanceId = resolveInstanceId(event);
-    const ec2Wrapper = new EC2Wrapper(process.env.LAMBDA_REGION || process.env.AWS_REGION || "us-west-2");
+    const ec2Wrapper = new EC2Wrapper(
+        process.env.LAMBDA_REGION || process.env.AWS_REGION || "us-west-2",
+    );
     const instanceDetails = await ec2Wrapper.getInstanceDetails(instanceId);
     const currentDcvIp = instanceDetails.publicIp || stream.dcvIp || "";
 

@@ -20,14 +20,14 @@ record of:
 - Review-plan remediation phases are complete in the codebase.
 - Current active follow-up is DCV deployment readiness for fresh and resumed instances.
 - Known unrelated local changes already present before this plan:
-  - `frontend/app/(main)/games/[id]/page.tsx`
-  - `frontend/app/(stream)/streaming/page.tsx`
-  - `frontend/components/dcv-viewer-simple.tsx`
+    - `frontend/app/(main)/games/[id]/page.tsx`
+    - `frontend/app/(stream)/streaming/page.tsx`
+    - `frontend/components/dcv-viewer-simple.tsx`
 - Target area:
-  - Next.js frontend
-  - Lambda API handler
-  - deploy / terminate Step Functions workflows
-  - DynamoDB session-tracking tables
+    - Next.js frontend
+    - Lambda API handler
+    - deploy / terminate Step Functions workflows
+    - DynamoDB session-tracking tables
 
 ## Review Findings To Address
 
@@ -77,15 +77,15 @@ Notes:
 
 ## Phase Overview
 
-| Phase | Name | Goal | Status |
-| --- | --- | --- | --- |
-| 0 | Baseline And Tests | Lock in failing behaviors before refactor | Complete |
-| 1 | Correct Execution Tracking | Make deploy/terminate status tracking deterministic | Complete |
-| 2 | Eliminate Stale Session Reads | Stop surfacing stopped sessions as ready-to-stream | Complete |
-| 3 | Fix Resume Endpoint Refresh | Make resumed sessions connect to the real current host | Complete |
-| 4 | Clean Up Placeholder / Table Consistency | Remove placeholder drift and tighten table updates | Complete |
-| 5 | Frontend Termination UX | Wait for real backend completion before clearing / redirecting | Complete |
-| 6 | Architecture Follow-Up | Decide whether to keep current table model and polling strategy | Complete |
+| Phase | Name                                     | Goal                                                            | Status   |
+| ----- | ---------------------------------------- | --------------------------------------------------------------- | -------- |
+| 0     | Baseline And Tests                       | Lock in failing behaviors before refactor                       | Complete |
+| 1     | Correct Execution Tracking               | Make deploy/terminate status tracking deterministic             | Complete |
+| 2     | Eliminate Stale Session Reads            | Stop surfacing stopped sessions as ready-to-stream              | Complete |
+| 3     | Fix Resume Endpoint Refresh              | Make resumed sessions connect to the real current host          | Complete |
+| 4     | Clean Up Placeholder / Table Consistency | Remove placeholder drift and tighten table updates              | Complete |
+| 5     | Frontend Termination UX                  | Wait for real backend completion before clearing / redirecting  | Complete |
+| 6     | Architecture Follow-Up                   | Decide whether to keep current table model and polling strategy | Complete |
 
 ---
 
@@ -397,6 +397,7 @@ States renamed: `VerifyDcvEndpointAfterDeploy` → `VerifyDcvEndpoint`;
 ### Task List
 
 **State machine (`definition.asl.json`)**
+
 - [x] Remove the entire resume branch: `CheckRunningInstances`, `CheckIfInstanceExists`, `ResumeDeployInstance`, `WaitForResumeInstanceReady`, `GetDcvConfig`, `MergeResumeData`, `StartDcvInstance`, `VerifyDcvEndpointAfterResume`, `HandleInstancesRunningError`
 - [x] Remove `ConfigureDcvInstance` and wire `WaitForInstanceReady` directly to `VerifyDcvEndpoint`
 - [x] Rename `VerifyDcvEndpointAfterDeploy` → `VerifyDcvEndpoint`
@@ -407,20 +408,24 @@ States renamed: `VerifyDcvEndpointAfterDeploy` → `VerifyDcvEndpoint`;
 - [x] Wire `CheckIfValidStream` Default branch directly to `DeployEC2`
 
 **Lambda configs**
+
 - [x] Remove `configureDcvInstance`, `resumeDeployInstance`, `getDcvConfig`, `startDcvInstance` from `workflow.config.ts` lambdaFunctions
 - [x] Increase `verifyDcvEndpoint` Lambda `timeoutSeconds` from 420 to 660 in `verify-dcv-endpoint.config.ts`
 - [x] Delete config files: `configure-dcv-instance.config.ts`, `get-dcv-config.config.ts`, `resume-deploy-instance.config.ts`, `start-dcv-instance.config.ts`, `check-running-instances-deploy.config.ts`
 
 **Lambda handlers**
+
 - [x] Remove `ebsVolumeId` field and conditional DynamoDB write from `update-running-instances.ts`
 - [x] Remove EBS detach block from `terminate-ec2.ts`; delete `lambda/src/utils/ebsWrapper.ts`
 
 **CDK**
+
 - [x] Remove DynamoDB grants for `getDcvConfigFunction` and `checkRunningInstancesFunction` from `compute-stack.ts`
 - [x] Remove `baseEbsSnapshotId` prop and `BASE_EBS_SNAPSHOT_ID` env var from `lambda-functions.ts` and `lambda-types.ts`
 - [x] Remove `resumeEC2`, `startDcv`, `configureDcv` from `LambdaPolicy` type and `lambda-factory.ts` switch
 
 **Tests**
+
 - [x] Fix `step-functions.test.ts`: correct `StepFunctionsProps` shape (was using named properties instead of `Map<string, Function>`); add `WorkflowRegistry.discoverWorkflows()` call in `beforeEach`; remove `configureDcvInstanceFunction` reference; assert removed lambdas are absent from workflow config
 - [x] Fix `terminate-ec2.test.ts`: remove EBS mock, `detachVolumeState` assertions, and EBS-specific test cases
 - [x] Fix `terminate-ec2.metrics.test.ts`: remove EBS import and mock
@@ -428,6 +433,7 @@ States renamed: `VerifyDcvEndpointAfterDeploy` → `VerifyDcvEndpoint`;
 - [x] Delete `lambda/test/wrappers/ebsWrapper.test.ts`
 
 **Deploy and validate**
+
 - [ ] Deploy to AWS and run a full end-to-end: fresh deploy → status polling → frontend DCV connect
 
 ### Definition Of Done

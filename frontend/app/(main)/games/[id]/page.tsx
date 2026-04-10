@@ -75,7 +75,9 @@ export default function GamePage({ params }: GamePageProps) {
         const terminatedGameId = window.sessionStorage.getItem("terminated-game-id");
 
         if (terminatedGameId === id) {
-            setSessionNotice("Session ended. You can launch this game again whenever you're ready.");
+            setSessionNotice(
+                "Session ended. You can launch this game again whenever you're ready.",
+            );
             window.sessionStorage.removeItem("terminated-game-id");
             return;
         }
@@ -382,11 +384,8 @@ export default function GamePage({ params }: GamePageProps) {
                             <span className="text-blue-300 text-sm">{deploymentStatus}</span>
                         </div>
                         <p className="text-xs text-blue-400 mt-2">
-                            This may take 2-3 minutes. The button will change to
-                            {" "}
-                            &quot;Start Streaming&quot;
-                            {" "}
-                            when ready.
+                            This may take 2-3 minutes. The button will change to &quot;Start
+                            Streaming&quot; when ready.
                         </p>
                     </div>
                 )}
@@ -397,7 +396,8 @@ export default function GamePage({ params }: GamePageProps) {
                         <div className="flex items-center gap-2">
                             <span className="text-green-400">&#10003;</span>
                             <span className="text-green-300 text-sm">
-                                Instance ready! Click &quot;Start Streaming&quot; to launch fullscreen.
+                                Instance ready! Click &quot;Start Streaming&quot; to launch
+                                fullscreen.
                             </span>
                         </div>
                     </div>

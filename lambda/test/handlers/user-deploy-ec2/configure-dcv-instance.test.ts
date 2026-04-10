@@ -94,8 +94,12 @@ describe("user-deploy-ec2/configure-dcv-instance", () => {
         const installCommand = sendMock.mock.calls[10][0];
         expect(installCommand.input.Parameters.commands).toEqual(
             expect.arrayContaining([
-                expect.stringContaining('Get-ChildItem -Path "C:\\DCV-Certs" -Recurse -File -Filter "*-chain.pem"'),
-                expect.stringContaining('Restart-Service -Name "dcvserver" -Force -ErrorAction Stop'),
+                expect.stringContaining(
+                    'Get-ChildItem -Path "C:\\DCV-Certs" -Recurse -File -Filter "*-chain.pem"',
+                ),
+                expect.stringContaining(
+                    'Restart-Service -Name "dcvserver" -Force -ErrorAction Stop',
+                ),
             ]),
         );
     });

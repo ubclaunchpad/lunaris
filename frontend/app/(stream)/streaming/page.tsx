@@ -52,7 +52,9 @@ function StreamingPageContent() {
     const [isTerminating, setIsTerminating] = useState(false);
     const [terminationStatusText, setTerminationStatusText] = useState("");
     const [terminationError, setTerminationError] = useState<string | null>(null);
-    const [sessionInfo, setSessionInfo] = useState<{ sessionId: string; authToken: string } | null>(null);
+    const [sessionInfo, setSessionInfo] = useState<{ sessionId: string; authToken: string } | null>(
+        null,
+    );
     const [uploadStatuses, setUploadStatuses] = useState<UploadStatus[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -131,7 +133,9 @@ function StreamingPageContent() {
             setTerminationStatusText(getTerminationStatusMessage(response));
 
             if (!isTerminationComplete(response)) {
-                setTerminationError("Received an unexpected completion state while ending the session.");
+                setTerminationError(
+                    "Received an unexpected completion state while ending the session.",
+                );
                 setIsTerminating(false);
                 return;
             }
@@ -323,7 +327,9 @@ function StreamingPageContent() {
                         <button
                             onClick={() => fileInputRef.current?.click()}
                             disabled={!sessionInfo}
-                            title={!sessionInfo ? "Waiting for session..." : "Upload files to instance"}
+                            title={
+                                !sessionInfo ? "Waiting for session..." : "Upload files to instance"
+                            }
                             className="px-4 py-1.5 bg-gray-600 rounded text-sm font-medium hover:bg-gray-500 transition-colors disabled:opacity-40"
                         >
                             Upload Files

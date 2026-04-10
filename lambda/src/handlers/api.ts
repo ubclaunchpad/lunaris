@@ -667,7 +667,9 @@ const handleStreamingLink = async (event: APIGatewayProxyEvent): Promise<APIGate
 
             if (instanceRecord?.status === "running") {
                 try {
-                    const instanceDetails = await ec2Wrapper.getInstanceDetails(candidate.instanceId);
+                    const instanceDetails = await ec2Wrapper.getInstanceDetails(
+                        candidate.instanceId,
+                    );
                     if (instanceDetails.state !== "running") {
                         continue;
                     }

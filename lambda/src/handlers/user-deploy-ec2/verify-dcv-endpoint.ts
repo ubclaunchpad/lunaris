@@ -58,9 +58,7 @@ function verifyHttpsEndpoint(hostname: string, port: number): Promise<number> {
     });
 }
 
-export const handler = async (
-    event: VerifyDcvEndpointEvent,
-): Promise<VerifyDcvEndpointResult> => {
+export const handler = async (event: VerifyDcvEndpointEvent): Promise<VerifyDcvEndpointResult> => {
     const { instanceId } = event;
     const dcvPort =
         typeof event.dcvPort === "string" ? Number(event.dcvPort) : (event.dcvPort ?? 8443);
@@ -71,7 +69,9 @@ export const handler = async (
         throw new Error("Missing required field: instanceId");
     }
 
-    const ec2Wrapper = new EC2Wrapper(process.env.LAMBDA_REGION || process.env.AWS_REGION || "us-west-2");
+    const ec2Wrapper = new EC2Wrapper(
+        process.env.LAMBDA_REGION || process.env.AWS_REGION || "us-west-2",
+    );
     const deadline = Date.now() + timeoutSeconds * 1000;
     let attempts = 0;
     let lastError = "DCV endpoint has not been verified yet";

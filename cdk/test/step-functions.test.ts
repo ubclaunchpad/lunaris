@@ -168,7 +168,9 @@ describe("StepFunctions Construct", () => {
             const registeredWorkflow = WorkflowRegistry.getWorkflow("UserDeployEC2Workflow");
             expect(registeredWorkflow).toBeDefined();
             expect(registeredWorkflow?.name).toBe("UserDeployEC2Workflow");
-            expect(registeredWorkflow?.description).toBe("Orchestrates user EC2 deployment process");
+            expect(registeredWorkflow?.description).toBe(
+                "Orchestrates user EC2 deployment process",
+            );
 
             expect(registeredWorkflow?.lambdaFunctions).toHaveProperty("checkRunningStreams");
             expect(registeredWorkflow?.lambdaFunctions).toHaveProperty("deployEC2");

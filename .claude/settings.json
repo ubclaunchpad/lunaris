@@ -1,21 +1,22 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(curl -s http://localhost:8000)",
-      "Bash(AWS_ACCESS_KEY_ID=dummy AWS_SECRET_ACCESS_KEY=dummy aws dynamodb list-tables --endpoint-url http://localhost:8000 --region us-east-1)",
-      "Bash(aws dynamodb:*)",
-      "Bash(ls /Users/danielyoo/workspace/lunaris/cdk/lambdas/*.config.ts)",
-      "Bash(xargs -I {} basename {} .config.ts)",
-      "Bash(grep -r \"GAMES_TABLE_NAME\" /Users/danielyoo/workspace/lunaris/cdk/lambdas/*.config.ts)",
-      "Bash(aws stepfunctions:*)",
-      "Bash(aws ec2:*)",
-      "Bash(aws iam:*)",
-      "Bash(grep -n \"SECURITY_GROUP_ID\\\\|port 80\\\\|port 8443\\\\|LocalPort 80\" cdk/lib/compute-stack.ts cdk/lib/constructs/compute/*.ts)",
-      "Bash(node -e ':*)",
-      "Bash(grep -v \"^$\")",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('jest', {}\\), indent=2\\)\\)\")",
-      "Bash(node -e \"const env = require\\('./node_modules/jest-environment-node/build/index.js'\\); console.log\\('loaded ok'\\)\")",
-      "Bash(NODE_OPTIONS='--localstorage-file=/tmp/jest-localstorage.json' npx jest --testPathPattern=\"verify-dcv-endpoint\" --no-coverage)"
-    ]
-  }
+    "permissions": {
+        "allow": [
+            "Bash(curl -s http://localhost:8000)",
+            "Bash(AWS_ACCESS_KEY_ID=dummy AWS_SECRET_ACCESS_KEY=dummy aws dynamodb list-tables --endpoint-url http://localhost:8000 --region us-east-1)",
+            "Bash(aws dynamodb:*)",
+            "Bash(ls /Users/danielyoo/workspace/lunaris/cdk/lambdas/*.config.ts)",
+            "Bash(xargs -I {} basename {} .config.ts)",
+            "Bash(grep -r \"GAMES_TABLE_NAME\" /Users/danielyoo/workspace/lunaris/cdk/lambdas/*.config.ts)",
+            "Bash(aws stepfunctions:*)",
+            "Bash(aws ec2:*)",
+            "Bash(aws iam:*)",
+            "Bash(grep -n \"SECURITY_GROUP_ID\\\\|port 80\\\\|port 8443\\\\|LocalPort 80\" cdk/lib/compute-stack.ts cdk/lib/constructs/compute/*.ts)",
+            "Bash(node -e ':*)",
+            "Bash(grep -v \"^$\")",
+            "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('jest', {}\\), indent=2\\)\\)\")",
+            "Bash(node -e \"const env = require\\('./node_modules/jest-environment-node/build/index.js'\\); console.log\\('loaded ok'\\)\")",
+            "Bash(NODE_OPTIONS='--localstorage-file=/tmp/jest-localstorage.json' npx jest --testPathPattern=\"verify-dcv-endpoint\" --no-coverage)",
+            "Bash(gh pr create --title 'fix: tags crash guard + plants-vs-zombies game card support' --base main --head feature/plants-vs-zombies --body ':*)"
+        ]
+    }
 }

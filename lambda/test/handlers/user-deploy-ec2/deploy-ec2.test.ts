@@ -78,8 +78,12 @@ describe("user-deploy-ec2/deploy-ec2", () => {
         expect(cfg.userDataScript).toContain("<powershell>");
         expect(cfg.userDataScript).toContain("dcvserver");
         expect(cfg.userDataScript).toContain("Administrator");
-        expect(cfg.userDataScript).toContain('New-NetFirewallRule -DisplayName "Lunaris DCV HTTPS"');
-        expect(cfg.userDataScript).toContain('New-NetFirewallRule -DisplayName "Lunaris ACME HTTP"');
+        expect(cfg.userDataScript).toContain(
+            'New-NetFirewallRule -DisplayName "Lunaris DCV HTTPS"',
+        );
+        expect(cfg.userDataScript).toContain(
+            'New-NetFirewallRule -DisplayName "Lunaris ACME HTTP"',
+        );
         expect(cfg.userDataScript).toContain("win-acme");
         expect(cfg.userDataScript).toContain("wacs.exe");
         expect(cfg.userDataScript).toContain(".nip.io");
