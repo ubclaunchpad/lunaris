@@ -22,6 +22,7 @@ export interface GetGameResponse {
 
 export interface DeployInstanceRequest {
     userId: string;
+    gameId: string;
 }
 
 export interface DeployInstanceResponse {

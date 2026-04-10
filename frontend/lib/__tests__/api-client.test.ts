@@ -27,8 +27,7 @@ describe("ApiClient", () => {
         it("should successfully deploy an instance", async () => {
             const request: DeployInstanceRequest = {
                 userId: "user123",
-                instanceType: "t3.micro",
-                amiId: "ami-123456",
+                gameId: "game-fortnite",
             };
 
             const mockResponse = {
@@ -59,7 +58,7 @@ describe("ApiClient", () => {
         it("should handle API errors", async () => {
             const request: DeployInstanceRequest = {
                 userId: "user123",
-                amiId: "ami-123456",
+                gameId: "game-fortnite",
             };
 
             mockFetch.mockResolvedValueOnce({
@@ -79,7 +78,7 @@ describe("ApiClient", () => {
         it("should handle network errors", async () => {
             const request: DeployInstanceRequest = {
                 userId: "user123",
-                amiId: "ami-123456",
+                gameId: "game-fortnite",
             };
 
             mockFetch.mockRejectedValueOnce(new TypeError("Network error"));
@@ -92,6 +91,7 @@ describe("ApiClient", () => {
         it("should successfully terminate an instance", async () => {
             const request: TerminateInstanceRequest = {
                 userId: "user123",
+                instanceId: "i-1234567890abcdef0",
             };
 
             const mockResponse = {
@@ -123,6 +123,7 @@ describe("ApiClient", () => {
         it("should handle 400 errors", async () => {
             const request: TerminateInstanceRequest = {
                 userId: "",
+                instanceId: "i-1234567890abcdef0",
             };
 
             mockFetch.mockResolvedValueOnce({
@@ -308,7 +309,7 @@ describe("ApiClient", () => {
         it("should handle non-JSON error responses", async () => {
             const request: DeployInstanceRequest = {
                 userId: "user123",
-                amiId: "ami-123456",
+                gameId: "game-fortnite",
             };
 
             mockFetch.mockResolvedValueOnce({
@@ -326,7 +327,7 @@ describe("ApiClient", () => {
         it("should handle fetch TypeError", async () => {
             const request: DeployInstanceRequest = {
                 userId: "user123",
-                amiId: "ami-123456",
+                gameId: "game-fortnite",
             };
 
             mockFetch.mockRejectedValueOnce(new TypeError("Failed to fetch"));
@@ -337,7 +338,7 @@ describe("ApiClient", () => {
         it("should handle unknown errors", async () => {
             const request: DeployInstanceRequest = {
                 userId: "user123",
-                amiId: "ami-123456",
+                gameId: "game-fortnite",
             };
 
             mockFetch.mockRejectedValueOnce("Unknown error");
@@ -350,7 +351,7 @@ describe("ApiClient", () => {
         it("should include proper headers in requests", async () => {
             const request: DeployInstanceRequest = {
                 userId: "user123",
-                amiId: "ami-123456",
+                gameId: "game-fortnite",
             };
 
             mockFetch.mockResolvedValueOnce({

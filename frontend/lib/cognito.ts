@@ -1,4 +1,4 @@
-import { createHmac, randomUUID } from "crypto";
+import { createHmac, randomUUID } from "node:crypto";
 
 export interface CognitoTokenPayload {
     sub: string;

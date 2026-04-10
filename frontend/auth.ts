@@ -6,6 +6,7 @@ import {
     InitiateAuthCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { createCognitoSecretHash, decodeJwtPayload, type CognitoTokenPayload } from "@/lib/cognito";
+import { authConfig } from "@/auth.config";
 
 async function refreshCognitoTokens(
     refreshToken: string,
@@ -59,6 +60,7 @@ type CredentialsUser = {
 };
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+    ...authConfig,
     providers: [
         CognitoProvider({
             clientId: process.env.COGNITO_CLIENT_ID!,
@@ -181,7 +183,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         },
     },
 
-    pages: {
-        signIn: "/login",
-    },
 });

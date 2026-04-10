@@ -218,7 +218,7 @@ export default function GamePage({ params }: GamePageProps) {
         deployStartedAtRef.current = new Date().toISOString();
 
         try {
-            const response = await apiClient.deployInstance({ userId });
+            const response = await apiClient.deployInstance({ userId, gameId: id });
             setDeploymentStatus(`Deployment started: ${response.message}`);
             startPolling();
         } catch (error) {
