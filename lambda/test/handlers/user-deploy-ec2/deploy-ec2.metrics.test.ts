@@ -3,18 +3,21 @@ import { mockClient } from "aws-sdk-client-mock";
 import { CloudWatchClient, PutMetricDataCommand } from "@aws-sdk/client-cloudwatch";
 import { handler } from "../../../src/handlers/user-deploy-ec2/deploy-ec2";
 import EC2Wrapper from "../../../src/utils/ec2Wrapper";
-import EBSWrapper, { EBSStatusEnum } from "../../../src/utils/ebsWrapper";
-import SSMWrapper from "../../../src/utils/ssmWrapper";
 import {
     LunarisMetricName,
     resetCloudWatchClientForTests,
 } from "../../../src/utils/cloudWatchMetrics";
 
 jest.mock("../../../src/utils/ec2Wrapper");
-jest.mock("../../../src/utils/ebsWrapper");
-jest.mock("../../../src/utils/ssmWrapper");
 
 const cwMock = mockClient(CloudWatchClient);
+
+const BASE_EVENT = {
+    userId: "user-1",
+    gameId: "game-fortnite",
+    amiId: "ami-abc",
+    instanceType: "g4dn.xlarge",
+};
 
 describe("deploy-ec2 handler CloudWatch metrics", () => {
     const originalEnv = process.env;
@@ -23,11 +26,13 @@ describe("deploy-ec2 handler CloudWatch metrics", () => {
         jest.clearAllMocks();
         cwMock.reset();
         resetCloudWatchClientForTests();
-        process.env = { ...originalEnv, LAMBDA_REGION: "us-east-1" };
-        process.env.SECURITY_GROUP_ID = "sg-test";
-        process.env.SUBNET_ID = "subnet-test";
-        process.env.EC2_INSTANCE_PROFILE_NAME = "lunaris-profile";
-        process.env.BASE_EBS_SNAPSHOT_ID = "snap-123";
+        process.env = {
+            ...originalEnv,
+            LAMBDA_REGION: "us-east-1",
+            SECURITY_GROUP_ID: "sg-test",
+            SUBNET_ID: "subnet-test",
+            EC2_INSTANCE_PROFILE_NAME: "lunaris-profile",
+        };
     });
 
     afterEach(() => {
@@ -35,39 +40,22 @@ describe("deploy-ec2 handler CloudWatch metrics", () => {
         resetCloudWatchClientForTests();
     });
 
-    it("publishes Started and Succeeded on successful deploy (realtime fleet count is published after RunningInstances update)", async () => {
-        const mockSSM = {
-            getParamFromParamStore: jest.fn<() => Promise<string>>().mockResolvedValue("ami-abc"),
-        };
+    it("publishes Started and Succeeded on successful deploy", async () => {
         const mockEC2 = {
             createAndWaitForInstance: jest.fn().mockResolvedValue({
                 instanceId: "i-abc",
                 instanceArn: "arn:aws:ec2:us-east-1:123456789012:instance/i-abc",
                 publicIp: "1.2.3.4",
                 availabilityZone: "us-east-1a",
+                state: "running",
+                createdAt: new Date().toISOString(),
             }),
         };
-        const mockEBS = {
-            createAndWaitForEBSVolume: jest.fn().mockResolvedValue({
-                volumeId: "vol-abc",
-                status: EBSStatusEnum.AVAILABLE,
-            }),
-            attachAndWaitForEBSVolume: jest.fn().mockResolvedValue({
-                volumeId: "vol-abc",
-                status: EBSStatusEnum.IN_USE,
-            }),
-        };
-        (SSMWrapper as unknown as jest.Mock).mockImplementation(
-            () => mockSSM as unknown as SSMWrapper,
-        );
         (EC2Wrapper as unknown as jest.Mock).mockImplementation(
             () => mockEC2 as unknown as EC2Wrapper,
         );
-        (EBSWrapper as unknown as jest.Mock).mockImplementation(
-            () => mockEBS as unknown as EBSWrapper,
-        );
 
-        const result = await handler({ userId: "user-1" });
+        const result = await handler(BASE_EVENT);
 
         expect(result.success).toBe(true);
 
@@ -79,33 +67,21 @@ describe("deploy-ec2 handler CloudWatch metrics", () => {
         expect(metricNames).toEqual([
             LunarisMetricName.DeploymentsStarted,
             LunarisMetricName.DeploymentsSucceeded,
+            LunarisMetricName.ActiveInstancesRealtime,
         ]);
     });
 
     it("publishes Started and Failed when deployment throws", async () => {
-        const mockSSM = {
-            getParamFromParamStore: jest.fn<() => Promise<string>>().mockResolvedValue("ami-abc"),
-        };
         const mockEC2 = {
             createAndWaitForInstance: jest
                 .fn()
                 .mockRejectedValue(new Error("Instance limit exceeded")),
         };
-        const mockEBS = {
-            createAndWaitForEBSVolume: jest.fn(),
-            attachAndWaitForEBSVolume: jest.fn(),
-        };
-        (SSMWrapper as unknown as jest.Mock).mockImplementation(
-            () => mockSSM as unknown as SSMWrapper,
-        );
         (EC2Wrapper as unknown as jest.Mock).mockImplementation(
             () => mockEC2 as unknown as EC2Wrapper,
         );
-        (EBSWrapper as unknown as jest.Mock).mockImplementation(
-            () => mockEBS as unknown as EBSWrapper,
-        );
 
-        const result = await handler({ userId: "user-1" });
+        const result = await handler(BASE_EVENT);
 
         expect(result.success).toBe(false);
 

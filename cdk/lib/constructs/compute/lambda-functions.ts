@@ -13,6 +13,8 @@ export interface LambdaFunctionsProps {
     readonly ec2InstanceProfileArn?: string;
     readonly ec2InstanceProfileName?: string;
     readonly dcvSecurityGroupId?: string;
+    readonly subnetId?: string;
+    readonly keyPairName?: string;
     readonly frontendUrl?: string;
     readonly stripeSecretKey?: string;
     readonly stripePriceStarter?: string;
@@ -69,6 +71,8 @@ export class LambdaFunctions extends Construct {
             EC2_INSTANCE_PROFILE_ARN: props.ec2InstanceProfileArn ?? "",
             EC2_INSTANCE_PROFILE_NAME: props.ec2InstanceProfileName ?? "",
             SECURITY_GROUP_ID: props.dcvSecurityGroupId ?? "",
+            SUBNET_ID: props.subnetId,
+            KEY_PAIR_NAME: props.keyPairName,
             LAMBDA_REGION: process.env.AWS_REGION ?? "us-west-2",
             FRONTEND_URL: props.frontendUrl,
             STRIPE_SECRET_KEY: props.stripeSecretKey,

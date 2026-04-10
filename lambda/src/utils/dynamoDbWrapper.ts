@@ -109,6 +109,15 @@ class DynamoDBWrapper {
         });
     }
 
+    async queryItemsByUserId(userId: string) {
+        try {
+            return await this.queryByUserId(userId);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            throw new Error(`Failed to query items by userId: ${message}`);
+        }
+    }
+
     async queryByStatus(status: string) {
         return this.query({
             IndexName: "StatusCreationTimeIndex",

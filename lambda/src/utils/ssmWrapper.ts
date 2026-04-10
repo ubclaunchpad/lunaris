@@ -214,6 +214,9 @@ class SSMWrapper {
 
             return response.Parameter.Value;
         } catch (error) {
+            if ((error as { name?: string }).name === "ParameterNotFound") {
+                return "";
+            }
             console.error(`Unable to get parameter ${paramName}`, error);
             throw error;
         }

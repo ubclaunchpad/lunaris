@@ -32,6 +32,7 @@ describe("UserTerminateEC2Workflow Integration", () => {
         (DynamoDBWrapper as jest.MockedClass<typeof DynamoDBWrapper>).mockImplementation(
             () => mockDb,
         );
+        mockDb.queryByStatus.mockResolvedValue([]);
 
         mockDcv = new DCVWrapper("i-1", "u-1") as jest.Mocked<DCVWrapper>;
         (DCVWrapper as jest.MockedClass<typeof DCVWrapper>).mockImplementation(() => mockDcv);

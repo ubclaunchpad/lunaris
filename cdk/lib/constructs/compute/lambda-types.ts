@@ -20,6 +20,8 @@ export interface LambdaEnvVarProvider {
     readonly EC2_INSTANCE_PROFILE_ARN: string;
     readonly EC2_INSTANCE_PROFILE_NAME: string;
     readonly SECURITY_GROUP_ID: string;
+    readonly SUBNET_ID?: string;
+    readonly KEY_PAIR_NAME?: string;
     readonly LAMBDA_REGION: string;
     readonly FRONTEND_URL?: string;
     readonly STRIPE_SECRET_KEY?: string;

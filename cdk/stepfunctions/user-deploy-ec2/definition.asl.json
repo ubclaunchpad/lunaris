@@ -75,7 +75,8 @@
             "Parameters": {
                 "FunctionName": "${ResumeDeployInstanceArn}",
                 "Payload": {
-                    "instanceId.$": "$.checkRunningInstancesResult.Payload.instanceId"
+                    "instanceId.$": "$.checkRunningInstancesResult.Payload.instanceId",
+                    "gameId.$": "$.gameId"
                 }
             },
             "ResultPath": "$.resumeDeployResult",
@@ -120,6 +121,9 @@
             "Comment": "Merge resume path data to match deploy path structure",
             "Parameters": {
                 "userId.$": "$.userId",
+                "gameId.$": "$.gameId",
+                "amiId.$": "$.amiId",
+                "instanceType.$": "$.instanceType",
                 "deployResult": {
                     "Payload": {
                         "instanceId.$": "$.resumeDeployResult.Payload.instanceId",
@@ -173,7 +177,10 @@
             "Parameters": {
                 "FunctionName": "${DeployEC2Arn}",
                 "Payload": {
-                    "userId.$": "$.userId"
+                    "userId.$": "$.userId",
+                    "gameId.$": "$.gameId",
+                    "amiId.$": "$.amiId",
+                    "instanceType.$": "$.instanceType"
                 }
             },
             "ResultPath": "$.deployResult",
@@ -241,6 +248,7 @@
             "Comment": "Normalize data from both deploy and resume paths for UpdateRunningStreams",
             "Parameters": {
                 "userId.$": "$.userId",
+                "gameId.$": "$.gameId",
                 "instanceId.$": "$.deployResult.Payload.instanceId",
                 "instanceArn.$": "$.deployResult.Payload.instanceArn",
                 "ebsVolumeId.$": "$.deployResult.Payload.ebsVolumeId",
@@ -281,10 +289,12 @@
                 "FunctionName": "${UpdateRunningInstancesArn}",
                 "Payload": {
                     "userId.$": "$.userId",
+                    "gameId.$": "$.updatePayload.gameId",
                     "instanceId.$": "$.updatePayload.instanceId",
                     "instanceArn.$": "$.updatePayload.instanceArn",
                     "ebsVolumeId.$": "$.updatePayload.ebsVolumeId",
-                    "creationTime.$": "$.deployResult.Payload.creationTime"
+                    "creationTime.$": "$.deployResult.Payload.creationTime",
+                    "executionArn.$": "$$.Execution.Id"
                 }
             },
             "ResultPath": "$.updateRunningInstanceResult",

@@ -1,5 +1,5 @@
 import EC2Wrapper, { type EC2InstanceConfig } from "../../utils/ec2Wrapper";
-import SSMWrapper from "../../utils/ssmWrapper";
+import { type _InstanceType } from "@aws-sdk/client-ec2";
 import {
     publishActiveInstancesRealtimeCount,
     publishDeploymentFailed,
@@ -10,6 +10,9 @@ import { randomBytes } from "crypto";
 
 type DeployEc2Event = {
     userId: string;
+    gameId: string;
+    amiId: string;
+    instanceType?: string;
 };
 
 type DeployEC2Success = {
@@ -100,14 +103,13 @@ export const handler = async (
     await publishDeploymentStarted();
 
     try {
-        const ssmWrapper = new SSMWrapper(process.env.LAMBDA_REGION || "us-west-2");
-        const amiId = await ssmWrapper.getParamFromParamStore("ami_id");
+        const { userId, gameId, amiId, instanceType } = event;
 
         if (!amiId) {
-            throw new Error("AMI ID not found in Parameter Store");
+            throw new Error("AMI ID is required but was not provided in the event");
         }
 
-        console.log(`Using AMI ID: ${amiId}`);
+        console.log(`Deploying game '${gameId}' using AMI: ${amiId}`);
 
         const ec2Wrapper = new EC2Wrapper(process.env.LAMBDA_REGION || "us-west-2");
 
@@ -116,8 +118,9 @@ export const handler = async (
         const dcvPassword = generateSecurePassword();
 
         const instanceConfig: EC2InstanceConfig = {
-            userId: event.userId,
-            amiId: amiId,
+            userId,
+            amiId,
+            instanceType: instanceType as _InstanceType | undefined,
             securityGroupIds: process.env.SECURITY_GROUP_ID
                 ? [process.env.SECURITY_GROUP_ID]
                 : undefined,
@@ -125,6 +128,7 @@ export const handler = async (
             keyName: process.env.KEY_PAIR_NAME,
             iamInstanceProfile: process.env.EC2_INSTANCE_PROFILE_NAME,
             userDataScript: generateWindowsUserData(dcvPassword),
+            tags: { GameId: gameId },
         };
 
         const instance = await ec2Wrapper.createAndWaitForInstance(instanceConfig);

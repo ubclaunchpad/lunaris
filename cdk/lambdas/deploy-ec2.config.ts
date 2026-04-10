@@ -10,7 +10,8 @@ const config: LambdaFunctionConfig = {
         "EC2_INSTANCE_PROFILE_ARN",
         "EC2_INSTANCE_PROFILE_NAME",
         "SECURITY_GROUP_ID",
-        "BASE_EBS_SNAPSHOT_ID",
+        "SUBNET_ID",
+        "KEY_PAIR_NAME",
     ],
     policies: ["deployEC2", "lunarisMetrics"],
 };

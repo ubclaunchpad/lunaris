@@ -8,7 +8,8 @@ import { CfnOutput } from "aws-cdk-lib";
  * Allows:
  * - Port 8443 (HTTPS) for DCV web client connections
  * - Port 80 (HTTP) for Let's Encrypt ACME certificate validation
- * - Port 3389 (RDP) for optional direct RDP access (can be removed for production)
+ * - Port 3389 (RDP) only if CDK context `adminCidr` is set (omitted by default for production safety)
+ *   Example: cdk deploy -c adminCidr=203.0.113.0/24
  */
 export class DCVSecurityGroup extends Construct {
     public readonly securityGroup: ec2.ISecurityGroup;
@@ -39,8 +40,16 @@ export class DCVSecurityGroup extends Construct {
             "Allow HTTP for ACME certificate validation",
         );
 
-        // Optional: RDP for debugging (consider removing in production)
-        sg.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(3389), "Allow RDP for debugging");
+        // RDP (port 3389) is disabled by default. To enable for admin access, pass:
+        //   cdk deploy -c adminCidr=<your-ip>/32
+        const adminCidr = this.node.tryGetContext("adminCidr") as string | undefined;
+        if (adminCidr) {
+            sg.addIngressRule(
+                ec2.Peer.ipv4(adminCidr),
+                ec2.Port.tcp(3389),
+                `Allow RDP from admin CIDR ${adminCidr}`,
+            );
+        }
 
         this.securityGroup = sg;
         this.securityGroupId = sg.securityGroupId;

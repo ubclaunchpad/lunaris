@@ -1,12 +1,6 @@
 import { APIGatewayProxyEvent, APIGatewayProxyResult } from "aws-lambda";
 import { ConditionalCheckFailedException, DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import {
-    DynamoDBDocumentClient,
-    // UpdateCommand,
-    // PutCommand
-    ScanCommand,
-    GetCommand,
-} from "@aws-sdk/lib-dynamodb";
+import { DynamoDBDocumentClient, PutCommand, ScanCommand, GetCommand } from "@aws-sdk/lib-dynamodb";
 import {
     SFNClient,
     StartExecutionCommand,
@@ -48,6 +42,7 @@ const docClient = DynamoDBDocumentClient.from(dynamoClient);
 // Environment variables
 const RUNNING_INSTANCES_TABLE_NAME = process.env.RUNNING_INSTANCES_TABLE_NAME || "";
 const RUNNING_STREAMS_TABLE_NAME = process.env.RUNNING_STREAMS_TABLE_NAME || "";
+const GAMES_TABLE_NAME = process.env.GAMES_TABLE_NAME || "";
 const USER_DEPLOY_EC2_WORKFLOW_ARN = process.env.USER_DEPLOY_EC2_WORKFLOW_ARN || "";
 const TERMINATE_WORKFLOW_ARN = process.env.TERMINATE_WORKFLOW_ARN || "";
 const USER_PAYMENTS_TABLE_NAME = process.env.USER_PAYMENTS_TABLE_NAME || "";
@@ -62,12 +57,14 @@ interface GameItem {
     imageUrl: string;
     tags: string[];
     modes?: string[];
-    ebsSnapshotId: string;
+    amiId: string;
     minInstanceType: string;
+    ebsSnapshotId?: string; // optional, retained for future EBS-based approaches
 }
 
 interface DeployInstanceRequest {
     userId: string;
+    gameId: string;
 }
 
 interface TerminateInstanceRequest {
@@ -214,7 +211,7 @@ const handleDeployInstance = async (
 ): Promise<APIGatewayProxyResult> => {
     try {
         const body: DeployInstanceRequest = JSON.parse(event.body || "{}");
-        const { userId } = body;
+        const { userId, gameId } = body;
 
         if (!RUNNING_INSTANCES_TABLE_NAME) {
             throw new Error("MissingRunningInstancesTable");
@@ -222,6 +219,35 @@ const handleDeployInstance = async (
 
         if (!userId) {
             return createResponse(400, { message: "User ID is required" });
+        }
+
+        if (!gameId) {
+            return createResponse(400, { message: "Game ID is required" });
+        }
+
+        const gamesTableName = process.env.GAMES_TABLE_NAME || "";
+        if (!gamesTableName) {
+            return createResponse(500, {
+                message: "Internal server error: Games table not configured",
+            });
+        }
+
+        // Look up the game to get its AMI ID and instance type
+        const gameResult = await docClient.send(
+            new GetCommand({
+                TableName: gamesTableName,
+                Key: { gameId },
+            }),
+        );
+
+        const game = gameResult.Item as GameItem | undefined;
+
+        if (!game) {
+            return createResponse(404, { message: `Game '${gameId}' not found` });
+        }
+
+        if (!game.amiId) {
+            return createResponse(400, { message: `Game '${gameId}' has no AMI configured` });
         }
 
         if (!USER_BALANCES_TABLE_NAME) {
@@ -245,7 +271,10 @@ const handleDeployInstance = async (
         }
 
         const stepFunctionInput = {
-            userId: userId,
+            userId,
+            gameId,
+            amiId: game.amiId,
+            instanceType: game.minInstanceType,
         };
 
         const executionName = `${userId}-${Date.now()}`;
@@ -287,29 +316,31 @@ const handleDeployInstance = async (
             throw new Error("Failed to start UserDeployEC2 Step Function");
         }
 
-        // Store execution ARN in DynamoDB immediately so we can track the deployment status
-        // Use a placeholder instanceId based on the execution name until the real instance is created
-        // const placeholderInstanceId = `pending-${executionName}`;
-        // const now = new Date().toISOString();
-
-        // try {
-        //     const putCommand = new PutCommand({
-        //         TableName: RUNNING_INSTANCES_TABLE_NAME,
-        //         Item: {
-        //             instanceId: placeholderInstanceId,
-        //             userId: userId,
-        //             executionArn: executionResponse.executionArn,
-        //             status: "deploying",
-        //             creationTime: now, // Match GSI sort key name
-        //             lastModifiedTime: now,
-        //         },
-        //     });
-        //     await docClient.send(putCommand);
-        //     console.log(`Stored execution tracking record for user ${userId}`);
-        // } catch (dbError) {
-        //     console.error("Failed to store execution ARN in DynamoDB:", dbError);
-        //     // Don't fail the request - the Step Function has already started
-        // }
+        // Store a placeholder record immediately so deployment-status can track progress
+        // while the Step Function is running. The real instance record (written by
+        // UpdateRunningInstances at the end of the workflow) will have a later creationTime
+        // and will appear first in queryByUserId results once the workflow completes.
+        const placeholderInstanceId = `pending-${executionName}`;
+        const now = new Date().toISOString();
+        try {
+            await docClient.send(
+                new PutCommand({
+                    TableName: RUNNING_INSTANCES_TABLE_NAME,
+                    Item: {
+                        instanceId: placeholderInstanceId,
+                        userId,
+                        executionArn: executionResponse.executionArn,
+                        status: "deploying",
+                        creationTime: now,
+                        lastModifiedTime: now,
+                    },
+                }),
+            );
+            console.log(`Stored deployment tracking record for user ${userId}`);
+        } catch (dbError) {
+            // Don't fail the request — the Step Function has already started
+            console.error("Failed to store deployment tracking record:", dbError);
+        }
 
         console.log(
             `Started Step Function execution ${executionResponse.executionArn} for user ${userId}`,
