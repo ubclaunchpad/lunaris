@@ -16,7 +16,7 @@ import {
     DescribeExecutionCommand,
     GetExecutionHistoryCommand,
 } from "@aws-sdk/client-sfn";
-import { PutCommand, QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
+import { GetCommand, PutCommand, QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { dynamoMock } from "../utils/dynamoMock";
 
 jest.mock("../../src/utils/stripeWrapper", () => ({
@@ -90,7 +90,7 @@ describe("API session-state regressions", () => {
     });
 
     describe("GET /streamingLink", () => {
-        it.failing("returns inactive when only stopped sessions exist", async () => {
+        it("returns inactive when only stopped sessions exist", async () => {
             dynamoMock.on(QueryCommand).resolves({
                 Items: [
                     {
@@ -114,9 +114,12 @@ describe("API session-state regressions", () => {
 
             expect(response.statusCode).toBe(404);
             expect(JSON.parse(response.body).message).toContain("No active streaming session");
+            const queryCalls = dynamoMock.commandCalls(QueryCommand);
+            expect(queryCalls).toHaveLength(1);
+            expect(queryCalls[0].args[0].input.ScanIndexForward).toBe(false);
         });
 
-        it.failing("prefers the newest running session over a stale stopped row", async () => {
+        it("prefers the newest running session over a stale stopped row", async () => {
             dynamoMock.on(QueryCommand).resolves({
                 Items: [
                     {
@@ -141,6 +144,12 @@ describe("API session-state regressions", () => {
                     },
                 ],
             });
+            dynamoMock.on(GetCommand).resolves({
+                Item: {
+                    instanceId: "i-running",
+                    status: "running",
+                },
+            });
 
             const response = await handler(
                 makeEvent("/streamingLink", "GET", {
@@ -152,6 +161,41 @@ describe("API session-state regressions", () => {
             const body = JSON.parse(response.body);
             expect(body.instanceId).toBe("i-running");
             expect(body.streamingLink).toBe("https://live.example.com:8443");
+            const queryCalls = dynamoMock.commandCalls(QueryCommand);
+            expect(queryCalls).toHaveLength(1);
+            expect(queryCalls[0].args[0].input.ScanIndexForward).toBe(false);
+        });
+
+        it("returns inactive when the stream row is running but the instance row is no longer running", async () => {
+            dynamoMock.on(QueryCommand).resolves({
+                Items: [
+                    {
+                        userId: "user-123",
+                        instanceId: "i-stale",
+                        instanceArn: "arn:aws:ec2:us-west-2:123:instance/i-stale",
+                        status: "running",
+                        streamingLink: "https://stale.example.com:8443",
+                        dcvUser: "Administrator",
+                        dcvPassword: "pw",
+                        createdAt: "2026-04-10T00:00:00.000Z",
+                    },
+                ],
+            });
+            dynamoMock.on(GetCommand).resolves({
+                Item: {
+                    instanceId: "i-stale",
+                    status: "stopped",
+                },
+            });
+
+            const response = await handler(
+                makeEvent("/streamingLink", "GET", {
+                    query: { userId: "user-123" },
+                }),
+            );
+
+            expect(response.statusCode).toBe(404);
+            expect(JSON.parse(response.body).message).toContain("No active streaming session");
         });
     });
 

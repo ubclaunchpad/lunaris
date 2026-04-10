@@ -107,6 +107,20 @@ type RunningInstanceTrackingRecord = {
     lastModifiedTime?: string;
 };
 
+type RunningStreamRecord = {
+    userId?: string;
+    instanceId?: string;
+    instanceArn?: string;
+    status?: string;
+    streamingLink?: string;
+    dcvIp?: string;
+    dcvPort?: number;
+    dcvUser?: string;
+    dcvPassword?: string;
+    createdAt?: string;
+    updatedAt?: string;
+};
+
 // Helper function to format responses consistently
 const createResponse = (statusCode: number, body: ResponseBody): APIGatewayProxyResult => ({
     statusCode,
@@ -612,20 +626,54 @@ const handleStreamingLink = async (event: APIGatewayProxyEvent): Promise<APIGate
             ExpressionAttributeValues: {
                 ":userId": userId,
             },
+            ScanIndexForward: false,
         });
 
-        const queryResult = await docClient.send(queryCommand);
+        const queryResult = (await docClient.send(queryCommand)) as {
+            Items?: RunningStreamRecord[];
+        };
         const results = queryResult.Items || [];
 
         if (results.length === 0) {
             return createResponse(404, {
                 error: "Not Found",
-                message: `No streaming session found for userId: ${userId}`,
+                message: `No active streaming session found for userId: ${userId}`,
             });
         }
 
-        // Return the most recent entry (first result since sorted by createdAt)
-        const streamRecord = results[0];
+        const runningInstancesDb = RUNNING_INSTANCES_TABLE_NAME
+            ? new DynamoDBWrapper(RUNNING_INSTANCES_TABLE_NAME)
+            : null;
+
+        let streamRecord: RunningStreamRecord | null = null;
+
+        for (const candidate of results) {
+            if (candidate.status !== "running") {
+                continue;
+            }
+
+            if (!runningInstancesDb || !candidate.instanceId) {
+                streamRecord = candidate;
+                break;
+            }
+
+            const instanceRecord = await runningInstancesDb.getItem(
+                { instanceId: candidate.instanceId },
+                { ConsistentRead: true },
+            );
+
+            if (instanceRecord?.status === "running") {
+                streamRecord = candidate;
+                break;
+            }
+        }
+
+        if (!streamRecord) {
+            return createResponse(404, {
+                error: "Not Found",
+                message: `No active streaming session found for userId: ${userId}`,
+            });
+        }
 
         console.log(`Found streaming session for userId ${userId}:`, streamRecord);
 
