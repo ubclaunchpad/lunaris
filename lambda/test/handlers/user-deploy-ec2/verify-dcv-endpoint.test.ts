@@ -45,8 +45,9 @@ describe("user-deploy-ec2/verify-dcv-endpoint", () => {
         });
 
         requestMock.mockImplementation((options: any, callback: (response: any) => void) => {
-            expect(options.hostname).toBe("1.2.3.4");
+            expect(options.hostname).toBe("1-2-3-4.nip.io");
             expect(options.port).toBe(8443);
+            expect(options.rejectUnauthorized).toBe(true);
             callback({
                 statusCode: 200,
                 resume: jest.fn(),

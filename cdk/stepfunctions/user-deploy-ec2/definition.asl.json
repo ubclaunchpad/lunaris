@@ -72,9 +72,52 @@
         },
         "WaitForInstanceReady": {
             "Type": "Wait",
-            "Seconds": 60,
-            "Comment": "Wait for EC2 instance to be fully ready — DCV is pre-installed on the AMI",
-            "Next": "PrepareUpdatePayload"
+            "Seconds": 120,
+            "Comment": "Give EC2 time to finish booting and register with SSM",
+            "Next": "ConfigureDcvInstance"
+        },
+        "ConfigureDcvInstance": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${ConfigureDcvInstanceArn}",
+                "Payload": {
+                    "instanceId.$": "$.deployResult.Payload.instanceId",
+                    "dcvIp.$": "$.deployResult.Payload.dcvIp",
+                    "dcvPassword.$": "$.deployResult.Payload.dcvPassword"
+                }
+            },
+            "ResultPath": "$.configureResult",
+            "Next": "VerifyDcvEndpoint",
+            "Catch": [
+                {
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "ResultPath": "$.error",
+                    "Next": "RollbackInstance"
+                }
+            ]
+        },
+        "VerifyDcvEndpoint": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${VerifyDcvEndpointArn}",
+                "Payload": {
+                    "instanceId.$": "$.deployResult.Payload.instanceId",
+                    "dcvPort.$": "$.deployResult.Payload.dcvPort",
+                    "timeoutSeconds": 600,
+                    "pollIntervalSeconds": 15
+                }
+            },
+            "ResultPath": "$.verifyResult",
+            "Next": "PrepareUpdatePayload",
+            "Catch": [
+                {
+                    "ErrorEquals": ["States.TaskFailed"],
+                    "ResultPath": "$.error",
+                    "Next": "RollbackInstance"
+                }
+            ]
         },
         "PrepareUpdatePayload": {
             "Type": "Pass",
@@ -84,8 +127,8 @@
                 "gameId.$": "$.gameId",
                 "instanceId.$": "$.deployResult.Payload.instanceId",
                 "instanceArn.$": "$.deployResult.Payload.instanceArn",
-                "dcvIp.$": "$.deployResult.Payload.dcvIp",
-                "dcvPort.$": "$.deployResult.Payload.dcvPort",
+                "dcvIp.$": "$.verifyResult.Payload.dcvIp",
+                "dcvPort.$": "$.verifyResult.Payload.dcvPort",
                 "dcvUser.$": "$.deployResult.Payload.dcvUser",
                 "dcvPassword.$": "$.deployResult.Payload.dcvPassword"
             },

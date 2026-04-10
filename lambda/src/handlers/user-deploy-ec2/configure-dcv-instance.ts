@@ -14,6 +14,21 @@ type ConfigureDcvResult = {
 };
 
 const ssmClient = new SSMClient({ region: process.env.AWS_REGION || "us-west-2" });
+const SSM_SEND_RETRY_TIMEOUT_MS = Number(process.env.SSM_SEND_RETRY_TIMEOUT_MS ?? "240000");
+const SSM_SEND_RETRY_DELAY_MS = Number(process.env.SSM_SEND_RETRY_DELAY_MS ?? "15000");
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableSsmSendError(err: unknown): err is Error {
+    if (!(err instanceof Error)) {
+        return false;
+    }
+
+    const errorText = `${err.name} ${err.message}`;
+    return errorText.includes("InvalidInstanceId") || errorText.includes("TargetNotConnected");
+}
 
 /**
  * Waits for an SSM command to complete and returns the result
@@ -53,11 +68,11 @@ async function waitForCommand(
                 };
             }
             // Still in progress, wait and retry
-            await new Promise((resolve) => setTimeout(resolve, pollInterval));
+            await sleep(pollInterval);
         } catch (err: unknown) {
             // InvocationDoesNotExist means the command hasn't started yet
             if (err instanceof Error && err.name === "InvocationDoesNotExist") {
-                await new Promise((resolve) => setTimeout(resolve, pollInterval));
+                await sleep(pollInterval);
                 continue;
             }
             throw err;
@@ -74,22 +89,44 @@ async function runCommand(
     instanceId: string,
     commands: string[],
 ): Promise<{ success: boolean; output: string; error: string }> {
-    const response = await ssmClient.send(
-        new SendCommandCommand({
-            InstanceIds: [instanceId],
-            DocumentName: "AWS-RunPowerShellScript",
-            Parameters: {
-                commands: commands,
-            },
-            TimeoutSeconds: 300,
-        }),
-    );
+    const startTime = Date.now();
+    let lastRetryableError: Error | null = null;
 
-    if (!response.Command?.CommandId) {
-        throw new Error("Failed to send SSM command");
+    while (Date.now() - startTime < SSM_SEND_RETRY_TIMEOUT_MS) {
+        try {
+            const response = await ssmClient.send(
+                new SendCommandCommand({
+                    InstanceIds: [instanceId],
+                    DocumentName: "AWS-RunPowerShellScript",
+                    Parameters: {
+                        commands: commands,
+                    },
+                    TimeoutSeconds: 300,
+                }),
+            );
+
+            if (!response.Command?.CommandId) {
+                throw new Error("Failed to send SSM command");
+            }
+
+            return waitForCommand(response.Command.CommandId, instanceId);
+        } catch (err: unknown) {
+            if (!isRetryableSsmSendError(err)) {
+                throw err;
+            }
+
+            lastRetryableError = err;
+            console.warn(
+                `SSM target ${instanceId} not ready yet (${err.name}). Retrying in ${SSM_SEND_RETRY_DELAY_MS}ms...`,
+            );
+            await sleep(SSM_SEND_RETRY_DELAY_MS);
+        }
     }
 
-    return waitForCommand(response.Command.CommandId, instanceId);
+    const errorMessage = lastRetryableError?.message || "SSM target did not become ready";
+    throw new Error(
+        `SSM target ${instanceId} was not ready after ${Math.round(SSM_SEND_RETRY_TIMEOUT_MS / 1000)} seconds: ${errorMessage}`,
+    );
 }
 
 /**
@@ -178,8 +215,14 @@ export const handler = async (event: ConfigureDcvEvent): Promise<ConfigureDcvRes
         // Step 5: Open firewall and request certificate
         console.log("Requesting Let's Encrypt certificate for", nipDomain);
         const certResult = await runCommand(instanceId, [
+            `Get-ChildItem -Path "C:\\DCV-Certs" -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue`,
             `New-NetFirewallRule -DisplayName "Allow HTTP for ACME" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow -ErrorAction SilentlyContinue | Out-Null`,
-            `C:\\win-acme\\wacs.exe --source manual --host ${nipDomain} --validation selfhosting --store pemfiles --pemfilespath C:\\DCV-Certs --accepttos --emailaddress lunaris-ssl@noreply.lunaris.cloud`,
+            `& "C:\\win-acme\\wacs.exe" --source manual --host ${nipDomain} --validation selfhosting --store pemfiles --pemfilespath C:\\DCV-Certs --installation none --accepttos --emailaddress lunaris-ssl@noreply.lunaris.cloud`,
+            `if ($LASTEXITCODE -ne 0) {`,
+            `  Write-Error "win-acme exited with code $LASTEXITCODE"`,
+            `  exit 1`,
+            `}`,
+            `Write-Host "certificate ok"`,
         ]);
 
         if (!certResult.success) {
@@ -190,23 +233,44 @@ export const handler = async (event: ConfigureDcvEvent): Promise<ConfigureDcvRes
         // Step 6: Copy certificate to DCV location and restart
         const copyResult = await runCommand(instanceId, [
             `$DcvCertDir = "C:\\Windows\\system32\\config\\systemprofile\\AppData\\Local\\NICE\\dcv\\private"`,
-            `$CertFile = Get-ChildItem -Path "C:\\DCV-Certs" -Filter "*-crt.pem" | Select-Object -First 1`,
-            `$KeyFile = Get-ChildItem -Path "C:\\DCV-Certs" -Filter "*-key.pem" | Select-Object -First 1`,
-            `if ($CertFile -and $KeyFile) {`,
-            `  Copy-Item -Path $CertFile.FullName -Destination "$DcvCertDir\\dcv.pem" -Force`,
-            `  Copy-Item -Path $KeyFile.FullName -Destination "$DcvCertDir\\dcv.key" -Force`,
-            `  Restart-Service dcvserver -Force`,
-            `  Start-Sleep -Seconds 10`,
-            `  $test = Test-NetConnection -ComputerName localhost -Port 8443 -WarningAction SilentlyContinue`,
-            `  if (-not $test.TcpTestSucceeded) {`,
-            `    Write-Error "Port 8443 not listening after DCV restart"`,
-            `    exit 1`,
+            `New-Item -ItemType Directory -Force -Path $DcvCertDir | Out-Null`,
+            `$CertFile = $null`,
+            `$KeyFile = $null`,
+            `for ($i = 0; $i -lt 12; $i++) {`,
+            `  $CertFile = Get-ChildItem -Path "C:\\DCV-Certs" -Recurse -File -Filter "*-chain.pem" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1`,
+            `  if (-not $CertFile) {`,
+            `    $CertFile = Get-ChildItem -Path "C:\\DCV-Certs" -Recurse -File -Filter "*-fullchain.pem" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1`,
             `  }`,
-            `  Write-Host "SSL configured and DCV restarted"`,
-            `} else {`,
+            `  if (-not $CertFile) {`,
+            `    $CertFile = Get-ChildItem -Path "C:\\DCV-Certs" -Recurse -File -Filter "*-crt.pem" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1`,
+            `  }`,
+            `  $KeyFile = Get-ChildItem -Path "C:\\DCV-Certs" -Recurse -File -Filter "*-key.pem" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1`,
+            `  if ($CertFile -and $KeyFile) { break }`,
+            `  Start-Sleep -Seconds 5`,
+            `}`,
+            `if (-not ($CertFile -and $KeyFile)) {`,
+            `  Write-Host "DCV cert directory contents:"`,
+            `  Get-ChildItem -Path "C:\\DCV-Certs" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName,Length,LastWriteTime | Format-Table -AutoSize | Out-String | Write-Host`,
             `  Write-Error "Certificate files not found"`,
             `  exit 1`,
             `}`,
+            `Copy-Item -Path $CertFile.FullName -Destination "$DcvCertDir\\dcv.pem" -Force`,
+            `Copy-Item -Path $KeyFile.FullName -Destination "$DcvCertDir\\dcv.key" -Force`,
+            `Restart-Service -Name "dcvserver" -Force -ErrorAction Stop`,
+            `$listening = $false`,
+            `for ($i = 0; $i -lt 12; $i++) {`,
+            `  $test = Test-NetConnection -ComputerName localhost -Port 8443 -WarningAction SilentlyContinue`,
+            `  if ($test.TcpTestSucceeded) {`,
+            `    $listening = $true`,
+            `    break`,
+            `  }`,
+            `  Start-Sleep -Seconds 5`,
+            `}`,
+            `if (-not $listening) {`,
+            `  Write-Error "Port 8443 not listening after DCV restart"`,
+            `  exit 1`,
+            `}`,
+            `Write-Host "SSL configured and DCV restarted"`,
         ]);
 
         if (!copyResult.success) {

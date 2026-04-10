@@ -6,6 +6,7 @@ import { Duration } from "aws-cdk-lib";
 import { LambdaFunctionConfig, LambdaEnvVarProvider, LambdaPolicy } from "./lambda-types";
 import {
     getDeployEC2Policies,
+    getConfigureDcvInstancePolicies,
     getVerifyDcvEndpointPolicies,
     getTerminateEC2Policies,
     getStopEC2Policies,
@@ -90,6 +91,8 @@ export class LambdaFactory {
         switch (policy) {
             case "deployEC2":
                 return getDeployEC2Policies();
+            case "configureDcv":
+                return getConfigureDcvInstancePolicies();
             case "verifyDcv":
                 return getVerifyDcvEndpointPolicies();
             case "terminateEC2":

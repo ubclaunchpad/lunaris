@@ -38,7 +38,7 @@ function verifyHttpsEndpoint(hostname: string, port: number): Promise<number> {
                 port,
                 path: "/",
                 method: "GET",
-                rejectUnauthorized: false,
+                rejectUnauthorized: true,
                 servername: hostname,
                 agent: false,
                 timeout: REQUEST_TIMEOUT_MS,
@@ -99,12 +99,11 @@ export const handler = async (
             continue;
         }
 
-        // Verify connectivity using raw IP — avoids any nip.io DNS dependency during the check.
-        // The streaming link still uses the nip.io hostname so the browser gets a clean hostname
-        // for TLS (and for any Let's Encrypt cert installed by user-data).
         const nipHostname = buildStreamingHost(dcvIp);
         try {
-            const statusCode = await verifyHttpsEndpoint(dcvIp, dcvPort);
+            // Verify the exact hostname the browser will use so the workflow only succeeds
+            // once DNS resolution, TLS trust, and hostname matching are all valid.
+            const statusCode = await verifyHttpsEndpoint(nipHostname, dcvPort);
             return {
                 success: true,
                 dcvIp,

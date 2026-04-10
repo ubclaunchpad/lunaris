@@ -16,8 +16,27 @@ const loadHandler = async () => {
 };
 
 describe("user-deploy-ec2/configure-dcv-instance", () => {
+    const originalRetryDelay = process.env.SSM_SEND_RETRY_DELAY_MS;
+    const originalRetryTimeout = process.env.SSM_SEND_RETRY_TIMEOUT_MS;
+
     beforeEach(() => {
         sendMock.mockReset();
+        process.env.SSM_SEND_RETRY_DELAY_MS = "0";
+        process.env.SSM_SEND_RETRY_TIMEOUT_MS = "100";
+    });
+
+    afterAll(() => {
+        if (originalRetryDelay === undefined) {
+            delete process.env.SSM_SEND_RETRY_DELAY_MS;
+        } else {
+            process.env.SSM_SEND_RETRY_DELAY_MS = originalRetryDelay;
+        }
+
+        if (originalRetryTimeout === undefined) {
+            delete process.env.SSM_SEND_RETRY_TIMEOUT_MS;
+        } else {
+            process.env.SSM_SEND_RETRY_TIMEOUT_MS = originalRetryTimeout;
+        }
     });
 
     const queueSuccessfulConfigureFlow = () => {
@@ -66,6 +85,19 @@ describe("user-deploy-ec2/configure-dcv-instance", () => {
                 expect.stringContaining('New-NetFirewallRule -DisplayName "Lunaris DCV HTTPS"'),
             ]),
         );
+
+        const certCommand = sendMock.mock.calls[8][0];
+        expect(certCommand.input.Parameters.commands).toEqual(
+            expect.arrayContaining([expect.stringContaining("--installation none")]),
+        );
+
+        const installCommand = sendMock.mock.calls[10][0];
+        expect(installCommand.input.Parameters.commands).toEqual(
+            expect.arrayContaining([
+                expect.stringContaining('Get-ChildItem -Path "C:\\DCV-Certs" -Recurse -File -Filter "*-chain.pem"'),
+                expect.stringContaining('Restart-Service -Name "dcvserver" -Force -ErrorAction Stop'),
+            ]),
+        );
     });
 
     it("throws when DCV SSL installation fails", async () => {
@@ -108,6 +140,42 @@ describe("user-deploy-ec2/configure-dcv-instance", () => {
                 dcvPassword: "pw",
             }),
         ).rejects.toThrow("Failed to set password: failed");
+    });
+
+    it("retries SendCommand until the instance is SSM-manageable", async () => {
+        const handler = await loadHandler();
+
+        sendMock
+            .mockRejectedValueOnce(
+                Object.assign(new Error("Instances not in a valid state for account"), {
+                    name: "InvalidInstanceId",
+                }),
+            )
+            .mockResolvedValueOnce({ Command: { CommandId: "c1" } })
+            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "ok" })
+            .mockResolvedValueOnce({ Command: { CommandId: "c2" } })
+            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "ok" })
+            .mockResolvedValueOnce({ Command: { CommandId: "c3" } })
+            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "ok" })
+            .mockResolvedValueOnce({ Command: { CommandId: "c4" } })
+            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "win-acme ready" })
+            .mockResolvedValueOnce({ Command: { CommandId: "c5" } })
+            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "certificate ok" })
+            .mockResolvedValueOnce({ Command: { CommandId: "c6" } })
+            .mockResolvedValueOnce({
+                Status: "Success",
+                StandardOutputContent: "SSL configured and DCV restarted",
+            });
+
+        const result = await handler({
+            instanceId: "i-1",
+            dcvIp: "1.2.3.4",
+            dcvPassword: "pw",
+        });
+
+        expect(result.success).toBe(true);
+        expect(sendMock.mock.calls[0][0].__type).toBe("SendCommand");
+        expect(sendMock.mock.calls[1][0].__type).toBe("SendCommand");
     });
 
     it("retries on InvocationDoesNotExist then succeeds", async () => {

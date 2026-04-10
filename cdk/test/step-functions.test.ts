@@ -34,6 +34,7 @@ describe("StepFunctions Construct", () => {
         testProps = makeTestProps(
             "checkRunningStreamsFunction",
             "deployEC2Function",
+            "configureDcvInstanceFunction",
             "verifyDcvEndpointFunction",
             "updateRunningStreamsFunction",
             "updateRunningInstancesFunction",
@@ -171,9 +172,9 @@ describe("StepFunctions Construct", () => {
 
             expect(registeredWorkflow?.lambdaFunctions).toHaveProperty("checkRunningStreams");
             expect(registeredWorkflow?.lambdaFunctions).toHaveProperty("deployEC2");
+            expect(registeredWorkflow?.lambdaFunctions).toHaveProperty("configureDcvInstance");
             expect(registeredWorkflow?.lambdaFunctions).toHaveProperty("verifyDcvEndpoint");
             expect(registeredWorkflow?.lambdaFunctions).toHaveProperty("updateRunningStreams");
-            expect(registeredWorkflow?.lambdaFunctions).not.toHaveProperty("configureDcvInstance");
             expect(registeredWorkflow?.lambdaFunctions).not.toHaveProperty("checkRunningInstances");
             expect(registeredWorkflow?.lambdaFunctions).not.toHaveProperty("resumeDeployInstance");
             expect(registeredWorkflow?.lambdaFunctions).not.toHaveProperty("startDcvInstance");

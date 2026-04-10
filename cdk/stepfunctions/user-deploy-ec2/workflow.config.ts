@@ -25,6 +25,16 @@ const config: WorkflowConfig = {
             placeholder: "${DeployEC2Arn}",
             required: true,
         },
+        configureDcvInstance: {
+            functionName: "configureDcvInstanceFunction",
+            placeholder: "${ConfigureDcvInstanceArn}",
+            required: true,
+        },
+        verifyDcvEndpoint: {
+            functionName: "verifyDcvEndpointFunction",
+            placeholder: "${VerifyDcvEndpointArn}",
+            required: true,
+        },
         updateRunningStreams: {
             functionName: "updateRunningStreamsFunction",
             placeholder: "${UpdateRunningStreamsArn}",
