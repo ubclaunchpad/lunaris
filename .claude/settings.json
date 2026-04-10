@@ -9,7 +9,9 @@
       "Bash(grep -r \"GAMES_TABLE_NAME\" /Users/danielyoo/workspace/lunaris/cdk/lambdas/*.config.ts)",
       "Bash(aws stepfunctions:*)",
       "Bash(aws ec2:*)",
-      "Bash(aws iam:*)"
+      "Bash(aws iam:*)",
+      "Bash(grep -n \"SECURITY_GROUP_ID\\\\|port 80\\\\|port 8443\\\\|LocalPort 80\" cdk/lib/compute-stack.ts cdk/lib/constructs/compute/*.ts)",
+      "Bash(node -e ':*)"
     ]
   }
 }

@@ -166,10 +166,6 @@ export class ComputeStack extends Stack {
         runningStreamsTable.grantWriteData(
             lambdaFunctions.getFunction("updateRunningStreamsFunction"),
         );
-        runningStreamsTable.grantReadData(lambdaFunctions.getFunction("getDcvConfigFunction"));
-        runningInstancesTable.grantReadData(
-            lambdaFunctions.getFunction("checkRunningInstancesFunction"),
-        );
         runningInstancesTable.grantReadWriteData(
             lambdaFunctions.getFunction("updateRunningInstancesFunction"),
         );

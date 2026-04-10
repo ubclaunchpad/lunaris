@@ -6,14 +6,15 @@ import { Duration } from "aws-cdk-lib";
  *
  * This workflow orchestrates the EC2 deployment process for users by:
  * 1. Checking if there are any running streams for the user
- * 2. Deploying a new EC2 instance if no streams are running
- * 3. Updating the running streams table with the new instance information
+ * 2. Deploying a new EC2 instance from a DCV-ready AMI
+ * 3. Verifying the DCV HTTPS endpoint is browser-connectable
+ * 4. Writing the verified DCV URL to DynamoDB
  */
 const config: WorkflowConfig = {
     name: "UserDeployEC2Workflow",
     description: "Orchestrates user EC2 deployment process",
     definitionPath: "user-deploy-ec2/definition.asl.json",
-    timeout: Duration.minutes(15),
+    timeout: Duration.minutes(20),
     lambdaFunctions: {
         checkRunningStreams: {
             functionName: "checkRunningStreamsFunction",
@@ -23,11 +24,6 @@ const config: WorkflowConfig = {
         deployEC2: {
             functionName: "deployEC2Function",
             placeholder: "${DeployEC2Arn}",
-            required: true,
-        },
-        configureDcvInstance: {
-            functionName: "configureDcvInstanceFunction",
-            placeholder: "${ConfigureDcvInstanceArn}",
             required: true,
         },
         verifyDcvEndpoint: {
@@ -40,29 +36,9 @@ const config: WorkflowConfig = {
             placeholder: "${UpdateRunningStreamsArn}",
             required: true,
         },
-        checkRunningInstances: {
-            functionName: "checkRunningInstancesFunction",
-            placeholder: "${CheckRunningInstancesArn}",
-            required: true,
-        },
         updateRunningInstances: {
             functionName: "updateRunningInstancesFunction",
             placeholder: "${UpdateRunningInstancesArn}",
-            required: true,
-        },
-        resumeDeployInstance: {
-            functionName: "resumeDeployInstanceFunction",
-            placeholder: "${ResumeDeployInstanceArn}",
-            required: true,
-        },
-        getDcvConfig: {
-            functionName: "getDcvConfigFunction",
-            placeholder: "${GetDcvConfigArn}",
-            required: true,
-        },
-        startDcvInstance: {
-            functionName: "startDcvInstanceFunction",
-            placeholder: "${StartDcvInstanceArn}",
             required: true,
         },
         terminateEC2: {
@@ -82,9 +58,8 @@ const config: WorkflowConfig = {
             MissingTableNameEnv: "HandleMissingTableName",
             DatabaseError: "HandleDatabaseError",
             StreamsRunningError: "HandleStreamsRunningError",
-            InstancesRunningError: "HandleInstancesRunningError",
             DeploymentFailedError: "HandleFailedDeployment",
-            StartDcvFailedError: "HandleStartDcvError",
+            RollbackCompleteError: "HandleRollbackComplete",
         },
     },
 };

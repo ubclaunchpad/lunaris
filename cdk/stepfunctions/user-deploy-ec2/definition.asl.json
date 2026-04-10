@@ -28,149 +28,10 @@
                 {
                     "Variable": "$.checkRunningStreamsResult.Payload.streamsRunning",
                     "BooleanEquals": false,
-                    "Next": "CheckRunningInstances"
-                }
-            ],
-            "Default": "HandleStreamsRunningError"
-        },
-        "CheckRunningInstances": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::lambda:invoke",
-            "Parameters": {
-                "FunctionName": "${CheckRunningInstancesArn}",
-                "Payload.$": "$"
-            },
-            "ResultPath": "$.checkRunningInstancesResult",
-            "Next": "CheckIfInstanceExists",
-            "Catch": [
-                {
-                    "ErrorEquals": ["MissingTableNameEnv"],
-                    "Next": "HandleMissingTableName"
-                },
-                {
-                    "ErrorEquals": ["States.TaskFailed"],
-                    "Next": "HandleDatabaseError"
-                }
-            ]
-        },
-        "CheckIfInstanceExists": {
-            "Type": "Choice",
-            "Choices": [
-                {
-                    "Variable": "$.checkRunningInstancesResult.Payload.status",
-                    "StringEquals": "stopped",
-                    "Next": "ResumeDeployInstance"
-                },
-                {
-                    "Variable": "$.checkRunningInstancesResult.Payload.status",
-                    "StringEquals": "terminated",
                     "Next": "DeployEC2"
                 }
             ],
-            "Default": "HandleInstancesRunningError"
-        },
-        "ResumeDeployInstance": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::lambda:invoke",
-            "Parameters": {
-                "FunctionName": "${ResumeDeployInstanceArn}",
-                "Payload": {
-                    "instanceId.$": "$.checkRunningInstancesResult.Payload.instanceId",
-                    "gameId.$": "$.gameId"
-                }
-            },
-            "ResultPath": "$.resumeDeployResult",
-            "Next": "WaitForResumeInstanceReady",
-            "Catch": [
-                {
-                    "ErrorEquals": ["States.TaskFailed"],
-                    "Next": "HandleFailedDeployment"
-                }
-            ]
-        },
-        "WaitForResumeInstanceReady": {
-            "Type": "Wait",
-            "Seconds": 60,
-            "Comment": "Wait for resumed EC2 instance to be ready for SSM commands",
-            "Next": "GetDcvConfig"
-        },
-        "GetDcvConfig": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::lambda:invoke",
-            "Parameters": {
-                "FunctionName": "${GetDcvConfigArn}",
-                "Payload": {
-                    "instanceArn.$": "$.resumeDeployResult.Payload.instanceArn",
-                    "instanceId.$": "$.resumeDeployResult.Payload.instanceId"
-                }
-            },
-            "ResultPath": "$.dcvConfig",
-            "Next": "MergeResumeData",
-            "Catch": [
-                {
-                    "ErrorEquals": ["MissingTableNameEnv"],
-                    "Next": "HandleMissingTableName"
-                },
-                {
-                    "ErrorEquals": ["StreamNotFound", "States.TaskFailed"],
-                    "Next": "HandleDatabaseError"
-                }
-            ]
-        },
-        "MergeResumeData": {
-            "Type": "Pass",
-            "Comment": "Merge resume path data to match deploy path structure",
-            "Parameters": {
-                "userId.$": "$.userId",
-                "gameId.$": "$.gameId",
-                "amiId.$": "$.amiId",
-                "instanceType.$": "$.instanceType",
-                "deployResult": {
-                    "Payload": {
-                        "instanceId.$": "$.resumeDeployResult.Payload.instanceId",
-                        "instanceArn.$": "$.resumeDeployResult.Payload.instanceArn",
-                        "ebsVolumeId": "",
-                        "creationTime.$": "$.resumeDeployResult.Payload.creationTime",
-                        "dcvIp.$": "$.dcvConfig.Payload.dcvIp",
-                        "dcvPort.$": "$.dcvConfig.Payload.dcvPort",
-                        "dcvUser.$": "$.dcvConfig.Payload.dcvUser",
-                        "dcvPassword.$": "$.dcvConfig.Payload.dcvPassword"
-                    }
-                }
-            },
-            "ResultPath": "$",
-            "Next": "StartDcvInstance"
-        },
-        "StartDcvInstance": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::lambda:invoke",
-            "Parameters": {
-                "FunctionName": "${StartDcvInstanceArn}",
-                "Payload": {
-                    "instanceId.$": "$.deployResult.Payload.instanceId"
-                }
-            },
-            "ResultPath": "$.startDcvResult",
-            "Next": "VerifyDcvEndpointAfterResume",
-            "Retry": [
-                {
-                    "ErrorEquals": [
-                        "InvalidInstanceId",
-                        "InstanceNotReadyForSsm",
-                        "States.TaskFailed"
-                    ],
-                    "IntervalSeconds": 20,
-                    "MaxAttempts": 3,
-                    "BackoffRate": 2
-                }
-            ],
-            "Catch": [
-                {
-                    "ErrorEquals": ["States.ALL"],
-                    "ResultPath": "$.startDcvError",
-                    "Next": "VerifyDcvEndpointAfterResume"
-                }
-            ]
+            "Default": "HandleStreamsRunningError"
         },
         "DeployEC2": {
             "Type": "Task",
@@ -211,40 +72,11 @@
         },
         "WaitForInstanceReady": {
             "Type": "Wait",
-            "Seconds": 60,
+            "Seconds": 120,
             "Comment": "Give EC2 user-data time to start DCV bootstrap and certificate setup",
-            "Next": "ConfigureDcvInstance"
+            "Next": "VerifyDcvEndpoint"
         },
-        "ConfigureDcvInstance": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::lambda:invoke",
-            "Parameters": {
-                "FunctionName": "${ConfigureDcvInstanceArn}",
-                "Payload": {
-                    "instanceId.$": "$.deployResult.Payload.instanceId",
-                    "dcvIp.$": "$.deployResult.Payload.dcvIp",
-                    "dcvPassword.$": "$.deployResult.Payload.dcvPassword"
-                }
-            },
-            "ResultPath": "$.configureResult",
-            "Next": "VerifyDcvEndpointAfterDeploy",
-            "Retry": [
-                {
-                    "ErrorEquals": ["States.TaskFailed"],
-                    "IntervalSeconds": 30,
-                    "MaxAttempts": 3,
-                    "BackoffRate": 2
-                }
-            ],
-            "Catch": [
-                {
-                    "ErrorEquals": ["States.ALL"],
-                    "ResultPath": "$.configureError",
-                    "Next": "VerifyDcvEndpointAfterDeploy"
-                }
-            ]
-        },
-        "VerifyDcvEndpointAfterResume": {
+        "VerifyDcvEndpoint": {
             "Type": "Task",
             "Resource": "arn:aws:states:::lambda:invoke",
             "Parameters": {
@@ -252,29 +84,7 @@
                 "Payload": {
                     "instanceId.$": "$.deployResult.Payload.instanceId",
                     "dcvPort.$": "$.deployResult.Payload.dcvPort",
-                    "timeoutSeconds": 360,
-                    "pollIntervalSeconds": 15
-                }
-            },
-            "ResultPath": "$.verifyDcvResult",
-            "Next": "PrepareUpdatePayload",
-            "Catch": [
-                {
-                    "ErrorEquals": ["States.ALL"],
-                    "ResultPath": "$.verifyDcvError",
-                    "Next": "HandleDcvReadinessError"
-                }
-            ]
-        },
-        "VerifyDcvEndpointAfterDeploy": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::lambda:invoke",
-            "Parameters": {
-                "FunctionName": "${VerifyDcvEndpointArn}",
-                "Payload": {
-                    "instanceId.$": "$.deployResult.Payload.instanceId",
-                    "dcvPort.$": "$.deployResult.Payload.dcvPort",
-                    "timeoutSeconds": 360,
+                    "timeoutSeconds": 600,
                     "pollIntervalSeconds": 15
                 }
             },
@@ -290,13 +100,12 @@
         },
         "PrepareUpdatePayload": {
             "Type": "Pass",
-            "Comment": "Normalize data from both deploy and resume paths for UpdateRunningStreams",
+            "Comment": "Normalize deploy data for UpdateRunningStreams",
             "Parameters": {
                 "userId.$": "$.userId",
                 "gameId.$": "$.gameId",
                 "instanceId.$": "$.deployResult.Payload.instanceId",
                 "instanceArn.$": "$.deployResult.Payload.instanceArn",
-                "ebsVolumeId.$": "$.deployResult.Payload.ebsVolumeId",
                 "dcvIp.$": "$.verifyDcvResult.Payload.dcvIp",
                 "dcvPort.$": "$.verifyDcvResult.Payload.dcvPort",
                 "dcvUser.$": "$.deployResult.Payload.dcvUser",
@@ -337,7 +146,6 @@
                     "gameId.$": "$.updatePayload.gameId",
                     "instanceId.$": "$.updatePayload.instanceId",
                     "instanceArn.$": "$.updatePayload.instanceArn",
-                    "ebsVolumeId.$": "$.updatePayload.ebsVolumeId",
                     "creationTime.$": "$.deployResult.Payload.creationTime",
                     "executionArn.$": "$$.Execution.Id"
                 }
@@ -369,12 +177,12 @@
                 }
             },
             "ResultPath": "$.rollbackResult",
-            "Next": "HandleDatabaseError",
+            "Next": "HandleRollbackComplete",
             "Catch": [
                 {
                     "ErrorEquals": ["States.ALL"],
                     "ResultPath": "$.rollbackError",
-                    "Next": "HandleDatabaseError"
+                    "Next": "HandleRollbackComplete"
                 }
             ]
         },
@@ -396,25 +204,15 @@
             "Cause": "Valid running stream found for user",
             "Error": "StreamsRunningError"
         },
-        "HandleInstancesRunningError": {
-            "Type": "Fail",
-            "Cause": "Valid running instance found for user",
-            "Error": "InstancesRunningError"
-        },
         "HandleFailedDeployment": {
             "Type": "Fail",
             "Cause": "Failed to deploy EC2 instance",
             "Error": "DeploymentFailedError"
         },
-        "HandleDcvReadinessError": {
+        "HandleRollbackComplete": {
             "Type": "Fail",
-            "Cause": "DCV endpoint never became browser-ready",
-            "Error": "DcvEndpointNotReadyError"
-        },
-        "HandleStartDcvError": {
-            "Type": "Fail",
-            "Cause": "Failed to start DCV service on resumed instance",
-            "Error": "StartDcvFailedError"
+            "Cause": "EC2 instance was rolled back after failed deployment",
+            "Error": "RollbackCompleteError"
         }
     }
 }

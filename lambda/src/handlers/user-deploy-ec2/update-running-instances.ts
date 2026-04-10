@@ -6,7 +6,6 @@ import { publishActiveInstancesRealtimeCount } from "../../utils/cloudWatchMetri
 type UpdateRunningInstancesEvent = {
     instanceId: string;
     instanceArn: string;
-    ebsVolumeId?: string;
     userId: string;
     gameId?: string;
     creationTime: string;
@@ -38,7 +37,6 @@ export const handler = async (
         const payload = {
             instanceId: event.instanceId,
             instanceArn: event.instanceArn,
-            ebsVolumeId: event.ebsVolumeId,
             userId: event.userId,
             gameId: event.gameId,
             creationTime: event.creationTime,
@@ -67,11 +65,6 @@ export const handler = async (
             "#region = :region",
             "instanceType = :instanceType",
         ];
-
-        if (payload.ebsVolumeId) {
-            expressionAttributeValues[":ebsVolumeId"] = payload.ebsVolumeId;
-            setExpressions.push("ebsVolumeId = :ebsVolumeId");
-        }
 
         if (payload.gameId) {
             expressionAttributeValues[":gameId"] = payload.gameId;
