@@ -123,25 +123,44 @@ export const handler = async (event: ConfigureDcvEvent): Promise<ConfigureDcvRes
             `Write-Host "Password set successfully"`,
         ]);
 
-        if (passwordResult.success) {
-            passwordSet = true;
-            console.log("Password set successfully");
-        } else {
-            console.error("Failed to set password:", passwordResult.error);
+        if (!passwordResult.success) {
+            throw new Error(`Failed to set password: ${passwordResult.error}`);
+        }
+        passwordSet = true;
+        console.log("Password set successfully");
+
+        // Step 2: Ensure the Windows firewall exposes DCV HTTPS publicly
+        console.log("Ensuring DCV firewall rule exists...");
+        const firewallResult = await runCommand(instanceId, [
+            `$rule = Get-NetFirewallRule -DisplayName "Lunaris DCV HTTPS" -ErrorAction SilentlyContinue`,
+            `if (-not $rule) {`,
+            `  New-NetFirewallRule -DisplayName "Lunaris DCV HTTPS" -Direction Inbound -Protocol TCP -LocalPort 8443 -Action Allow -Profile Any | Out-Null`,
+            `  Write-Host "DCV firewall rule created"`,
+            `} else {`,
+            `  Write-Host "DCV firewall rule already exists"`,
+            `}`,
+        ]);
+
+        if (!firewallResult.success) {
+            throw new Error(`Failed to configure firewall rule: ${firewallResult.error}`);
         }
 
-        // Step 2: Disable IE Enhanced Security
+        // Step 3: Disable IE Enhanced Security
         console.log("Disabling IE Enhanced Security...");
-        await runCommand(instanceId, [
+        const ieResult = await runCommand(instanceId, [
             `$AdminKey = "HKLM:\\SOFTWARE\\Microsoft\\Active Setup\\Installed Components\\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}"`,
             `$UserKey = "HKLM:\\SOFTWARE\\Microsoft\\Active Setup\\Installed Components\\{A509B1A8-37EF-4b3f-8CFC-4F3A74704073}"`,
             `Set-ItemProperty -Path $AdminKey -Name "IsInstalled" -Value 0 -Force -ErrorAction SilentlyContinue`,
             `Set-ItemProperty -Path $UserKey -Name "IsInstalled" -Value 0 -Force -ErrorAction SilentlyContinue`,
         ]);
 
-        // Step 3: Create directories and download win-acme
+        if (!ieResult.success) {
+            throw new Error(`Failed to disable IE Enhanced Security: ${ieResult.error}`);
+        }
+
+        // Step 4: Create directories and download win-acme
         console.log("Setting up SSL certificate...");
-        await runCommand(instanceId, [
+        const downloadResult = await runCommand(instanceId, [
             `New-Item -ItemType Directory -Force -Path C:\\win-acme | Out-Null`,
             `New-Item -ItemType Directory -Force -Path C:\\DCV-Certs | Out-Null`,
             `[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12`,
@@ -152,38 +171,53 @@ export const handler = async (event: ConfigureDcvEvent): Promise<ConfigureDcvRes
             `Write-Host "win-acme ready"`,
         ]);
 
-        // Step 4: Open firewall and request certificate
+        if (!downloadResult.success) {
+            throw new Error(`Failed to prepare win-acme: ${downloadResult.error}`);
+        }
+
+        // Step 5: Open firewall and request certificate
         console.log("Requesting Let's Encrypt certificate for", nipDomain);
         const certResult = await runCommand(instanceId, [
             `New-NetFirewallRule -DisplayName "Allow HTTP for ACME" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow -ErrorAction SilentlyContinue | Out-Null`,
             `C:\\win-acme\\wacs.exe --source manual --host ${nipDomain} --validation selfhosting --store pemfiles --pemfilespath C:\\DCV-Certs --accepttos --emailaddress lunaris-ssl@noreply.lunaris.cloud`,
         ]);
 
-        if (certResult.output.includes("created") || certResult.output.includes("Certificate")) {
-            console.log("Certificate obtained successfully");
-
-            // Step 5: Copy certificate to DCV location and restart
-            const copyResult = await runCommand(instanceId, [
-                `$DcvCertDir = "C:\\Windows\\system32\\config\\systemprofile\\AppData\\Local\\NICE\\dcv\\private"`,
-                `$CertFile = Get-ChildItem -Path "C:\\DCV-Certs" -Filter "*-crt.pem" | Select-Object -First 1`,
-                `$KeyFile = Get-ChildItem -Path "C:\\DCV-Certs" -Filter "*-key.pem" | Select-Object -First 1`,
-                `if ($CertFile -and $KeyFile) {`,
-                `  Copy-Item -Path $CertFile.FullName -Destination "$DcvCertDir\\dcv.pem" -Force`,
-                `  Copy-Item -Path $KeyFile.FullName -Destination "$DcvCertDir\\dcv.key" -Force`,
-                `  Restart-Service dcvserver -Force`,
-                `  Write-Host "SSL configured and DCV restarted"`,
-                `} else {`,
-                `  Write-Host "Certificate files not found"`,
-                `}`,
-            ]);
-
-            if (copyResult.output.includes("SSL configured")) {
-                sslConfigured = true;
-                console.log("SSL configured successfully");
-            }
-        } else {
-            console.error("Certificate request may have failed:", certResult.output);
+        if (!certResult.success) {
+            throw new Error(`Failed to request SSL certificate: ${certResult.error}`);
         }
+        console.log("Certificate request completed");
+
+        // Step 6: Copy certificate to DCV location and restart
+        const copyResult = await runCommand(instanceId, [
+            `$DcvCertDir = "C:\\Windows\\system32\\config\\systemprofile\\AppData\\Local\\NICE\\dcv\\private"`,
+            `$CertFile = Get-ChildItem -Path "C:\\DCV-Certs" -Filter "*-crt.pem" | Select-Object -First 1`,
+            `$KeyFile = Get-ChildItem -Path "C:\\DCV-Certs" -Filter "*-key.pem" | Select-Object -First 1`,
+            `if ($CertFile -and $KeyFile) {`,
+            `  Copy-Item -Path $CertFile.FullName -Destination "$DcvCertDir\\dcv.pem" -Force`,
+            `  Copy-Item -Path $KeyFile.FullName -Destination "$DcvCertDir\\dcv.key" -Force`,
+            `  Restart-Service dcvserver -Force`,
+            `  Start-Sleep -Seconds 10`,
+            `  $test = Test-NetConnection -ComputerName localhost -Port 8443 -WarningAction SilentlyContinue`,
+            `  if (-not $test.TcpTestSucceeded) {`,
+            `    Write-Error "Port 8443 not listening after DCV restart"`,
+            `    exit 1`,
+            `  }`,
+            `  Write-Host "SSL configured and DCV restarted"`,
+            `} else {`,
+            `  Write-Error "Certificate files not found"`,
+            `  exit 1`,
+            `}`,
+        ]);
+
+        if (!copyResult.success) {
+            throw new Error(`Failed to install SSL certificate into DCV: ${copyResult.error}`);
+        }
+        if (!copyResult.output.includes("SSL configured")) {
+            throw new Error("DCV SSL restart did not complete successfully");
+        }
+
+        sslConfigured = true;
+        console.log("SSL configured successfully");
 
         return {
             success: passwordSet && sslConfigured,
@@ -193,11 +227,6 @@ export const handler = async (event: ConfigureDcvEvent): Promise<ConfigureDcvRes
         };
     } catch (err: unknown) {
         console.error("Configuration error:", err);
-        return {
-            success: false,
-            passwordSet,
-            sslConfigured,
-            message: err instanceof Error ? err.message : "Unknown error",
-        };
+        throw err instanceof Error ? err : new Error("Unknown error");
     }
 };

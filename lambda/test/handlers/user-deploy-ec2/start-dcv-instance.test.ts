@@ -37,18 +37,23 @@ describe("user-deploy-ec2/start-dcv-instance", () => {
             success: true,
             message: "DCV service started successfully",
         });
+
+        const command = sendMock.mock.calls[0][0];
+        expect(command.input.Parameters.commands).toEqual(
+            expect.arrayContaining([
+                expect.stringContaining('New-NetFirewallRule -DisplayName "Lunaris DCV HTTPS"'),
+                expect.stringContaining("Test-NetConnection -ComputerName localhost -Port 8443"),
+            ]),
+        );
     });
 
-    it("returns failure payload for failed command status", async () => {
+    it("throws for failed command status", async () => {
         const handler = await loadHandler();
         sendMock
             .mockResolvedValueOnce({ Command: { CommandId: "c1" } })
             .mockResolvedValueOnce({ Status: "Failed", StatusDetails: "failed-to-start" });
 
-        await expect(handler({ instanceId: "i-1" })).resolves.toEqual({
-            success: false,
-            message: "failed-to-start",
-        });
+        await expect(handler({ instanceId: "i-1" })).rejects.toThrow("failed-to-start");
     });
 
     it("throws when send command has no command id", async () => {

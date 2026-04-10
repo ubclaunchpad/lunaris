@@ -76,6 +76,7 @@ describe("user-deploy-ec2/deploy-ec2", () => {
             tags: { GameId: "game-fortnite" },
         });
         expect(cfg.userDataScript).toContain("<powershell>");
+        expect(cfg.userDataScript).toContain('New-NetFirewallRule -DisplayName "Lunaris DCV HTTPS"');
     });
 
     it("handles missing optional env config", async () => {

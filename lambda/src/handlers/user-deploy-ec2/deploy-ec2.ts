@@ -68,6 +68,19 @@ try {
     "$(Get-Date) - Failed to set Administrator password: $_" | Out-File -Append $LogFile
 }
 
+# Ensure Windows firewall allows DCV HTTPS traffic
+try {
+    $dcvFirewallRule = Get-NetFirewallRule -DisplayName "Lunaris DCV HTTPS" -ErrorAction SilentlyContinue
+    if (-not $dcvFirewallRule) {
+        New-NetFirewallRule -DisplayName "Lunaris DCV HTTPS" -Direction Inbound -Protocol TCP -LocalPort 8443 -Action Allow -Profile Any | Out-Null
+        "$(Get-Date) - DCV firewall rule created" | Out-File -Append $LogFile
+    } else {
+        "$(Get-Date) - DCV firewall rule already exists" | Out-File -Append $LogFile
+    }
+} catch {
+    "$(Get-Date) - Failed to configure DCV firewall rule: $_" | Out-File -Append $LogFile
+}
+
 # Ensure DCV server is running
 try {
     $dcvService = Get-Service -Name "dcvserver" -ErrorAction SilentlyContinue

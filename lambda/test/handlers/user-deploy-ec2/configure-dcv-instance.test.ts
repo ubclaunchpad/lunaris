@@ -20,6 +20,25 @@ describe("user-deploy-ec2/configure-dcv-instance", () => {
         sendMock.mockReset();
     });
 
+    const queueSuccessfulConfigureFlow = () => {
+        sendMock
+            .mockResolvedValueOnce({ Command: { CommandId: "c1" } })
+            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "ok" })
+            .mockResolvedValueOnce({ Command: { CommandId: "c2" } })
+            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "ok" })
+            .mockResolvedValueOnce({ Command: { CommandId: "c3" } })
+            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "ok" })
+            .mockResolvedValueOnce({ Command: { CommandId: "c4" } })
+            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "win-acme ready" })
+            .mockResolvedValueOnce({ Command: { CommandId: "c5" } })
+            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "certificate ok" })
+            .mockResolvedValueOnce({ Command: { CommandId: "c6" } })
+            .mockResolvedValueOnce({
+                Status: "Success",
+                StandardOutputContent: "SSL configured and DCV restarted",
+            });
+    };
+
     it("throws when required fields are missing", async () => {
         const handler = await loadHandler();
         await expect(
@@ -29,24 +48,7 @@ describe("user-deploy-ec2/configure-dcv-instance", () => {
 
     it("returns success when all command phases succeed", async () => {
         const handler = await loadHandler();
-
-        sendMock
-            .mockResolvedValueOnce({ Command: { CommandId: "c1" } })
-            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "ok" })
-            .mockResolvedValueOnce({ Command: { CommandId: "c2" } })
-            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "ok" })
-            .mockResolvedValueOnce({ Command: { CommandId: "c3" } })
-            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "ok" })
-            .mockResolvedValueOnce({ Command: { CommandId: "c4" } })
-            .mockResolvedValueOnce({
-                Status: "Success",
-                StandardOutputContent: "Certificate created successfully",
-            })
-            .mockResolvedValueOnce({ Command: { CommandId: "c5" } })
-            .mockResolvedValueOnce({
-                Status: "Success",
-                StandardOutputContent: "SSL configured and DCV restarted",
-            });
+        queueSuccessfulConfigureFlow();
 
         const result = await handler({
             instanceId: "i-1",
@@ -57,9 +59,16 @@ describe("user-deploy-ec2/configure-dcv-instance", () => {
         expect(result.success).toBe(true);
         expect(result.passwordSet).toBe(true);
         expect(result.sslConfigured).toBe(true);
+
+        const firewallCommand = sendMock.mock.calls[2][0];
+        expect(firewallCommand.input.Parameters.commands).toEqual(
+            expect.arrayContaining([
+                expect.stringContaining('New-NetFirewallRule -DisplayName "Lunaris DCV HTTPS"'),
+            ]),
+        );
     });
 
-    it("returns partial failure when certificate is not created", async () => {
+    it("throws when DCV SSL installation fails", async () => {
         const handler = await loadHandler();
 
         sendMock
@@ -70,40 +79,35 @@ describe("user-deploy-ec2/configure-dcv-instance", () => {
             .mockResolvedValueOnce({ Command: { CommandId: "c3" } })
             .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "ok" })
             .mockResolvedValueOnce({ Command: { CommandId: "c4" } })
-            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "no cert output" });
+            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "win-acme ready" })
+            .mockResolvedValueOnce({ Command: { CommandId: "c5" } })
+            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "certificate ok" })
+            .mockResolvedValueOnce({ Command: { CommandId: "c6" } })
+            .mockResolvedValueOnce({ Status: "Failed", StatusDetails: "Port 8443 not listening" });
 
-        const result = await handler({
-            instanceId: "i-1",
-            dcvIp: "1.2.3.4",
-            dcvPassword: "pw",
-        });
-
-        expect(result.success).toBe(false);
-        expect(result.passwordSet).toBe(true);
-        expect(result.sslConfigured).toBe(false);
+        await expect(
+            handler({
+                instanceId: "i-1",
+                dcvIp: "1.2.3.4",
+                dcvPassword: "pw",
+            }),
+        ).rejects.toThrow("Failed to install SSL certificate into DCV: Port 8443 not listening");
     });
 
-    it("handles failed status from command polling", async () => {
+    it("throws when password setup fails", async () => {
         const handler = await loadHandler();
 
         sendMock
             .mockResolvedValueOnce({ Command: { CommandId: "c1" } })
-            .mockResolvedValueOnce({ Status: "Failed", StatusDetails: "failed" })
-            .mockResolvedValueOnce({ Command: { CommandId: "c2" } })
-            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "ok" })
-            .mockResolvedValueOnce({ Command: { CommandId: "c3" } })
-            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "ok" })
-            .mockResolvedValueOnce({ Command: { CommandId: "c4" } })
-            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "no cert output" });
+            .mockResolvedValueOnce({ Status: "Failed", StatusDetails: "failed" });
 
-        const result = await handler({
-            instanceId: "i-1",
-            dcvIp: "1.2.3.4",
-            dcvPassword: "pw",
-        });
-
-        expect(result.passwordSet).toBe(false);
-        expect(result.success).toBe(false);
+        await expect(
+            handler({
+                instanceId: "i-1",
+                dcvIp: "1.2.3.4",
+                dcvPassword: "pw",
+            }),
+        ).rejects.toThrow("Failed to set password: failed");
     });
 
     it("retries on InvocationDoesNotExist then succeeds", async () => {
@@ -120,11 +124,10 @@ describe("user-deploy-ec2/configure-dcv-instance", () => {
             .mockResolvedValueOnce({ Command: { CommandId: "c3" } })
             .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "ok" })
             .mockResolvedValueOnce({ Command: { CommandId: "c4" } })
-            .mockResolvedValueOnce({
-                Status: "Success",
-                StandardOutputContent: "Certificate created successfully",
-            })
+            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "win-acme ready" })
             .mockResolvedValueOnce({ Command: { CommandId: "c5" } })
+            .mockResolvedValueOnce({ Status: "Success", StandardOutputContent: "certificate ok" })
+            .mockResolvedValueOnce({ Command: { CommandId: "c6" } })
             .mockResolvedValueOnce({
                 Status: "Success",
                 StandardOutputContent: "SSL configured and DCV restarted",
