@@ -67,7 +67,7 @@ describe("user-deploy-ec2/get-dcv-config", () => {
         expect(result).toEqual({
             dcvPassword: "s3cr3t",
             dcvUser: "StreamUser",
-            dcvPort: "9999",
+            dcvPort: 9999,
             dcvIp: "203.0.113.10",
         });
     });
@@ -117,7 +117,7 @@ describe("user-deploy-ec2/get-dcv-config", () => {
 
         const result = await handler({ instanceArn: INSTANCE_ARN });
 
-        expect(result.dcvPort).toBe("8443");
+        expect(result.dcvPort).toBe(8443);
     });
 
     it("defaults dcvIp to '' when the field is missing", async () => {
@@ -153,7 +153,7 @@ describe("user-deploy-ec2/get-dcv-config", () => {
         expect(result).toEqual({
             dcvPassword: "pw",
             dcvUser: "Administrator",
-            dcvPort: "8443",
+            dcvPort: 8443,
             dcvIp: "203.0.113.10",
         });
     });

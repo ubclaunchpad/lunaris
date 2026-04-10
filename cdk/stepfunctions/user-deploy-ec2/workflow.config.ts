@@ -30,6 +30,11 @@ const config: WorkflowConfig = {
             placeholder: "${ConfigureDcvInstanceArn}",
             required: true,
         },
+        verifyDcvEndpoint: {
+            functionName: "verifyDcvEndpointFunction",
+            placeholder: "${VerifyDcvEndpointArn}",
+            required: true,
+        },
         updateRunningStreams: {
             functionName: "updateRunningStreamsFunction",
             placeholder: "${UpdateRunningStreamsArn}",

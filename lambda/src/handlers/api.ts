@@ -21,6 +21,7 @@ import {
 import { SFNClientConfig } from "@aws-sdk/client-sfn";
 import { DynamoDBClientConfig } from "@aws-sdk/client-dynamodb";
 import DynamoDBWrapper from "../utils/dynamoDbWrapper";
+import EC2Wrapper from "../utils/ec2Wrapper";
 import {
     createCheckoutSession,
     getCheckoutSession,
@@ -55,6 +56,7 @@ const USER_PAYMENTS_TABLE_NAME = process.env.USER_PAYMENTS_TABLE_NAME || "";
 const USER_BALANCES_TABLE_NAME = process.env.USER_BALANCES_TABLE_NAME || "";
 // NOTE: Read at request time so tests can override via process.env
 const getStripeWhSecret = (): string => process.env.STRIPE_WH_SECRET || "";
+const ec2Region = process.env.LAMBDA_REGION || process.env.AWS_REGION || "us-west-2";
 
 interface GameItem {
     gameId: string;
@@ -644,6 +646,7 @@ const handleStreamingLink = async (event: APIGatewayProxyEvent): Promise<APIGate
         const runningInstancesDb = RUNNING_INSTANCES_TABLE_NAME
             ? new DynamoDBWrapper(RUNNING_INSTANCES_TABLE_NAME)
             : null;
+        const ec2Wrapper = new EC2Wrapper(ec2Region);
 
         let streamRecord: RunningStreamRecord | null = null;
 
@@ -663,6 +666,19 @@ const handleStreamingLink = async (event: APIGatewayProxyEvent): Promise<APIGate
             );
 
             if (instanceRecord?.status === "running") {
+                try {
+                    const instanceDetails = await ec2Wrapper.getInstanceDetails(candidate.instanceId);
+                    if (instanceDetails.state !== "running") {
+                        continue;
+                    }
+                } catch (error) {
+                    console.warn(
+                        `Skipping streaming candidate ${candidate.instanceId}; failed EC2 state check`,
+                        error,
+                    );
+                    continue;
+                }
+
                 streamRecord = candidate;
                 break;
             }
@@ -731,8 +747,10 @@ const DEPLOY_STEPS = [
     { name: "DeployEC2", displayName: "Deploying EC2 instance", order: 3 },
     { name: "WaitForInstanceReady", displayName: "Waiting for instance to be ready", order: 4 },
     { name: "ConfigureDcvInstance", displayName: "Configuring DCV session", order: 5 },
-    { name: "UpdateRunningStreams", displayName: "Updating streaming database", order: 6 },
-    { name: "DeploymentSuccess", displayName: "Deployment complete", order: 7 },
+    { name: "VerifyDcvEndpointAfterDeploy", displayName: "Verifying DCV browser access", order: 6 },
+    { name: "VerifyDcvEndpointAfterResume", displayName: "Verifying DCV browser access", order: 6 },
+    { name: "UpdateRunningStreams", displayName: "Updating streaming database", order: 7 },
+    { name: "DeploymentSuccess", displayName: "Deployment complete", order: 8 },
 ];
 
 const TERMINATE_STEPS = [

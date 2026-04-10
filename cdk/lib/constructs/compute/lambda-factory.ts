@@ -7,6 +7,7 @@ import { LambdaFunctionConfig, LambdaEnvVarProvider, LambdaPolicy } from "./lamb
 import {
     getDeployEC2Policies,
     getConfigureDcvInstancePolicies,
+    getVerifyDcvEndpointPolicies,
     getTerminateEC2Policies,
     getStopEC2Policies,
     getStopDCVInstancePolicies,
@@ -98,6 +99,8 @@ export class LambdaFactory {
                 return getStartDcvInstancePolicies();
             case "configureDcv":
                 return getConfigureDcvInstancePolicies();
+            case "verifyDcv":
+                return getVerifyDcvEndpointPolicies();
             case "terminateEC2":
                 return getTerminateEC2Policies();
             case "stopEC2":

@@ -114,6 +114,14 @@ export class ComputeStack extends Stack {
             }),
         );
 
+        lambdaFunctions.apiFunction.addToRolePolicy(
+            new PolicyStatement({
+                effect: Effect.ALLOW,
+                actions: ["ec2:DescribeInstances"],
+                resources: ["*"],
+            }),
+        );
+
         lambdaFunctions.apiFunction.addEnvironment(
             "USER_DEPLOY_EC2_WORKFLOW_ARN",
             deployWorkflow.stateMachineArn,

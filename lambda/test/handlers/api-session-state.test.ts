@@ -26,6 +26,14 @@ jest.mock("../../src/utils/stripeWrapper", () => ({
     findOrCreateCustomer: jest.fn(),
 }));
 
+const mockGetInstanceDetails = jest.fn();
+jest.mock("../../src/utils/ec2Wrapper", () => ({
+    __esModule: true,
+    default: jest.fn().mockImplementation(() => ({
+        getInstanceDetails: mockGetInstanceDetails,
+    })),
+}));
+
 import { handler } from "../../src/handlers/api";
 
 const sfnMock = mockClient(SFNClient);
@@ -58,6 +66,7 @@ describe("API session-state regressions", () => {
         dynamoMock.reset();
         sfnMock.reset();
         jest.clearAllMocks();
+        mockGetInstanceDetails.mockReset();
     });
 
     describe("POST /terminateInstance", () => {
@@ -150,6 +159,12 @@ describe("API session-state regressions", () => {
                     status: "running",
                 },
             });
+            mockGetInstanceDetails.mockResolvedValue({
+                instanceId: "i-running",
+                state: "running",
+                publicIp: "1.2.3.4",
+                volumes: [],
+            });
 
             const response = await handler(
                 makeEvent("/streamingLink", "GET", {
@@ -164,6 +179,44 @@ describe("API session-state regressions", () => {
             const queryCalls = dynamoMock.commandCalls(QueryCommand);
             expect(queryCalls).toHaveLength(1);
             expect(queryCalls[0].args[0].input.ScanIndexForward).toBe(false);
+        });
+
+        it("returns inactive when EC2 says the candidate instance is no longer running", async () => {
+            dynamoMock.on(QueryCommand).resolves({
+                Items: [
+                    {
+                        userId: "user-123",
+                        instanceId: "i-dead",
+                        instanceArn: "arn:aws:ec2:us-west-2:123:instance/i-dead",
+                        status: "running",
+                        streamingLink: "https://dead.example.com:8443",
+                        dcvUser: "Administrator",
+                        dcvPassword: "pw",
+                        createdAt: "2026-04-10T00:00:00.000Z",
+                    },
+                ],
+            });
+            dynamoMock.on(GetCommand).resolves({
+                Item: {
+                    instanceId: "i-dead",
+                    status: "running",
+                },
+            });
+            mockGetInstanceDetails.mockResolvedValue({
+                instanceId: "i-dead",
+                state: "terminated",
+                publicIp: "1.2.3.4",
+                volumes: [],
+            });
+
+            const response = await handler(
+                makeEvent("/streamingLink", "GET", {
+                    query: { userId: "user-123" },
+                }),
+            );
+
+            expect(response.statusCode).toBe(404);
+            expect(JSON.parse(response.body).message).toContain("No active streaming session");
         });
 
         it("returns inactive when the stream row is running but the instance row is no longer running", async () => {

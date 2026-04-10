@@ -3,6 +3,7 @@ export type LambdaPolicy =
     | "resumeEC2"
     | "startDcv"
     | "configureDcv"
+    | "verifyDcv"
     | "terminateEC2"
     | "stopEC2"
     | "stopDcv"

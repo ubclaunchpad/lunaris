@@ -151,7 +151,7 @@
                 }
             },
             "ResultPath": "$.startDcvResult",
-            "Next": "PrepareUpdatePayload",
+            "Next": "VerifyDcvEndpointAfterResume",
             "Retry": [
                 {
                     "ErrorEquals": [
@@ -168,7 +168,7 @@
                 {
                     "ErrorEquals": ["States.ALL"],
                     "ResultPath": "$.startDcvError",
-                    "Next": "HandleStartDcvError"
+                    "Next": "VerifyDcvEndpointAfterResume"
                 }
             ]
         },
@@ -212,7 +212,7 @@
         "WaitForInstanceReady": {
             "Type": "Wait",
             "Seconds": 60,
-            "Comment": "Wait for EC2 instance to be fully ready for SSM commands",
+            "Comment": "Give EC2 user-data time to start DCV bootstrap and certificate setup",
             "Next": "ConfigureDcvInstance"
         },
         "ConfigureDcvInstance": {
@@ -227,7 +227,7 @@
                 }
             },
             "ResultPath": "$.configureResult",
-            "Next": "PrepareUpdatePayload",
+            "Next": "VerifyDcvEndpointAfterDeploy",
             "Retry": [
                 {
                     "ErrorEquals": ["States.TaskFailed"],
@@ -240,7 +240,51 @@
                 {
                     "ErrorEquals": ["States.ALL"],
                     "ResultPath": "$.configureError",
-                    "Next": "PrepareUpdatePayload"
+                    "Next": "VerifyDcvEndpointAfterDeploy"
+                }
+            ]
+        },
+        "VerifyDcvEndpointAfterResume": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${VerifyDcvEndpointArn}",
+                "Payload": {
+                    "instanceId.$": "$.deployResult.Payload.instanceId",
+                    "dcvPort.$": "$.deployResult.Payload.dcvPort",
+                    "timeoutSeconds": 360,
+                    "pollIntervalSeconds": 15
+                }
+            },
+            "ResultPath": "$.verifyDcvResult",
+            "Next": "PrepareUpdatePayload",
+            "Catch": [
+                {
+                    "ErrorEquals": ["States.ALL"],
+                    "ResultPath": "$.verifyDcvError",
+                    "Next": "HandleDcvReadinessError"
+                }
+            ]
+        },
+        "VerifyDcvEndpointAfterDeploy": {
+            "Type": "Task",
+            "Resource": "arn:aws:states:::lambda:invoke",
+            "Parameters": {
+                "FunctionName": "${VerifyDcvEndpointArn}",
+                "Payload": {
+                    "instanceId.$": "$.deployResult.Payload.instanceId",
+                    "dcvPort.$": "$.deployResult.Payload.dcvPort",
+                    "timeoutSeconds": 360,
+                    "pollIntervalSeconds": 15
+                }
+            },
+            "ResultPath": "$.verifyDcvResult",
+            "Next": "PrepareUpdatePayload",
+            "Catch": [
+                {
+                    "ErrorEquals": ["States.ALL"],
+                    "ResultPath": "$.verifyDcvError",
+                    "Next": "RollbackInstance"
                 }
             ]
         },
@@ -253,8 +297,8 @@
                 "instanceId.$": "$.deployResult.Payload.instanceId",
                 "instanceArn.$": "$.deployResult.Payload.instanceArn",
                 "ebsVolumeId.$": "$.deployResult.Payload.ebsVolumeId",
-                "dcvIp.$": "$.deployResult.Payload.dcvIp",
-                "dcvPort.$": "$.deployResult.Payload.dcvPort",
+                "dcvIp.$": "$.verifyDcvResult.Payload.dcvIp",
+                "dcvPort.$": "$.verifyDcvResult.Payload.dcvPort",
                 "dcvUser.$": "$.deployResult.Payload.dcvUser",
                 "dcvPassword.$": "$.deployResult.Payload.dcvPassword"
             },
@@ -361,6 +405,11 @@
             "Type": "Fail",
             "Cause": "Failed to deploy EC2 instance",
             "Error": "DeploymentFailedError"
+        },
+        "HandleDcvReadinessError": {
+            "Type": "Fail",
+            "Cause": "DCV endpoint never became browser-ready",
+            "Error": "DcvEndpointNotReadyError"
         },
         "HandleStartDcvError": {
             "Type": "Fail",

@@ -9,7 +9,7 @@ type GetDcvConfigEvent = {
 type GetDcvConfigResult = {
     dcvPassword: string;
     dcvUser: string;
-    dcvPort: string;
+    dcvPort: number;
     dcvIp: string;
 };
 
@@ -51,7 +51,7 @@ export const handler = async (event: GetDcvConfigEvent): Promise<GetDcvConfigRes
     return {
         dcvPassword: stream.dcvPassword,
         dcvUser: stream.dcvUser || "Administrator",
-        dcvPort: stream.dcvPort || "8443",
+        dcvPort: Number(stream.dcvPort || 8443),
         dcvIp: currentDcvIp,
     };
 };
