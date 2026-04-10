@@ -125,6 +125,37 @@ describe("user-deploy-ec2/check-running-instances", () => {
         await expect(handler({ userId: "user-123" })).rejects.toThrow("ddb-query-error");
     });
 
+    // ── Deploying placeholder filtering ──────────────────────────────────────
+
+    it("ignores 'deploying' placeholder records and returns terminated when they are the only items", async () => {
+        dynamoMock.on(QueryCommand).resolves({
+            Items: [
+                {
+                    userId: "user-123",
+                    instanceId: "pending-exec-123",
+                    status: "deploying",
+                },
+            ],
+        });
+
+        const result = await handler({ userId: "user-123" });
+
+        expect(result).toEqual({ status: "terminated", instanceId: "" });
+    });
+
+    it("skips 'deploying' records and returns the first non-deploying item", async () => {
+        dynamoMock.on(QueryCommand).resolves({
+            Items: [
+                { userId: "user-123", instanceId: "pending-exec-123", status: "deploying" },
+                { userId: "user-123", instanceId: "i-real", status: "stopped" },
+            ],
+        });
+
+        const result = await handler({ userId: "user-123" });
+
+        expect(result).toEqual({ status: "stopped", instanceId: "i-real" });
+    });
+
     // ── Statuses beyond running/terminated ────────────────────────────────────
 
     it("returns the raw status value for non-standard statuses (e.g. 'stopped')", async () => {

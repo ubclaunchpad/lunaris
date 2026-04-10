@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s http://localhost:8000)",
+      "Bash(AWS_ACCESS_KEY_ID=dummy AWS_SECRET_ACCESS_KEY=dummy aws dynamodb list-tables --endpoint-url http://localhost:8000 --region us-east-1)",
+      "Bash(aws dynamodb:*)",
+      "Bash(ls /Users/danielyoo/workspace/lunaris/cdk/lambdas/*.config.ts)",
+      "Bash(xargs -I {} basename {} .config.ts)",
+      "Bash(grep -r \"GAMES_TABLE_NAME\" /Users/danielyoo/workspace/lunaris/cdk/lambdas/*.config.ts)",
+      "Bash(aws stepfunctions:*)",
+      "Bash(aws ec2:*)",
+      "Bash(aws iam:*)"
+    ]
+  }
+}
