@@ -19,7 +19,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                         backgroundAttachment: "fixed",
                     }}
                 />
-                {children}
+                <div className="mx-auto max-w-6xl">
+                    {children}
+                </div>
             </main>
         </>
     );
