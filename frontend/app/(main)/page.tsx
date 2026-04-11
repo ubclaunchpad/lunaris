@@ -56,7 +56,7 @@ function HomeContent() {
                     </div>
                 ) : (
                     Array.from({ length: Math.ceil(filtered.length / 3) }, (_, i) =>
-                        filtered.slice(i * 3, i * 3 + 3)
+                        filtered.slice(i * 3, i * 3 + 3),
                     ).map((chunk, i) => (
                         <GameCardsRow key={i} games={chunk} className={i > 0 ? "-mt-48" : ""} />
                     ))

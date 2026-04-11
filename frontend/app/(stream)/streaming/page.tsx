@@ -22,7 +22,6 @@ interface StreamingPageState {
     gameName?: string;
 }
 
-
 function StreamingPageFallback() {
     return (
         <div className="min-h-screen bg-black text-white flex items-center justify-center">
@@ -100,7 +99,6 @@ function StreamingPageContent() {
 
         router.replace(getTerminationRedirectPath(state?.gameId));
     }, [router, state?.gameId]);
-
 
     const handleTerminate = async () => {
         if (!state || isTerminating) return;

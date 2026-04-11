@@ -17,7 +17,8 @@ export default function ProfileMenu() {
     useEffect(() => {
         if (!open || !session?.user?.id) return;
         apiClient.setToken(session.idToken ?? null);
-        apiClient.getBalance(session.user.id)
+        apiClient
+            .getBalance(session.user.id)
             .then((res) => setCoins(res.coins))
             .catch(() => setCoins(0));
     }, [open, session?.user?.id, session?.idToken]);
