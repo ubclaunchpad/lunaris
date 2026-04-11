@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { GameCardsRow } from "@/components/game-card/game-cards-row";
 import { apiClient, type Game } from "@/lib/api-client";
 
-export default function Home() {
+function HomeContent() {
     const searchParams = useSearchParams();
     const query = searchParams.get("q")?.trim().toLowerCase() ?? "";
     const activeTags = searchParams.get("tags")?.split(",").filter(Boolean) ?? [];
@@ -13,12 +13,14 @@ export default function Home() {
     const playableOnly = searchParams.get("playable") === "true";
 
     const [allGames, setAllGames] = useState<Game[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         apiClient
             .getGames()
             .then((res) => setAllGames(res.data))
-            .catch(() => {});
+            .catch(() => {})
+            .finally(() => setLoading(false));
     }, []);
 
     const isFiltered = query || activeTags.length || activeModes.length || playableOnly;
@@ -48,8 +50,22 @@ export default function Home() {
             </header>
 
             <section aria-label="featured games">
-                <GameCardsRow games={filtered} />
+                {loading ? (
+                    <div className="flex items-center justify-center py-24">
+                        <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#e1ff9a] border-t-transparent" />
+                    </div>
+                ) : (
+                    <GameCardsRow games={filtered} />
+                )}
             </section>
         </div>
+    );
+}
+
+export default function Home() {
+    return (
+        <Suspense>
+            <HomeContent />
+        </Suspense>
     );
 }

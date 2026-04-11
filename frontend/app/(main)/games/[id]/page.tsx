@@ -32,12 +32,14 @@ export default function GamePage({ params }: GamePageProps) {
     const { data: session } = useSession();
 
     const [game, setGame] = useState<Game | null>(null);
+    const [gameLoading, setGameLoading] = useState(true);
 
     useEffect(() => {
         apiClient
             .getGame(id)
             .then((res) => setGame(res.data))
-            .catch(() => {});
+            .catch(() => {})
+            .finally(() => setGameLoading(false));
     }, [id]);
 
     const userId = session?.user?.id ?? "test123";
@@ -244,6 +246,14 @@ export default function GamePage({ params }: GamePageProps) {
 
         router.push(`/streaming?${params.toString()}`);
     };
+
+    if (gameLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#e1ff9a] border-t-transparent" />
+            </div>
+        );
+    }
 
     if (!game) {
         return (
