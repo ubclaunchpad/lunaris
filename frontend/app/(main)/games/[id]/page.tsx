@@ -5,7 +5,6 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ChevronLeft, Gamepad2, Keyboard } from "lucide-react";
-import gamesData from "@/lib/data.json";
 import {
     apiClient,
     type Game,
@@ -27,33 +26,18 @@ interface StreamingCredentials {
     instanceId?: string;
 }
 
-function toGame(g: (typeof gamesData.games)[number]): Game {
-    return {
-        gameId: g.id,
-        name: g.name,
-        description: g.description || "",
-        imageUrl: g.image,
-        tags: g.tags,
-        modes: g.modes,
-        ebsSnapshotId: "",
-        minInstanceType: "",
-        playable: g.playable,
-    };
-}
-
 export default function GamePage({ params }: GamePageProps) {
     const router = useRouter();
     const { id } = use(params);
     const { data: session } = useSession();
 
-    const fallback = gamesData.games.find((g) => g.id === id);
-    const [game, setGame] = useState<Game | null>(fallback ? toGame(fallback) : null);
+    const [game, setGame] = useState<Game | null>(null);
 
     useEffect(() => {
         apiClient
             .getGame(id)
             .then((res) => setGame(res.data))
-            .catch(() => {}); // keep fallback on error
+            .catch(() => {});
     }, [id]);
 
     const userId = session?.user?.id ?? "test123";

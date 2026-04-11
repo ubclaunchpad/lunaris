@@ -4,22 +4,9 @@ import { useEffect, useState } from "react";
 import { Dashboard } from "@/components/dashboard";
 import { GameCard } from "@/components/game-card/game-card";
 import { apiClient, type Game } from "@/lib/api-client";
-import gamesData from "@/lib/data.json";
-
-const fallbackGames: Game[] = gamesData.games.map((g) => ({
-    gameId: g.id,
-    name: g.name,
-    description: g.description || "",
-    imageUrl: g.image,
-    tags: g.tags,
-    modes: g.modes,
-    ebsSnapshotId: "",
-    minInstanceType: "",
-    playable: g.playable,
-}));
 
 export default function BrowsePage() {
-    const [games, setGames] = useState<Game[]>(fallbackGames);
+    const [games, setGames] = useState<Game[]>([]);
     const mid = Math.ceil(games.length / 2);
     const featuredGames = games.slice(0, mid);
     const popularGames = games.slice(mid);

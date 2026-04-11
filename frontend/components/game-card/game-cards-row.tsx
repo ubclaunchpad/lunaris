@@ -3,18 +3,6 @@
 import { ReactNode, useEffect, useState } from "react";
 import { GameCard } from "./game-card";
 import { apiClient, type Game } from "@/lib/api-client";
-import gamesData from "@/lib/data.json";
-
-const fallbackGames: Game[] = gamesData.games.map((g) => ({
-    gameId: g.id,
-    name: g.name,
-    description: "",
-    imageUrl: g.image,
-    tags: g.tags,
-    modes: g.modes,
-    ebsSnapshotId: "",
-    minInstanceType: "",
-}));
 
 interface CarouselProps {
     children: ReactNode;
@@ -38,7 +26,7 @@ interface GameCardsRowProps {
 }
 
 export function GameCardsRow({ gameIds }: GameCardsRowProps) {
-    const [games, setGames] = useState<Game[]>(fallbackGames);
+    const [games, setGames] = useState<Game[]>([]);
 
     useEffect(() => {
         apiClient

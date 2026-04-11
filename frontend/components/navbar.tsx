@@ -135,16 +135,6 @@ export function Navbar() {
                                 Home
                             </Link>
                             <Link
-                                href="/browse"
-                                className={`text-lg font-normal font-space-grotesk transition-colors ${
-                                    isActive("/browse")
-                                        ? "text-[#fbfff5]"
-                                        : "text-[#fbfff5] hover:text-[#e1ff9a]"
-                                }`}
-                            >
-                                My Games
-                            </Link>
-                            <Link
                                 href="/topup"
                                 className={`text-lg font-normal font-space-grotesk transition-colors ${
                                     isActive("/topup")
