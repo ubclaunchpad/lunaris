@@ -66,6 +66,12 @@ const ENDPOINTS: EndpointDefinition[] = [
         noAuth: true,
     },
     {
+        path: "balance",
+        method: "GET",
+        statusCodes: ["200", "400"],
+        queryParams: ["method.request.querystring.userId"],
+    },
+    {
         path: "games",
         method: "GET",
         statusCodes: ["200", "500"],

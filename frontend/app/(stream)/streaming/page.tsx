@@ -22,11 +22,6 @@ interface StreamingPageState {
     gameName?: string;
 }
 
-interface UploadStatus {
-    filename: string;
-    progress: "uploading" | "done" | "error";
-    error?: string;
-}
 
 function StreamingPageFallback() {
     return (
@@ -46,11 +41,6 @@ function StreamingPageContent() {
     const [state, setState] = useState<StreamingPageState | null>(null);
     const [showTopBar, setShowTopBar] = useState(false);
     const [isTerminating, setIsTerminating] = useState(false);
-    const [sessionInfo, setSessionInfo] = useState<{ sessionId: string; authToken: string } | null>(
-        null,
-    );
-    const [uploadStatuses, setUploadStatuses] = useState<UploadStatus[]>([]);
-    const fileInputRef = useRef<HTMLInputElement>(null);
     const hideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -111,54 +101,6 @@ function StreamingPageContent() {
         router.replace(getTerminationRedirectPath(state?.gameId));
     }, [router, state?.gameId]);
 
-    const handleFileUpload = useCallback(
-        async (files: FileList) => {
-            if (!state || !sessionInfo) return;
-
-            for (const file of Array.from(files)) {
-                setUploadStatuses((prev) => [
-                    ...prev,
-                    { filename: file.name, progress: "uploading" },
-                ]);
-
-                const formData = new FormData();
-                formData.append("file", file);
-
-                try {
-                    const res = await fetch(
-                        `${state.serverUrl}/nice-dcv/v1/api/session/${sessionInfo.sessionId}/file-transfer/upload`,
-                        {
-                            method: "POST",
-                            headers: { "X-Authorization": `Token ${sessionInfo.authToken}` },
-                            body: formData,
-                        },
-                    );
-
-                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-                    setUploadStatuses((prev) =>
-                        prev.map((s) =>
-                            s.filename === file.name ? { ...s, progress: "done" } : s,
-                        ),
-                    );
-                } catch (err) {
-                    setUploadStatuses((prev) =>
-                        prev.map((s) =>
-                            s.filename === file.name
-                                ? { ...s, progress: "error", error: String(err) }
-                                : s,
-                        ),
-                    );
-                }
-
-                // Clear completed/failed after 3s
-                setTimeout(() => {
-                    setUploadStatuses((prev) => prev.filter((s) => s.filename !== file.name));
-                }, 3000);
-            }
-        },
-        [state, sessionInfo],
-    );
 
     const handleTerminate = async () => {
         if (!state || isTerminating) return;
@@ -201,42 +143,6 @@ function StreamingPageContent() {
                         {state.gameName || "Game"}
                     </span>
                     <div className="flex items-center gap-2">
-                        {/* Upload status pills */}
-                        {uploadStatuses.map((s) => (
-                            <span
-                                key={s.filename}
-                                className={`text-xs px-2 py-1 rounded ${
-                                    s.progress === "uploading"
-                                        ? "bg-blue-600"
-                                        : s.progress === "done"
-                                          ? "bg-green-600"
-                                          : "bg-red-600"
-                                }`}
-                            >
-                                {s.progress === "uploading" && "↑ "}
-                                {s.progress === "done" && "✓ "}
-                                {s.progress === "error" && "✗ "}
-                                {s.filename}
-                            </span>
-                        ))}
-                        {/* File upload button */}
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            multiple
-                            className="hidden"
-                            onChange={(e) => e.target.files && handleFileUpload(e.target.files)}
-                        />
-                        <button
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={!sessionInfo}
-                            title={
-                                !sessionInfo ? "Waiting for session..." : "Upload files to instance"
-                            }
-                            className="px-4 py-1.5 bg-gray-600 rounded text-sm font-medium hover:bg-gray-500 transition-colors disabled:opacity-40"
-                        >
-                            Upload Files
-                        </button>
                         <button
                             onClick={handleTerminate}
                             disabled={isTerminating}
@@ -257,7 +163,7 @@ function StreamingPageContent() {
                     onConnect={() => {}}
                     onDisconnect={() => {}}
                     onError={() => {}}
-                    onSessionReady={setSessionInfo}
+                    onSessionReady={() => {}}
                 />
             </div>
         </div>

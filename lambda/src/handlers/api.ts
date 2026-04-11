@@ -1264,6 +1264,11 @@ export const handler = async (event: APIGatewayProxyEvent): Promise<APIGatewayPr
             return await handleGetCheckoutSession(event);
         } else if (path === "/stripe-webhook" && method === "POST") {
             return await handleStripeWebhook(event);
+        } else if (path === "/balance" && method === "GET") {
+            const userId = event.queryStringParameters?.userId;
+            if (!userId) return createResponse(400, { error: "userId is required" });
+            const { coins } = await verifyUserBalance(userId);
+            return createResponse(200, { coins });
         } else if (path === "/games" && method === "GET") {
             return await handleListGames(event);
         } else if (path?.startsWith("/games/") && method === "GET") {
