@@ -22,20 +22,21 @@ const Carousel = ({ children, className = "" }: CarouselProps) => (
 );
 
 interface GameCardsRowProps {
-    gameIds?: string[];
+    games?: Game[];
 }
 
-export function GameCardsRow({ gameIds }: GameCardsRowProps) {
-    const [games, setGames] = useState<Game[]>([]);
+export function GameCardsRow({ games: gamesProp }: GameCardsRowProps) {
+    const [fetched, setFetched] = useState<Game[]>([]);
 
     useEffect(() => {
+        if (gamesProp) return;
         apiClient
             .getGames()
-            .then((res) => setGames(res.data))
-            .catch(() => {}); // keep fallback on error
-    }, []);
+            .then((res) => setFetched(res.data))
+            .catch(() => {});
+    }, [gamesProp]);
 
-    const gamesToRender = gameIds?.length ? games.filter((g) => gameIds.includes(g.gameId)) : games;
+    const gamesToRender = gamesProp ?? fetched;
 
     return (
         <Carousel>

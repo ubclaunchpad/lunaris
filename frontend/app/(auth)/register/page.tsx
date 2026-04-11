@@ -11,7 +11,7 @@ export default async function RegisterPage({
     const { callbackUrl, email } = await searchParams;
 
     if (session) {
-        redirect(callbackUrl || "/browse");
+        redirect(callbackUrl || "/");
     }
 
     return <AuthForm mode="register" callbackUrl={callbackUrl} initialEmail={email} />;

@@ -1,112 +1,93 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { Filter, Search, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import gamesData from "@/lib/data.json";
-import { FilterPanel, type GameFilterState } from "@/components/search/filter-panel";
+import { FilterPanel } from "@/components/search/filter-panel";
+import { apiClient } from "@/lib/api-client";
 import ProfileMenu from "@/components/profile-menu";
 
-type Game = (typeof gamesData.games)[number];
-
-const initialFilters: GameFilterState = {
-    tags: [],
-    modes: [],
-    playableOnly: false,
-};
-
-const availableTags = Array.from(new Set(gamesData.games.flatMap((game) => game.tags))).sort();
-const availableModes = Array.from(new Set(gamesData.games.flatMap((game) => game.modes))).sort();
-
 function toggleValue(values: string[], value: string) {
-    return values.includes(value) ? values.filter((item) => item !== value) : [...values, value];
+    return values.includes(value) ? values.filter((v) => v !== value) : [...values, value];
 }
 
 export function Navbar() {
     const pathname = usePathname();
-    const [query, setQuery] = useState("");
-    const [searchFocused, setSearchFocused] = useState(false);
-    const [filtersOpen, setFiltersOpen] = useState(false);
-    const [filters, setFilters] = useState<GameFilterState>(initialFilters);
-    const [sortBy, setSortBy] = useState<"relevance" | "title-asc" | "title-desc" | "playable">(
-        "relevance",
-    );
-
+    const router = useRouter();
+    const searchParams = useSearchParams();
     const searchRef = useRef<HTMLDivElement>(null);
-    const resultsRef = useRef<HTMLDivElement>(null);
+
+    const [query, setQuery] = useState(searchParams.get("q") ?? "");
+    const [filtersOpen, setFiltersOpen] = useState(false);
+    const [availableTags, setAvailableTags] = useState<string[]>([]);
+    const [availableModes, setAvailableModes] = useState<string[]>([]);
+
+    // Derive filter state from URL
+    const activeTags = searchParams.get("tags")?.split(",").filter(Boolean) ?? [];
+    const activeModes = searchParams.get("modes")?.split(",").filter(Boolean) ?? [];
+    const playableOnly = searchParams.get("playable") === "true";
+    const activeFilterCount = activeTags.length + activeModes.length + (playableOnly ? 1 : 0);
 
     const isActive = (path: string) => pathname === path;
 
-    const activeFilterCount =
-        filters.tags.length + filters.modes.length + (filters.playableOnly ? 1 : 0);
-
-    const results = useMemo(() => {
-        const normalizedQuery = query.trim().toLowerCase();
-
-        const filtered = gamesData.games.filter((game) => {
-            const matchesQuery =
-                normalizedQuery.length === 0 ||
-                game.name.toLowerCase().includes(normalizedQuery) ||
-                game.tags.some((tag) => tag.toLowerCase().includes(normalizedQuery)) ||
-                game.modes.some((mode) => mode.toLowerCase().includes(normalizedQuery));
-
-            const matchesTags =
-                filters.tags.length === 0 || filters.tags.some((tag) => game.tags.includes(tag));
-
-            const matchesModes =
-                filters.modes.length === 0 ||
-                filters.modes.some((mode) => game.modes.includes(mode));
-
-            const matchesAvailability = !filters.playableOnly || game.playable;
-
-            return matchesQuery && matchesTags && matchesModes && matchesAvailability;
-        });
-
-        if (sortBy === "title-asc") {
-            return [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-        }
-
-        if (sortBy === "title-desc") {
-            return [...filtered].sort((a, b) => b.name.localeCompare(a.name));
-        }
-
-        if (sortBy === "playable") {
-            return [...filtered].sort((a, b) => Number(b.playable) - Number(a.playable));
-        }
-
-        return filtered;
-    }, [filters, query, sortBy]);
-
-    const hasQuery = query.trim().length > 0;
-    const isSearchOpen = hasQuery;
-
     useEffect(() => {
-        function handleOutsideClick(event: MouseEvent) {
-            const target = event.target as Node;
+        apiClient.getGames().then((res) => {
+            const games = res.data;
+            setAvailableTags(Array.from(new Set(games.flatMap((g) => g.tags ?? []))).sort());
+            setAvailableModes(Array.from(new Set(games.flatMap((g) => g.modes ?? []))).sort());
+        }).catch(() => {});
+    }, []);
 
-            if (!searchRef.current?.contains(target) && !resultsRef.current?.contains(target)) {
-                setSearchFocused(false);
-                setFiltersOpen(false);
-            }
+    // Sync query input if URL changes externally
+    useEffect(() => {
+        setQuery(searchParams.get("q") ?? "");
+    }, [searchParams]);
+
+    // Close filters on outside click
+    useEffect(() => {
+        function handleOutsideClick(e: MouseEvent) {
+            if (!searchRef.current?.contains(e.target as Node)) setFiltersOpen(false);
         }
-
         document.addEventListener("mousedown", handleOutsideClick);
         return () => document.removeEventListener("mousedown", handleOutsideClick);
     }, []);
 
-    useEffect(() => {
-        setSearchFocused(false);
-        setFiltersOpen(false);
-    }, [pathname]);
+    // Close filters on navigation
+    useEffect(() => { setFiltersOpen(false); }, [pathname]);
+
+    function buildUrl(overrides: Record<string, string | null>) {
+        const params = new URLSearchParams(searchParams.toString());
+        for (const [key, value] of Object.entries(overrides)) {
+            if (value === null || value === "") params.delete(key);
+            else params.set(key, value);
+        }
+        return `/?${params.toString()}`;
+    }
+
+    function handleQueryChange(value: string) {
+        setQuery(value);
+        router.replace(buildUrl({ q: value.trim() || null }));
+    }
+
+    function handleToggleTag(tag: string) {
+        const next = toggleValue(activeTags, tag);
+        router.replace(buildUrl({ tags: next.join(",") || null }));
+    }
+
+    function handleToggleMode(mode: string) {
+        const next = toggleValue(activeModes, mode);
+        router.replace(buildUrl({ modes: next.join(",") || null }));
+    }
+
+    function handleTogglePlayable() {
+        router.replace(buildUrl({ playable: playableOnly ? null : "true" }));
+    }
 
     function resetSearch() {
         setQuery("");
-        setFilters(initialFilters);
-        setSortBy("relevance");
-        setSearchFocused(false);
         setFiltersOpen(false);
+        router.replace("/");
     }
 
     return (
@@ -127,9 +108,7 @@ export function Navbar() {
                             <Link
                                 href="/"
                                 className={`text-lg font-normal font-space-grotesk transition-colors ${
-                                    isActive("/")
-                                        ? "text-[#fbfff5]"
-                                        : "text-[#fbfff5] hover:text-[#e1ff9a]"
+                                    isActive("/") ? "text-[#fbfff5]" : "text-[#fbfff5] hover:text-[#e1ff9a]"
                                 }`}
                             >
                                 Home
@@ -137,9 +116,7 @@ export function Navbar() {
                             <Link
                                 href="/topup"
                                 className={`text-lg font-normal font-space-grotesk transition-colors ${
-                                    isActive("/topup")
-                                        ? "text-[#e1ff9a]"
-                                        : "text-[#fbfff5] hover:text-[#e1ff9a]"
+                                    isActive("/topup") ? "text-[#e1ff9a]" : "text-[#fbfff5] hover:text-[#e1ff9a]"
                                 }`}
                             >
                                 Top-Up
@@ -155,8 +132,7 @@ export function Navbar() {
                                 <input
                                     type="text"
                                     value={query}
-                                    onFocus={() => setSearchFocused(true)}
-                                    onChange={(e) => setQuery(e.target.value)}
+                                    onChange={(e) => handleQueryChange(e.target.value)}
                                     placeholder="Search games..."
                                     className="ml-3 min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-[#fbfff5]/55"
                                     aria-label="Search games"
@@ -166,10 +142,7 @@ export function Navbar() {
 
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        setSearchFocused(true);
-                                        setFiltersOpen((open) => !open);
-                                    }}
+                                    onClick={() => setFiltersOpen((o) => !o)}
                                     className={`relative rounded-full p-1 transition ${
                                         filtersOpen || activeFilterCount > 0
                                             ? "text-[#e1ff9a]"
@@ -200,28 +173,13 @@ export function Navbar() {
                             {filtersOpen && (
                                 <div className="absolute right-0 top-[calc(100%+12px)] z-[60]">
                                     <FilterPanel
-                                        filters={filters}
+                                        filters={{ tags: activeTags, modes: activeModes, playableOnly }}
                                         availableTags={availableTags}
                                         availableModes={availableModes}
-                                        onToggleTag={(tag) =>
-                                            setFilters((current) => ({
-                                                ...current,
-                                                tags: toggleValue(current.tags, tag),
-                                            }))
-                                        }
-                                        onToggleMode={(mode) =>
-                                            setFilters((current) => ({
-                                                ...current,
-                                                modes: toggleValue(current.modes, mode),
-                                            }))
-                                        }
-                                        onTogglePlayableOnly={() =>
-                                            setFilters((current) => ({
-                                                ...current,
-                                                playableOnly: !current.playableOnly,
-                                            }))
-                                        }
-                                        onClear={() => setFilters(initialFilters)}
+                                        onToggleTag={handleToggleTag}
+                                        onToggleMode={handleToggleMode}
+                                        onTogglePlayableOnly={handleTogglePlayable}
+                                        onClear={resetSearch}
                                     />
                                 </div>
                             )}
@@ -231,161 +189,6 @@ export function Navbar() {
                     </div>
                 </div>
             </nav>
-
-            {isSearchOpen && (
-                <div
-                    ref={resultsRef}
-                    className="fixed inset-x-0 bottom-0 top-[92px] z-40 overflow-y-auto bg-[rgba(4,6,9,0.96)] backdrop-blur-sm"
-                >
-                    <div className="mx-auto max-w-[1560px] px-10 pb-14 pt-10">
-                        <div className="mb-12">
-                            <h2 className="font-space-grotesk text-5xl font-bold text-white">
-                                Search Results
-                            </h2>
-                            <p className="mt-4 text-sm text-[#fbfff5]/60">
-                                {results.length} match{results.length === 1 ? "" : "es"} found
-                                {hasQuery ? ` for "${query.trim()}"` : ""}
-                                {activeFilterCount > 0 ? " with active filters" : ""}
-                            </p>
-                        </div>
-
-                        <div className="mb-10 flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-                            <div className="flex items-center gap-5">
-                                <label
-                                    htmlFor="search-sort"
-                                    className="font-space-grotesk text-2xl font-semibold text-white"
-                                >
-                                    Sort By
-                                </label>
-                                <div className="relative">
-                                    <select
-                                        id="search-sort"
-                                        value={sortBy}
-                                        onChange={(e) =>
-                                            setSortBy(
-                                                e.target.value as
-                                                    | "relevance"
-                                                    | "title-asc"
-                                                    | "title-desc"
-                                                    | "playable",
-                                            )
-                                        }
-                                        className="min-w-[230px] appearance-none rounded-2xl border border-white/10 bg-[#273136] px-5 py-3 pr-12 text-lg text-white outline-none transition hover:border-white/20"
-                                    >
-                                        <option value="relevance">Relevance</option>
-                                        <option value="title-asc">Title A-Z</option>
-                                        <option value="title-desc">Title Z-A</option>
-                                        <option value="playable">Playable First</option>
-                                    </select>
-                                    <span className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-white">
-                                        <svg
-                                            className="h-5 w-5"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M19 9l-7 7-7-7"
-                                            />
-                                        </svg>
-                                    </span>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center gap-3 overflow-x-auto pb-1">
-                                {filters.playableOnly && <FilterChip label="Install-to-Play" />}
-                                {filters.tags.map((tag) => (
-                                    <FilterChip key={tag} label={tag} />
-                                ))}
-                                {filters.modes.map((mode) => (
-                                    <FilterChip key={mode} label={mode} />
-                                ))}
-                            </div>
-                        </div>
-
-                        {results.length > 0 ? (
-                            <div className="space-y-9">
-                                {results.map((game) => (
-                                    <Link
-                                        key={game.id}
-                                        href={`/games/${game.id}`}
-                                        className="group grid grid-cols-1 gap-6 xl:grid-cols-[410px_minmax(0,1fr)] xl:items-start"
-                                        onClick={() => {
-                                            setSearchFocused(false);
-                                            setFiltersOpen(false);
-                                        }}
-                                    >
-                                        <div className="overflow-hidden rounded-2xl bg-[#182229] shadow-[0_20px_40px_rgba(0,0,0,0.24)]">
-                                            <img
-                                                src={game.image}
-                                                alt={game.name}
-                                                className="aspect-video h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
-                                            />
-                                        </div>
-
-                                        <div className="pt-3">
-                                            <div className="mb-4 flex items-start justify-between gap-4">
-                                                <h3 className="font-space-grotesk text-3xl font-semibold text-white transition group-hover:text-[#e1ff9a]">
-                                                    {game.name}
-                                                </h3>
-                                                <span
-                                                    className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium ${
-                                                        game.playable
-                                                            ? "bg-[#e1ff9a] text-[#12191d]"
-                                                            : "border border-white/10 bg-white/8 text-[#fbfff5]/70"
-                                                    }`}
-                                                >
-                                                    {game.playable ? "Playable" : "Coming Soon"}
-                                                </span>
-                                            </div>
-
-                                            <p className="max-w-5xl text-[17px] leading-9 text-[#fbfff5]/82">
-                                                Game description - {game.description}
-                                            </p>
-
-                                            <div className="mt-5 flex flex-wrap gap-2">
-                                                {game.tags.map((tag) => (
-                                                    <FilterChip key={tag} label={tag} subtle />
-                                                ))}
-                                                {game.modes.map((mode) => (
-                                                    <FilterChip key={mode} label={mode} subtle />
-                                                ))}
-                                            </div>
-                                        </div>
-                                    </Link>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="rounded-3xl border border-dashed border-white/10 bg-[#11191f]/65 px-8 py-16 text-center">
-                                <h3 className="font-space-grotesk text-2xl font-semibold text-white">
-                                    No games match yet
-                                </h3>
-                                <p className="mx-auto mt-3 max-w-xl text-sm text-[#fbfff5]/60">
-                                    Try a broader search, clear a few filters, or browse the full
-                                    library from the navbar search.
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
         </>
-    );
-}
-
-function FilterChip({ label, subtle = false }: { label: string; subtle?: boolean }) {
-    return (
-        <span
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
-                subtle
-                    ? "border border-white/14 bg-white/6 text-[#fbfff5]/76"
-                    : "border border-[#e1ff9a]/40 bg-[#e1ff9a]/10 text-[#e1ff9a]"
-            }`}
-        >
-            {label}
-        </span>
     );
 }

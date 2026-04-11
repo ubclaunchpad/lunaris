@@ -64,7 +64,7 @@ function StreamingPageContent() {
         const gameName = searchParams.get("gameName") || undefined;
 
         if (!serverUrl || !username || !password) {
-            setTimeout(() => router.push("/browse"), 2000);
+            setTimeout(() => router.push("/"), 2000);
             return;
         }
 
