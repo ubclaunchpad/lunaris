@@ -10,11 +10,7 @@ import {
 } from "@/lib/api-client";
 import { DCVViewerSimple } from "@/components/dcv-viewer-simple";
 import { useDeploymentStatus } from "@/lib/hooks/useDeploymentStatus";
-import {
-    getTerminationRedirectPath,
-    getTerminationStatusMessage,
-    isTerminationComplete,
-} from "@/lib/termination-flow";
+import { getTerminationRedirectPath } from "@/lib/termination-flow";
 
 interface StreamingPageState {
     serverUrl: string;
@@ -50,8 +46,6 @@ function StreamingPageContent() {
     const [state, setState] = useState<StreamingPageState | null>(null);
     const [showTopBar, setShowTopBar] = useState(false);
     const [isTerminating, setIsTerminating] = useState(false);
-    const [terminationStatusText, setTerminationStatusText] = useState("");
-    const [terminationError, setTerminationError] = useState<string | null>(null);
     const [sessionInfo, setSessionInfo] = useState<{ sessionId: string; authToken: string } | null>(
         null,
     );
@@ -70,7 +64,7 @@ function StreamingPageContent() {
         const gameName = searchParams.get("gameName") || undefined;
 
         if (!serverUrl || !username || !password) {
-            setTimeout(() => router.push("/browse"), 2000);
+            setTimeout(() => router.push("/"), 2000);
             return;
         }
 
@@ -116,49 +110,6 @@ function StreamingPageContent() {
 
         router.replace(getTerminationRedirectPath(state?.gameId));
     }, [router, state?.gameId]);
-
-    const handleTerminationStatusChange = useCallback(
-        (status: DeploymentStatus, response: GetDeploymentStatusResponse) => {
-            setTerminationStatusText(getTerminationStatusMessage(response));
-
-            if (status !== "FAILED") {
-                setTerminationError(null);
-            }
-        },
-        [],
-    );
-
-    const handleTerminationSuccess = useCallback(
-        async (response: GetDeploymentStatusResponse) => {
-            setTerminationStatusText(getTerminationStatusMessage(response));
-
-            if (!isTerminationComplete(response)) {
-                setTerminationError(
-                    "Received an unexpected completion state while ending the session.",
-                );
-                setIsTerminating(false);
-                return;
-            }
-
-            await redirectAfterTermination();
-        },
-        [redirectAfterTermination],
-    );
-
-    const handleTerminationFailure = useCallback((error: Error) => {
-        setTerminationError(error.message || "We couldn't finish ending your session.");
-        setTerminationStatusText("We couldn't finish ending your session.");
-        setIsTerminating(false);
-    }, []);
-
-    const { startPolling: startTerminationPolling, stopPolling: stopTerminationPolling } =
-        useDeploymentStatus({
-            userId: state?.userId ?? "",
-            pollInterval: 3000,
-            onStatusChange: handleTerminationStatusChange,
-            onSuccess: handleTerminationSuccess,
-            onError: handleTerminationFailure,
-        });
 
     const handleFileUpload = useCallback(
         async (files: FileList) => {
@@ -213,68 +164,20 @@ function StreamingPageContent() {
         if (!state || isTerminating) return;
 
         setIsTerminating(true);
-        setTerminationError(null);
-        setTerminationStatusText("Ending your session...");
-        setShowTopBar(false);
-        setSessionInfo(null);
-        setUploadStatuses([]);
 
-        try {
-            await apiClient.terminateInstance({
+        // Fire-and-forget: kick off termination then redirect immediately
+        apiClient
+            .terminateInstance({
                 userId: state.userId,
                 instanceId: state.instanceId || undefined,
-            });
-            startTerminationPolling();
-            return;
-        } catch (error) {
-            if (error instanceof ApiError && error.statusCode === 409) {
-                setTerminationStatusText("Termination is already in progress...");
-                startTerminationPolling();
-                return;
-            }
+            })
+            .catch(() => {});
 
-            stopTerminationPolling();
-            setTerminationError(
-                error instanceof Error ? error.message : "We couldn't start ending your session.",
-            );
-            setTerminationStatusText("We couldn't start ending your session.");
-            setIsTerminating(false);
-        }
+        await redirectAfterTermination();
     };
 
     if (!state) {
         return <StreamingPageFallback />;
-    }
-
-    if (isTerminating) {
-        return (
-            <div
-                ref={containerRef}
-                className="w-screen h-screen bg-black text-white flex items-center justify-center px-6"
-            >
-                <div className="max-w-xl w-full rounded-2xl border border-white/10 bg-white/5 px-8 py-10 text-center">
-                    <div className="mx-auto mb-6 h-12 w-12 animate-spin rounded-full border-4 border-[#e1ff9a] border-t-transparent" />
-                    <p className="font-space-grotesk text-sm uppercase tracking-[0.3em] text-white/60">
-                        Ending Session
-                    </p>
-                    <h1 className="mt-3 font-space-grotesk text-3xl font-bold text-white">
-                        {state.gameName ? `Closing ${state.gameName}` : "Closing your stream"}
-                    </h1>
-                    <p className="mt-4 font-space-grotesk text-base text-white/80">
-                        {terminationStatusText || "Ending your session..."}
-                    </p>
-                    <p className="mt-3 text-sm text-white/50">
-                        We&apos;ll take you back automatically as soon as the backend confirms the
-                        instance is no longer active.
-                    </p>
-                    {terminationError && (
-                        <div className="mt-6 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">
-                            {terminationError}
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
     }
 
     return (
@@ -344,12 +247,6 @@ function StreamingPageContent() {
                     </div>
                 </div>
             </div>
-
-            {terminationError && (
-                <div className="absolute bottom-6 right-6 z-[60] rounded-xl border border-red-500/40 bg-red-500/15 px-4 py-3 text-sm text-red-100 shadow-lg">
-                    {terminationError}
-                </div>
-            )}
 
             {/* DCV viewer fills entire screen */}
             <div className="absolute inset-0">

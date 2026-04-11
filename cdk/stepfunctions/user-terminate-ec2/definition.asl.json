@@ -28,47 +28,10 @@
                 {
                     "Variable": "$.checkRunningStreamsResult.Payload.valid",
                     "BooleanEquals": true,
-                    "Next": "CheckRunningInstances"
-                }
-            ],
-            "Default": "InvalidStreamError"
-        },
-        "CheckRunningInstances": {
-            "Type": "Task",
-            "Resource": "arn:aws:states:::lambda:invoke",
-            "Parameters": {
-                "FunctionName": "${CheckRunningInstancesArn}",
-                "Payload": {
-                    "instanceId.$": "$.checkRunningStreamsResult.Payload.instanceId"
-                }
-            },
-            "ResultPath": "$.checkRunningInstancesResult",
-            "Next": "CheckValidInstance",
-            "Catch": [
-                {
-                    "ErrorEquals": ["MissingTableNameEnv"],
-                    "Next": "HandleMissingTableName"
-                },
-                {
-                    "ErrorEquals": ["Missing required fields: instanceId, status"],
-                    "Next": "HandleMissingFields"
-                },
-                {
-                    "ErrorEquals": ["States.TaskFailed"],
-                    "Next": "HandleDatabaseError"
-                }
-            ]
-        },
-        "CheckValidInstance": {
-            "Type": "Choice",
-            "Choices": [
-                {
-                    "Variable": "$.checkRunningInstancesResult.Payload.valid",
-                    "BooleanEquals": true,
                     "Next": "StopDCV"
                 }
             ],
-            "Default": "InvalidInstanceError"
+            "Default": "InvalidStreamError"
         },
         "StopDCV": {
             "Type": "Task",
@@ -164,11 +127,6 @@
             "Cause": "No valid running stream found for user",
             "Error": "InvalidStreamError"
         },
-        "InvalidInstanceError": {
-            "Type": "Fail",
-            "Cause": "No valid running instance found for user",
-            "Error": "InvalidInstanceError"
-        },
         "HandleMissingTableName": {
             "Type": "Fail",
             "Cause": "RUNNING_STREAMS_TABLE_NAME environment variable was not set",
@@ -188,11 +146,6 @@
             "Type": "Fail",
             "Cause": "Failed to stop Dcv session",
             "Error": "DcvStopFailedError"
-        },
-        "HandleMissingFields": {
-            "Type": "Fail",
-            "Cause": "Missing fields in input",
-            "Error": "MissingFieldsError"
         },
         "Success": {
             "Type": "Succeed"

@@ -15,7 +15,7 @@ export default async function LoginPage({
     const { callbackUrl, registered, email } = await searchParams;
 
     if (session) {
-        redirect(callbackUrl || "/browse");
+        redirect(callbackUrl || "/");
     }
 
     return (

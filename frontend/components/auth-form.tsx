@@ -95,7 +95,7 @@ export function AuthForm({ mode, callbackUrl, initialEmail = "", notice = "" }: 
                     return;
                 }
 
-                router.replace(callbackUrl || "/browse");
+                router.replace(callbackUrl || "/");
                 router.refresh();
                 return;
             }
@@ -119,7 +119,7 @@ export function AuthForm({ mode, callbackUrl, initialEmail = "", notice = "" }: 
                 return;
             }
 
-            router.replace(callbackUrl || "/browse");
+            router.replace(callbackUrl || "/");
             router.refresh();
         } catch (submitError) {
             setError(

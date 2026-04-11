@@ -1,9 +1,12 @@
+import { Suspense } from "react";
 import { Navbar } from "@/components/navbar";
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
     return (
         <>
-            <Navbar />
+            <Suspense>
+                <Navbar />
+            </Suspense>
             <main className="relative z-0 min-h-screen pt-32 px-[58px]">
                 <div
                     className="pointer-events-none fixed inset-0 -z-10"

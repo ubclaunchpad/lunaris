@@ -5,7 +5,6 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { ChevronLeft, Gamepad2, Keyboard } from "lucide-react";
-import gamesData from "@/lib/data.json";
 import {
     apiClient,
     type Game,
@@ -27,33 +26,20 @@ interface StreamingCredentials {
     instanceId?: string;
 }
 
-function toGame(g: (typeof gamesData.games)[number]): Game {
-    return {
-        gameId: g.id,
-        name: g.name,
-        description: g.description || "",
-        imageUrl: g.image,
-        tags: g.tags,
-        modes: g.modes,
-        ebsSnapshotId: "",
-        minInstanceType: "",
-        playable: g.playable,
-    };
-}
-
 export default function GamePage({ params }: GamePageProps) {
     const router = useRouter();
     const { id } = use(params);
     const { data: session } = useSession();
 
-    const fallback = gamesData.games.find((g) => g.id === id);
-    const [game, setGame] = useState<Game | null>(fallback ? toGame(fallback) : null);
+    const [game, setGame] = useState<Game | null>(null);
+    const [gameLoading, setGameLoading] = useState(true);
 
     useEffect(() => {
         apiClient
             .getGame(id)
             .then((res) => setGame(res.data))
-            .catch(() => {}); // keep fallback on error
+            .catch(() => {})
+            .finally(() => setGameLoading(false));
     }, [id]);
 
     const userId = session?.user?.id ?? "test123";
@@ -260,6 +246,14 @@ export default function GamePage({ params }: GamePageProps) {
 
         router.push(`/streaming?${params.toString()}`);
     };
+
+    if (gameLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#e1ff9a] border-t-transparent" />
+            </div>
+        );
+    }
 
     if (!game) {
         return (

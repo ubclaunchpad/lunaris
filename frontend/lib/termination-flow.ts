@@ -25,5 +25,5 @@ export function getTerminationStatusMessage(response: GetDeploymentStatusRespons
 }
 
 export function getTerminationRedirectPath(gameId?: string): string {
-    return gameId ? `/games/${gameId}` : "/browse";
+    return gameId ? `/games/${gameId}` : "/";
 }
