@@ -23,9 +23,10 @@ const Carousel = ({ children, className = "" }: CarouselProps) => (
 
 interface GameCardsRowProps {
     games?: Game[];
+    className?: string;
 }
 
-export function GameCardsRow({ games: gamesProp }: GameCardsRowProps) {
+export function GameCardsRow({ games: gamesProp, className }: GameCardsRowProps) {
     const [fetched, setFetched] = useState<Game[]>([]);
 
     useEffect(() => {
@@ -39,7 +40,7 @@ export function GameCardsRow({ games: gamesProp }: GameCardsRowProps) {
     const gamesToRender = gamesProp ?? fetched;
 
     return (
-        <Carousel>
+        <Carousel className={className}>
             {gamesToRender.map((game) => (
                 <GameCard
                     key={game.gameId}

@@ -17,7 +17,9 @@
       "Bash(node -e \"const env = require\\('./node_modules/jest-environment-node/build/index.js'\\); console.log\\('loaded ok'\\)\")",
       "Bash(NODE_OPTIONS='--localstorage-file=/tmp/jest-localstorage.json' npx jest --testPathPattern=\"verify-dcv-endpoint\" --no-coverage)",
       "Bash(gh pr create --title 'fix: tags crash guard + plants-vs-zombies game card support' --base main --head feature/plants-vs-zombies --body ':*)",
-      "Bash(node scripts/copy-stepfunctions.js)"
+      "Bash(node scripts/copy-stepfunctions.js)",
+      "Bash(aws service-quotas:*)",
+      "Bash(wait)"
     ]
   }
 }
