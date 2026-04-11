@@ -285,6 +285,10 @@ class ApiClient {
         });
     }
 
+    async getBalance(userId: string): Promise<{ coins: number }> {
+        return this.request<{ coins: number }>(`/balance?userId=${encodeURIComponent(userId)}`);
+    }
+
     async getGames(): Promise<GetGamesResponse> {
         return this.request<GetGamesResponse>("/games");
     }

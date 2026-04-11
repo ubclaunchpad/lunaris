@@ -49,13 +49,17 @@ function HomeContent() {
                 </h1>
             </header>
 
-            <section aria-label="featured games">
+            <section aria-label="featured games" className="space-y-0">
                 {loading ? (
                     <div className="flex items-center justify-center py-24">
                         <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#e1ff9a] border-t-transparent" />
                     </div>
                 ) : (
-                    <GameCardsRow games={filtered} />
+                    Array.from({ length: Math.ceil(filtered.length / 3) }, (_, i) =>
+                        filtered.slice(i * 3, i * 3 + 3),
+                    ).map((chunk, i) => (
+                        <GameCardsRow key={i} games={chunk} className={i > 0 ? "-mt-48" : ""} />
+                    ))
                 )}
             </section>
         </div>

@@ -4,11 +4,24 @@ import { useEffect, useRef, useState } from "react";
 import { signOut } from "next-auth/react";
 import { LogOut } from "lucide-react";
 import { useUser } from "@/context/usercontext";
+import { apiClient } from "@/lib/api-client";
+import { useSession } from "next-auth/react";
 
 export default function ProfileMenu() {
     const { email } = useUser();
+    const { data: session } = useSession();
     const [open, setOpen] = useState(false);
+    const [coins, setCoins] = useState<number | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!open || !session?.user?.id) return;
+        apiClient.setToken(session.idToken ?? null);
+        apiClient
+            .getBalance(session.user.id)
+            .then((res) => setCoins(res.coins))
+            .catch(() => setCoins(0));
+    }, [open, session?.user?.id, session?.idToken]);
 
     useEffect(() => {
         function handleClickOutside(e: MouseEvent) {
@@ -44,6 +57,9 @@ export default function ProfileMenu() {
                     <div className="px-4 py-3">
                         <p className="text-sm font-medium text-[#fbfff5] truncate">
                             {email || "—"}
+                        </p>
+                        <p className="text-xs text-[#fbfff5]/60 mt-0.5">
+                            {coins === null ? "Loading..." : `${coins} credits`}
                         </p>
                     </div>
 
