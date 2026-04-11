@@ -127,7 +127,7 @@
             "Cause": "No valid running stream found for user",
             "Error": "InvalidStreamError"
         },
-"HandleMissingTableName": {
+        "HandleMissingTableName": {
             "Type": "Fail",
             "Cause": "RUNNING_STREAMS_TABLE_NAME environment variable was not set",
             "Error": "MissingTableNameEnv"
@@ -147,7 +147,7 @@
             "Cause": "Failed to stop Dcv session",
             "Error": "DcvStopFailedError"
         },
-"Success": {
+        "Success": {
             "Type": "Succeed"
         }
     }

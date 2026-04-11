@@ -32,11 +32,14 @@ export function Navbar() {
     const isActive = (path: string) => pathname === path;
 
     useEffect(() => {
-        apiClient.getGames().then((res) => {
-            const games = res.data;
-            setAvailableTags(Array.from(new Set(games.flatMap((g) => g.tags ?? []))).sort());
-            setAvailableModes(Array.from(new Set(games.flatMap((g) => g.modes ?? []))).sort());
-        }).catch(() => {});
+        apiClient
+            .getGames()
+            .then((res) => {
+                const games = res.data;
+                setAvailableTags(Array.from(new Set(games.flatMap((g) => g.tags ?? []))).sort());
+                setAvailableModes(Array.from(new Set(games.flatMap((g) => g.modes ?? []))).sort());
+            })
+            .catch(() => {});
     }, []);
 
     // Sync query input if URL changes externally
@@ -54,7 +57,9 @@ export function Navbar() {
     }, []);
 
     // Close filters on navigation
-    useEffect(() => { setFiltersOpen(false); }, [pathname]);
+    useEffect(() => {
+        setFiltersOpen(false);
+    }, [pathname]);
 
     function buildUrl(overrides: Record<string, string | null>) {
         const params = new URLSearchParams(searchParams.toString());
@@ -108,7 +113,9 @@ export function Navbar() {
                             <Link
                                 href="/"
                                 className={`text-lg font-normal font-space-grotesk transition-colors ${
-                                    isActive("/") ? "text-[#fbfff5]" : "text-[#fbfff5] hover:text-[#e1ff9a]"
+                                    isActive("/")
+                                        ? "text-[#fbfff5]"
+                                        : "text-[#fbfff5] hover:text-[#e1ff9a]"
                                 }`}
                             >
                                 Home
@@ -116,7 +123,9 @@ export function Navbar() {
                             <Link
                                 href="/topup"
                                 className={`text-lg font-normal font-space-grotesk transition-colors ${
-                                    isActive("/topup") ? "text-[#e1ff9a]" : "text-[#fbfff5] hover:text-[#e1ff9a]"
+                                    isActive("/topup")
+                                        ? "text-[#e1ff9a]"
+                                        : "text-[#fbfff5] hover:text-[#e1ff9a]"
                                 }`}
                             >
                                 Top-Up
@@ -173,7 +182,11 @@ export function Navbar() {
                             {filtersOpen && (
                                 <div className="absolute right-0 top-[calc(100%+12px)] z-[60]">
                                     <FilterPanel
-                                        filters={{ tags: activeTags, modes: activeModes, playableOnly }}
+                                        filters={{
+                                            tags: activeTags,
+                                            modes: activeModes,
+                                            playableOnly,
+                                        }}
                                         availableTags={availableTags}
                                         availableModes={availableModes}
                                         onToggleTag={handleToggleTag}

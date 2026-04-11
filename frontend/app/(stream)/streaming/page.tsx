@@ -111,7 +111,6 @@ function StreamingPageContent() {
         router.replace(getTerminationRedirectPath(state?.gameId));
     }, [router, state?.gameId]);
 
-
     const handleFileUpload = useCallback(
         async (files: FileList) => {
             if (!state || !sessionInfo) return;
@@ -167,10 +166,12 @@ function StreamingPageContent() {
         setIsTerminating(true);
 
         // Fire-and-forget: kick off termination then redirect immediately
-        apiClient.terminateInstance({
-            userId: state.userId,
-            instanceId: state.instanceId || undefined,
-        }).catch(() => {});
+        apiClient
+            .terminateInstance({
+                userId: state.userId,
+                instanceId: state.instanceId || undefined,
+            })
+            .catch(() => {});
 
         await redirectAfterTermination();
     };
